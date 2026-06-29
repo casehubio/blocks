@@ -1,5 +1,7 @@
 package io.casehub.blocks.conversation;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -10,9 +12,9 @@ public record ConversationState(
         Map<String, SubTaskFinding> subTaskFindings
 ) {
     public ConversationState {
-        points = Map.copyOf(points);
+        points = Collections.unmodifiableMap(new LinkedHashMap<>(points));
         humanFlags = List.copyOf(humanFlags);
         memos = List.copyOf(memos);
-        subTaskFindings = Map.copyOf(subTaskFindings);
+        subTaskFindings = Collections.unmodifiableMap(new LinkedHashMap<>(subTaskFindings));
     }
 }
