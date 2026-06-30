@@ -47,6 +47,13 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Provided — LLM abstraction (consumer brings the AgentProvider implementation) -->
+    <dependency>
+      <groupId>io.casehub</groupId>
+      <artifactId>casehub-platform-agent-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Test — foundation runtimes -->
     <dependency>
       <groupId>io.casehub</groupId>
