@@ -46,4 +46,24 @@ class FailurePolicyTest {
                 AgentFailureAction.ESCALATE,
                 AgentFailureAction.SKIP);
     }
+
+    @Test
+    void defaultsUsesFixedBackoff() {
+        var policy = FailurePolicy.defaults();
+        assertThat(policy.agentRetry().backoffStrategy())
+                .isEqualTo(BackoffStrategy.FIXED);
+    }
+
+    @Test
+    void agentRetryPolicyCarriesAllFourFields() {
+        var retry = new AgentRetryPolicy(
+                5, Duration.ofMillis(200),
+                BackoffStrategy.EXPONENTIAL,
+                AgentFailureAction.ESCALATE);
+
+        assertThat(retry.maxRetries()).isEqualTo(5);
+        assertThat(retry.backoff()).isEqualTo(Duration.ofMillis(200));
+        assertThat(retry.backoffStrategy()).isEqualTo(BackoffStrategy.EXPONENTIAL);
+        assertThat(retry.onExhausted()).isEqualTo(AgentFailureAction.ESCALATE);
+    }
 }

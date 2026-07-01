@@ -19,4 +19,6 @@ public interface ExecutionEventListener {
     default void onTermination(TerminationDecision decision) {}
     default void onStateTransition(ExecutionState from, ExecutionState to) {}
     default void onFailure(AgentRef agent, Throwable cause) {}
+    default void onExecutionStart(ExecutionModel<?> model) {}
+    default void onExecutionComplete(ExecutionResult result) {}
 }

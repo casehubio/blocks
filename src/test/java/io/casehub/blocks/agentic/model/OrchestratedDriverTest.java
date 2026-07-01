@@ -250,6 +250,7 @@ class OrchestratedDriverTest {
                     FailurePolicy.AggregationFailureAction.FAIL,
                     new FailurePolicy.AgentRetryPolicy(3,
                             java.time.Duration.ofSeconds(1),
+                            FailurePolicy.BackoffStrategy.FIXED,
                             FailurePolicy.AgentFailureAction.FAIL));
 
             var model = new ExecutionModel<String>(

@@ -73,6 +73,7 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
                 failurePolicy.onDeadlock(),
                 new FailurePolicy.AgentRetryPolicy(max,
                         failurePolicy.agentRetry().backoff(),
+                        failurePolicy.agentRetry().backoffStrategy(),
                         failurePolicy.agentRetry().onExhausted()));
         return (B) this;
     }
