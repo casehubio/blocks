@@ -8,8 +8,19 @@ import io.casehub.platform.agent.AgentSessionConfig;
 import io.smallrye.mutiny.Uni;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * LLM-driven agent selection — asks a language model to pick the best agent
+ * from a list of candidates for a given task.
+ *
+ * <p>The type parameter {@code T} flows typed through the entire execution
+ * pipeline. The {@code stateRenderer} converts {@code T} to {@code String}
+ * only at the LLM API boundary, preserving type safety everywhere else.
+ *
+ * @param <T> the execution state type
+ */
 public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
 
     private static final System.Logger LOG = System.getLogger(LlmSelectedRouting.class.getName());
@@ -26,9 +37,26 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
             Choose the agent whose skills most closely match the task requirements.""";
 
     private final AgentProvider agentProvider;
+    private final Function<T, String> stateRenderer;
 
-    public LlmSelectedRouting(AgentProvider agentProvider) {
+    /**
+     * Creates an LLM-selected routing strategy.
+     *
+     * @param agentProvider the LLM provider for agent selection
+     * @param stateRenderer converts typed state {@code T} to a String representation
+     *                      for the LLM prompt — the only point where T is converted
+     *                      to String
+     */
+    public LlmSelectedRouting(AgentProvider agentProvider, Function<T, String> stateRenderer) {
         this.agentProvider = agentProvider;
+        this.stateRenderer = stateRenderer;
+    }
+
+    /**
+     * Convenience constructor — defaults stateRenderer to {@code Object::toString}.
+     */
+    public LlmSelectedRouting(AgentProvider agentProvider) {
+        this(agentProvider, Object::toString);
     }
 
     @Override
@@ -55,6 +83,11 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
     private String buildUserPrompt(RoutingContext<T> context) {
         var sb = new StringBuilder();
         sb.append("Task: ").append(context.task()).append("\n\n");
+
+        if (context.state() != null) {
+            sb.append("Current state:\n").append(stateRenderer.apply(context.state())).append("\n\n");
+        }
+
         sb.append("Available agents:\n");
         for (int i = 0; i < context.candidates().size(); i++) {
             sb.append(buildAgentCard(context.candidates().get(i), i)).append("\n");
@@ -66,6 +99,13 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
         var sb = new StringBuilder();
         var name = candidateName(candidate, index);
         sb.append("- Agent: \"").append(name).append("\"");
+
+        if (candidate.ref() instanceof AgentRef.WorkerAgent w) {
+            var desc = w.worker().description();
+            if (desc != null && !desc.isBlank()) {
+                sb.append("\n  Description: ").append(desc);
+            }
+        }
 
         var descriptor = candidate.descriptor();
         if (descriptor != null) {
@@ -109,10 +149,11 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
         if ("done".equalsIgnoreCase(agentName)) {
             return new RoutingDecision.Unresolvable("LLM indicated task is complete");
         }
+        var reason = extractReason(text);
         for (int i = 0; i < candidates.size(); i++) {
             var name = candidateName(candidates.get(i), i);
             if (name.equals(agentName)) {
-                return new RoutingDecision.Selected(List.of(candidates.get(i).ref()));
+                return new RoutingDecision.Selected(List.of(candidates.get(i).ref()), reason);
             }
         }
         return new RoutingDecision.Unresolvable("LLM selected unknown agent: " + agentName);
@@ -124,6 +165,20 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
         int agentIdx = trimmed.indexOf("\"agent\"");
         if (agentIdx < 0) return null;
         int colonIdx = trimmed.indexOf(':', agentIdx);
+        if (colonIdx < 0) return null;
+        int firstQuote = trimmed.indexOf('"', colonIdx + 1);
+        if (firstQuote < 0) return null;
+        int secondQuote = trimmed.indexOf('"', firstQuote + 1);
+        if (secondQuote < 0) return null;
+        return trimmed.substring(firstQuote + 1, secondQuote);
+    }
+
+    static String extractReason(String text) {
+        if (text == null) return null;
+        var trimmed = text.trim();
+        int reasonIdx = trimmed.indexOf("\"reason\"");
+        if (reasonIdx < 0) return null;
+        int colonIdx = trimmed.indexOf(':', reasonIdx);
         if (colonIdx < 0) return null;
         int firstQuote = trimmed.indexOf('"', colonIdx + 1);
         if (firstQuote < 0) return null;

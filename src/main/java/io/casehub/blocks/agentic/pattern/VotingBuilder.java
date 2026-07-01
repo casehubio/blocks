@@ -13,6 +13,7 @@ import io.smallrye.mutiny.Uni;
 public class VotingBuilder<T> extends AbstractPatternBuilder<T, VotingBuilder<T>> {
 
     public VotingBuilder() {
+        this.task = "vote";
         this.routing = ctx -> Uni.createFrom().item(
                 new RoutingDecision.Selected(
                         ctx.candidates().stream().map(RoutingCandidate::ref).toList()));

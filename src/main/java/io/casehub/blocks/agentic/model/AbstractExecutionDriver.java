@@ -91,7 +91,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
                                                 List<AgentResult> allResults) {
         // Phase 1: refresh candidates and route
         var candidates = model.candidateSupplier().get();
-        var routingCtx = new RoutingContext<>("task", candidates, context);
+        var routingCtx = new RoutingContext<>(model.task(), candidates, context);
         var decision = model.routing().route(routingCtx).await().indefinitely();
 
         notifyRoutingDecision(model, decision, candidates);

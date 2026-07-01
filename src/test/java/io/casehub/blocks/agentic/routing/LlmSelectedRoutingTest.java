@@ -1,6 +1,7 @@
 package io.casehub.blocks.agentic.routing;
 
 import io.casehub.blocks.agentic.AgentRef;
+import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.eidos.api.AgentCapability;
 import io.casehub.eidos.api.AgentDescriptor;
@@ -17,7 +18,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -204,5 +208,85 @@ class LlmSelectedRoutingTest {
                     .contains("reviewer")
                     .contains("Reviews code for bugs and style issues");
         }
+
+        @Test
+        void includesStateInPromptViaRenderer() {
+            var promptCapture = new AtomicReference<String>();
+            var provider = createCapturingProvider(promptCapture);
+            var routing = new LlmSelectedRouting<Map<String, Object>>(provider,
+                    state -> "completed: " + state.get("done"));
+
+            var candidate = new RoutingCandidate(
+                    AgentRef.external(x -> completedFuture(AgentResult.success(null, "ok"))),
+                    null);
+            var context = new RoutingContext<>("review code",
+                    List.of(candidate), Map.<String, Object>of("done", "static analysis"));
+
+            routing.route(context).await().indefinitely();
+
+            assertThat(promptCapture.get()).contains("Current state:");
+            assertThat(promptCapture.get()).contains("completed: static analysis");
+        }
+
+        @Test
+        void includesWorkerDescriptionInAgentCard() {
+            var promptCapture = new AtomicReference<String>();
+            var provider = createCapturingProvider(promptCapture);
+            var routing = new LlmSelectedRouting<String>(provider);
+
+            var worker = Worker.builder()
+                    .name("code-reviewer")
+                    .capabilityName("review")
+                    .noFunction()
+                    .description("Reviews code for bugs, style, and security issues")
+                    .build();
+            var candidate = new RoutingCandidate(AgentRef.worker(worker), null);
+            var context = new RoutingContext<>("review PR", List.of(candidate), "state");
+
+            routing.route(context).await().indefinitely();
+
+            assertThat(promptCapture.get()).contains("Reviews code for bugs, style, and security issues");
+        }
+    }
+
+    @Nested
+    class ReasonExtraction {
+        @Test
+        void extractsReasonFromLlmResponse() {
+            var provider = createProviderReturning(
+                    "{\"agent\": \"reviewer\", \"reason\": \"best domain match for Java code\"}");
+            var routing = new LlmSelectedRouting<String>(provider);
+
+            var candidate = new RoutingCandidate(
+                    AgentRef.external(x -> completedFuture(AgentResult.success(null, "ok"))),
+                    AgentDescriptor.builder().agentId("a1").name("reviewer").slot("review").tenancyId("t1").build());
+            var context = new RoutingContext<>("task", List.of(candidate), "state");
+
+            var decision = routing.route(context).await().indefinitely();
+
+            assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
+            var selected = (RoutingDecision.Selected) decision;
+            assertThat(selected.reason()).isEqualTo("best domain match for Java code");
+        }
+    }
+
+    // --- Helpers ---
+
+    private AgentProvider createCapturingProvider(AtomicReference<String> promptCapture) {
+        var mock = org.mockito.Mockito.mock(AgentProvider.class);
+        when(mock.invoke(any(AgentSessionConfig.class))).thenAnswer(invocation -> {
+            var config = invocation.getArgument(0, AgentSessionConfig.class);
+            promptCapture.set(config.userPrompt());
+            return Multi.createFrom().item(
+                    new AgentEvent.TextDelta("{\"agent\": \"dummy\", \"reason\": \"test\"}"));
+        });
+        return mock;
+    }
+
+    private AgentProvider createProviderReturning(String text) {
+        var mock = org.mockito.Mockito.mock(AgentProvider.class);
+        when(mock.invoke(any(AgentSessionConfig.class)))
+                .thenReturn(Multi.createFrom().item(new AgentEvent.TextDelta(text)));
+        return mock;
     }
 }

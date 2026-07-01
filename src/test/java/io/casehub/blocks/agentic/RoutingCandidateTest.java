@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class RoutingCandidateTest {
@@ -34,6 +35,21 @@ class RoutingCandidateTest {
     void descriptorIsNullable() {
         var ref = createTestAgent();
         var candidate = new RoutingCandidate(ref, null);
+        assertThat(candidate.descriptor()).isNull();
+    }
+
+    @Test
+    void rejectsNullRef() {
+        assertThatThrownBy(() -> new RoutingCandidate(null, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("ref");
+    }
+
+    @Test
+    void acceptsNullDescriptor() {
+        var candidate = new RoutingCandidate(
+                AgentRef.external(x -> java.util.concurrent.CompletableFuture.completedFuture(AgentResult.success(null, "ok"))),
+                null);
         assertThat(candidate.descriptor()).isNull();
     }
 }

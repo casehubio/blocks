@@ -14,6 +14,7 @@ public class SequenceBuilder<T> extends AbstractPatternBuilder<T, SequenceBuilde
     private int agentCount = 0;
 
     public SequenceBuilder() {
+        this.task = "sequence";
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();
         this.aggregation = new PassThrough<>();

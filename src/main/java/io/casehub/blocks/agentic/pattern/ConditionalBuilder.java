@@ -14,6 +14,7 @@ import java.util.function.Predicate;
 public class ConditionalBuilder<T> extends AbstractPatternBuilder<T, ConditionalBuilder<T>> {
 
     public ConditionalBuilder() {
+        this.task = "conditional";
         this.routing = new FirstMatchRouting<>(c -> true);
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();

@@ -26,6 +26,25 @@ class RoutingDecisionTest {
             var decision = new RoutingDecision.Selected(List.of(agent));
             assertThat(decision.agents()).containsExactly(agent);
         }
+
+        @Test
+        void selectedCarriesReason() {
+            var agent = AgentRef.external(x ->
+                    java.util.concurrent.CompletableFuture.completedFuture(
+                            io.casehub.blocks.agentic.AgentResult.success(null, "ok")));
+            var selected = new RoutingDecision.Selected(List.of(agent), "best domain match");
+            assertThat(selected.reason()).isEqualTo("best domain match");
+            assertThat(selected.agents()).hasSize(1);
+        }
+
+        @Test
+        void selectedConvenienceConstructorHasNullReason() {
+            var agent = AgentRef.external(x ->
+                    java.util.concurrent.CompletableFuture.completedFuture(
+                            io.casehub.blocks.agentic.AgentResult.success(null, "ok")));
+            var selected = new RoutingDecision.Selected(List.of(agent));
+            assertThat(selected.reason()).isNull();
+        }
     }
 
     @Nested

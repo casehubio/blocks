@@ -4,20 +4,29 @@ import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.routing.FirstMatchRouting;
+import io.casehub.blocks.agentic.routing.LlmSelectedRouting;
 import io.casehub.blocks.agentic.termination.MaxIterationsTermination;
+import io.casehub.platform.agent.AgentProvider;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.concurrent.CompletableFuture;
 
 import static io.casehub.blocks.agentic.pattern.Patterns.supervisor;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(MockitoExtension.class)
 class SupervisorBuilderTest {
+
+    @Mock AgentProvider mockProvider;
+
+    private final AgentRef agent = AgentRef.external((Object input) ->
+            CompletableFuture.completedFuture(AgentResult.success(null, "done")));
 
     @Test
     void buildsValidModelWithDefaults() {
-        var agent = AgentRef.external((Object input) ->
-                CompletableFuture.completedFuture(AgentResult.success(null, "done")));
         var model = supervisor()
                 .agents(agent)
                 .terminate(new MaxIterationsTermination<>(1))
@@ -32,8 +41,6 @@ class SupervisorBuilderTest {
 
     @Test
     void executesEndToEnd() {
-        var agent = AgentRef.external((Object input) ->
-                CompletableFuture.completedFuture(AgentResult.success(null, "output")));
         var result = supervisor()
                 .agents(agent)
                 .terminate(new MaxIterationsTermination<>(2))
@@ -44,8 +51,6 @@ class SupervisorBuilderTest {
 
     @Test
     void overridesRouting() {
-        var agent = AgentRef.external((Object input) ->
-                CompletableFuture.completedFuture(AgentResult.success(null, "output")));
         var model = supervisor()
                 .agents(agent)
                 .route(new FirstMatchRouting<>(c -> true))
@@ -53,5 +58,27 @@ class SupervisorBuilderTest {
                 .build();
 
         assertThat(model.routing()).isInstanceOf(FirstMatchRouting.class);
+    }
+
+    @Test
+    void stateRendererThenRouteUsesCustomRoute() {
+        var customRouting = new FirstMatchRouting<String>(c -> true);
+        var model = Patterns.<String>supervisor(mockProvider)
+                .stateRenderer(Object::toString)
+                .route(customRouting)
+                .agents(agent)
+                .build();
+        assertThat(model.routing()).isSameAs(customRouting);
+    }
+
+    @Test
+    void routeThenStateRendererUsesLlmRouting() {
+        var customRouting = new FirstMatchRouting<String>(c -> true);
+        var model = Patterns.<String>supervisor(mockProvider)
+                .route(customRouting)
+                .stateRenderer(Object::toString)
+                .agents(agent)
+                .build();
+        assertThat(model.routing()).isInstanceOf(LlmSelectedRouting.class);
     }
 }

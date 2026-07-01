@@ -9,6 +9,7 @@ import io.casehub.blocks.agentic.routing.RoutingStrategy;
 import io.casehub.blocks.agentic.termination.TerminationCondition;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public record ExecutionModel<T>(
@@ -19,9 +20,18 @@ public record ExecutionModel<T>(
         TerminationCondition<T> termination,
         Supplier<List<RoutingCandidate>> candidateSupplier,
         FailurePolicy failurePolicy,
-        List<ExecutionEventListener> listeners
+        List<ExecutionEventListener> listeners,
+        String task
 ) {
     public ExecutionModel {
+        Objects.requireNonNull(routing, "routing");
+        Objects.requireNonNull(decomposition, "decomposition");
+        Objects.requireNonNull(activation, "activation");
+        Objects.requireNonNull(aggregation, "aggregation");
+        Objects.requireNonNull(termination, "termination");
+        Objects.requireNonNull(candidateSupplier, "candidateSupplier");
+        Objects.requireNonNull(failurePolicy, "failurePolicy");
         listeners = List.copyOf(listeners);
+        Objects.requireNonNull(task, "task");
     }
 }

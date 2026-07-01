@@ -45,7 +45,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(3),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             var result = driver.execute(model, "initial").await().indefinitely();
@@ -69,7 +69,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             var result = driver.execute(model, "ctx").await().indefinitely();
@@ -94,7 +94,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             driver.execute(model, "ctx").await().indefinitely();
@@ -134,7 +134,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of(listener));
+                    List.of(listener), "test");
 
             var driver = new OrchestratedDriver<String>();
             driver.execute(model, "state").await().indefinitely();
@@ -174,7 +174,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of(listener));
+                    List.of(listener), "test");
 
             var driver = new OrchestratedDriver<String>();
             driver.execute(model, "state").await().indefinitely();
@@ -205,7 +205,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of(listener));
+                    List.of(listener), "test");
 
             var driver = new OrchestratedDriver<String>();
             driver.execute(model, "ctx").await().indefinitely();
@@ -233,7 +233,7 @@ class OrchestratedDriverTest {
                                     CompletableFuture.completedFuture(
                                             AgentResult.success(null, "x"))), null)),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             var result = driver.execute(model, "state").await().indefinitely();
@@ -264,7 +264,7 @@ class OrchestratedDriverTest {
                                     CompletableFuture.completedFuture(
                                             AgentResult.success(null, "x"))), null)),
                     policy,
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             var result = driver.execute(model, "state").await().indefinitely();
@@ -285,7 +285,7 @@ class OrchestratedDriverTest {
                                     CompletableFuture.completedFuture(
                                             AgentResult.success(null, "x"))), null)),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             driver.execute(model, "state").await().indefinitely();
@@ -320,7 +320,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of(listener));
+                    List.of(listener), "test");
 
             var driver = new OrchestratedDriver<String>();
             var result = driver.execute(model, "ctx").await().indefinitely();
@@ -358,7 +358,7 @@ class OrchestratedDriverTest {
                     new MaxIterationsTermination<>(100),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var result = driver.execute(model, "ctx").await().indefinitely();
 

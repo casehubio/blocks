@@ -33,7 +33,7 @@ class ChoreographedDriverTest {
                 new MaxIterationsTermination<>(3),
                 () -> List.of(candidate),
                 FailurePolicy.defaults(),
-                List.of());
+                List.of(), "test");
 
         var driver = new ChoreographedDriver<String>();
         var result = driver.execute(model, "state").await().indefinitely();

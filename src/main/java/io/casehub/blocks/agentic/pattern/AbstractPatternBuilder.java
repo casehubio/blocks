@@ -30,6 +30,7 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
     protected Supplier<List<RoutingCandidate>> candidateSupplier;
     protected FailurePolicy failurePolicy = FailurePolicy.defaults();
     protected final List<ExecutionEventListener> listeners = new ArrayList<>();
+    protected String task = "execution";
 
     public B route(RoutingStrategy<T> routing) {
         this.routing = routing;
@@ -83,6 +84,11 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
         return (B) this;
     }
 
+    public B task(String task) {
+        this.task = task;
+        return (B) this;
+    }
+
     protected B agents(AgentRef... agents) {
         var candidates = Arrays.stream(agents)
                 .map(a -> new RoutingCandidate(a, null))
@@ -100,7 +106,7 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
     public ExecutionModel<T> build() {
         return new ExecutionModel<>(routing, decomposition, activation,
                 aggregation, termination, candidateSupplier,
-                failurePolicy, listeners);
+                failurePolicy, listeners, task);
     }
 
     public Uni<ExecutionResult> execute(T initialContext) {

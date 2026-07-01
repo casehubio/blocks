@@ -17,6 +17,7 @@ public class LoopBuilder<T> extends AbstractPatternBuilder<T, LoopBuilder<T>> {
     private int maxIterations = 10;
 
     public LoopBuilder() {
+        this.task = "loop";
         this.routing = new RoundRobinRouting<>();
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();

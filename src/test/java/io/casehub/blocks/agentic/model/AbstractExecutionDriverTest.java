@@ -45,7 +45,7 @@ class AbstractExecutionDriverTest {
                     new MaxIterationsTermination<>(3),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<String>();
             driver.execute(model, "ctx").await().indefinitely();
@@ -90,7 +90,7 @@ class AbstractExecutionDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of(listener));
+                    List.of(listener), "test");
 
             new OrchestratedDriver<String>().execute(model, "ctx").await().indefinitely();
 
@@ -116,7 +116,7 @@ class AbstractExecutionDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(),
                     FailurePolicy.defaults(),
-                    List.of(listener));
+                    List.of(listener), "test");
 
             try {
                 new OrchestratedDriver<String>().execute(model, "ctx").await().indefinitely();
@@ -149,7 +149,7 @@ class AbstractExecutionDriverTest {
                     new MaxIterationsTermination<>(1),
                     () -> List.of(candidate),
                     FailurePolicy.defaults(),
-                    List.of());
+                    List.of(), "test");
 
             var driver = new OrchestratedDriver<>(trackingInvoker);
             var result = driver.execute(model, "mystate").await().indefinitely();
