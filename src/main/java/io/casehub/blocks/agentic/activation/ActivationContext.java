@@ -1,6 +1,7 @@
 package io.casehub.blocks.agentic.activation;
 
 import io.casehub.blocks.agentic.AgentRef;
+import io.casehub.blocks.agentic.aggregation.AggregationResult;
 
 import java.util.Optional;
 
@@ -9,6 +10,6 @@ public record ActivationContext<T>(
         T state,
         AgentRef agent,
         int activationCount,
-        Optional<Object> lastAggregationResult,
+        Optional<AggregationResult> lastAggregationResult,
         int consecutiveIdleActivations
 ) {}

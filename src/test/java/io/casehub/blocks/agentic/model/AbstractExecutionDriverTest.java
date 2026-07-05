@@ -6,6 +6,7 @@ import io.casehub.blocks.agentic.FailurePolicy;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.activation.ActivationContext;
 import io.casehub.blocks.agentic.activation.ActivationRule;
+import io.casehub.blocks.agentic.aggregation.AggregationResult;
 import io.casehub.blocks.agentic.aggregation.PassThrough;
 import io.casehub.blocks.agentic.decomposition.IdentityDecomposition;
 import io.casehub.blocks.agentic.routing.FirstMatchRouting;
@@ -54,6 +55,72 @@ class AbstractExecutionDriverTest {
             assertThat(capturedContexts.get(0).activationCount()).isEqualTo(0);
             assertThat(capturedContexts.get(1).activationCount()).isEqualTo(1);
             assertThat(capturedContexts.get(2).activationCount()).isEqualTo(2);
+        }
+
+        @Test
+        void lastAggregationResultCarriesForwardFromPreviousIteration() {
+            var capturedContexts = new ArrayList<ActivationContext<String>>();
+            ActivationRule<String> capturingActivation = ctx -> {
+                capturedContexts.add(ctx);
+                return Uni.createFrom().item(true);
+            };
+
+            var agent = AgentRef.external((Object input) ->
+                    CompletableFuture.completedFuture(AgentResult.success(null, "ok")));
+            var candidate = new RoutingCandidate(agent, null);
+
+            var model = new ExecutionModel<String>(
+                    new FirstMatchRouting<>(c -> true),
+                    new IdentityDecomposition<>(),
+                    capturingActivation,
+                    new PassThrough<>(),
+                    new MaxIterationsTermination<>(3),
+                    () -> List.of(candidate),
+                    FailurePolicy.defaults(),
+                    List.of(), "test");
+
+            var driver = new OrchestratedDriver<String>();
+            driver.execute(model, "ctx").await().indefinitely();
+
+            assertThat(capturedContexts).hasSize(3);
+            assertThat(capturedContexts.get(0).lastAggregationResult()).isEmpty();
+            assertThat(capturedContexts.get(1).lastAggregationResult()).isPresent();
+            assertThat(capturedContexts.get(1).lastAggregationResult().get())
+                    .isInstanceOf(AggregationResult.class);
+            assertThat(capturedContexts.get(2).lastAggregationResult()).isPresent();
+        }
+
+        @Test
+        void consecutiveIdleActivationsIncrementsOnSkipAndResetsOnActivation() {
+            var capturedContexts = new ArrayList<ActivationContext<String>>();
+            var callCount = new int[]{0};
+            ActivationRule<String> alternatingActivation = ctx -> {
+                capturedContexts.add(ctx);
+                boolean activate = callCount[0] != 1;
+                callCount[0]++;
+                return Uni.createFrom().item(activate);
+            };
+
+            var agent = AgentRef.external((Object input) ->
+                    CompletableFuture.completedFuture(AgentResult.success(null, "ok")));
+            var candidate = new RoutingCandidate(agent, null);
+
+            var model = new ExecutionModel<String>(
+                    new FirstMatchRouting<>(c -> true),
+                    new IdentityDecomposition<>(),
+                    alternatingActivation,
+                    new PassThrough<>(),
+                    new MaxIterationsTermination<>(3),
+                    () -> List.of(candidate),
+                    FailurePolicy.defaults(),
+                    List.of(), "test");
+
+            var driver = new OrchestratedDriver<String>();
+            driver.execute(model, "ctx").await().indefinitely();
+
+            assertThat(capturedContexts.get(0).consecutiveIdleActivations()).isEqualTo(0);
+            assertThat(capturedContexts.get(1).consecutiveIdleActivations()).isEqualTo(0);
+            assertThat(capturedContexts.get(2).consecutiveIdleActivations()).isEqualTo(1);
         }
     }
 

@@ -40,7 +40,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     // Per-agent tracked state
     protected final Map<AgentRef, Integer> activationCounts = new HashMap<>();
     protected final Map<AgentRef, Integer> consecutiveIdleCounts = new HashMap<>();
-    protected Object lastAggregationResult = null;
+    protected AggregationResult lastAggregationResult = null;
 
     protected AbstractExecutionDriver() {
         this(AgentInvoker.defaultInvoker());
