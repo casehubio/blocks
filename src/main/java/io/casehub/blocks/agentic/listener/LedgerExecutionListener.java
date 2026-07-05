@@ -10,6 +10,7 @@ import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.routing.RoutingDecision;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,9 +118,12 @@ public class LedgerExecutionListener implements ExecutionEventListener {
     }
 
     @Override
-    public void onExecutionComplete(ExecutionResult result) {
+    public void onExecutionComplete(ExecutionResult result, Duration executionDuration,
+                                    int iterationCount) {
         var data = new LinkedHashMap<String, Object>();
         data.put("result", result.getClass().getSimpleName());
+        data.put("durationMs", executionDuration.toMillis());
+        data.put("iterations", iterationCount);
         if (result instanceof ExecutionResult.Escalated e) data.put("reason", e.reason());
         if (result instanceof ExecutionResult.Failed f) data.put("reason", f.reason());
         sink.record(OrchestrationEventType.EXECUTION_COMPLETED,

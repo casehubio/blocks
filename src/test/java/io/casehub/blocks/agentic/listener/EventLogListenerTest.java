@@ -70,7 +70,8 @@ class EventLogListenerTest {
         listener.onAgentResult(AgentResult.success(agent, "ok"));
         listener.onAggregation(new io.casehub.blocks.agentic.aggregation.AggregationResult.Resolved(List.of()));
         listener.onTermination(new io.casehub.blocks.agentic.termination.TerminationDecision.Complete("done"));
-        listener.onExecutionComplete(new io.casehub.blocks.agentic.model.ExecutionResult.Completed("done"));
+        listener.onExecutionComplete(new io.casehub.blocks.agentic.model.ExecutionResult.Completed("done"),
+                java.time.Duration.ofMillis(100), 3);
 
         assertThat(types).containsExactly(
                 OrchestrationEventType.EXECUTION_STARTED,

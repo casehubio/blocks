@@ -11,10 +11,12 @@ import io.casehub.blocks.agentic.aggregation.PassThrough;
 import io.casehub.blocks.agentic.decomposition.IdentityDecomposition;
 import io.casehub.blocks.agentic.routing.FirstMatchRouting;
 import io.casehub.blocks.agentic.termination.MaxIterationsTermination;
+import io.casehub.blocks.agentic.activation.OnExplicitDispatch;
 import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -136,7 +138,8 @@ class AbstractExecutionDriverTest {
                     events.add("start");
                 }
                 @Override
-                public void onExecutionComplete(ExecutionResult result) {
+                public void onExecutionComplete(ExecutionResult result, Duration executionDuration,
+                                                int iterationCount) {
                     events.add("complete:" + result.getClass().getSimpleName());
                 }
                 @Override
@@ -170,7 +173,8 @@ class AbstractExecutionDriverTest {
             var events = new ArrayList<String>();
             var listener = new ExecutionEventListener() {
                 @Override
-                public void onExecutionComplete(ExecutionResult result) {
+                public void onExecutionComplete(ExecutionResult result, Duration executionDuration,
+                                                int iterationCount) {
                     events.add("complete");
                 }
             };
@@ -223,6 +227,118 @@ class AbstractExecutionDriverTest {
 
             assertThat(invocations).containsExactly("invoked:mystate");
             assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
+        }
+    }
+
+    @Nested
+    class AgentResultDuration {
+
+        @Test
+        void invokeAgentRecordsNonZeroDuration() {
+            var capturedResults = new ArrayList<AgentResult>();
+            var listener = new ExecutionEventListener() {
+                @Override
+                public void onAgentResult(AgentResult result) {
+                    capturedResults.add(result);
+                }
+            };
+
+            var agent = AgentRef.external((Object input) -> {
+                try { Thread.sleep(50); } catch (InterruptedException ignored) {}
+                return CompletableFuture.completedFuture(AgentResult.success(null, "ok"));
+            });
+            var candidate = new RoutingCandidate(agent, null);
+
+            var model = new ExecutionModel<String>(
+                    new FirstMatchRouting<>(c -> true),
+                    new IdentityDecomposition<>(),
+                    new OnExplicitDispatch<>(),
+                    new PassThrough<>(),
+                    new MaxIterationsTermination<>(1),
+                    () -> List.of(candidate),
+                    FailurePolicy.defaults(),
+                    List.of(listener), "test");
+
+            new OrchestratedDriver<String>().execute(model, "ctx").await().indefinitely();
+
+            assertThat(capturedResults).hasSize(1);
+            assertThat(capturedResults.get(0).duration()).isGreaterThan(Duration.ZERO);
+        }
+
+        @Test
+        void failedInvocationStillRecordsDuration() {
+            var capturedResults = new ArrayList<AgentResult>();
+            var listener = new ExecutionEventListener() {
+                @Override
+                public void onAgentResult(AgentResult result) {
+                    capturedResults.add(result);
+                }
+            };
+
+            AgentInvoker<String> failingInvoker = (agent, state) -> {
+                try { Thread.sleep(50); } catch (InterruptedException ignored) {}
+                throw new RuntimeException("agent exploded");
+            };
+
+            var agent = AgentRef.external((Object input) ->
+                    CompletableFuture.completedFuture(AgentResult.success(null, "unused")));
+            var candidate = new RoutingCandidate(agent, null);
+
+            var model = new ExecutionModel<String>(
+                    new FirstMatchRouting<>(c -> true),
+                    new IdentityDecomposition<>(),
+                    new OnExplicitDispatch<>(),
+                    new PassThrough<>(),
+                    new MaxIterationsTermination<>(1),
+                    () -> List.of(candidate),
+                    FailurePolicy.defaults(),
+                    List.of(listener), "test");
+
+            new OrchestratedDriver<>(failingInvoker).execute(model, "ctx").await().indefinitely();
+
+            assertThat(capturedResults).hasSize(1);
+            assertThat(capturedResults.get(0).duration()).isGreaterThan(Duration.ZERO);
+            assertThat(capturedResults.get(0).status())
+                    .isEqualTo(AgentResult.AgentResultStatus.FAILURE);
+        }
+    }
+
+    @Nested
+    class EnrichedExecutionComplete {
+
+        @Test
+        void onExecutionCompleteReceivesDurationAndIterationCount() {
+            var capturedDurations = new ArrayList<Duration>();
+            var capturedIterations = new ArrayList<Integer>();
+            var listener = new ExecutionEventListener() {
+                @Override
+                public void onExecutionComplete(ExecutionResult result,
+                                                Duration executionDuration,
+                                                int iterationCount) {
+                    capturedDurations.add(executionDuration);
+                    capturedIterations.add(iterationCount);
+                }
+            };
+
+            var agent = AgentRef.external((Object input) ->
+                    CompletableFuture.completedFuture(AgentResult.success(null, "ok")));
+            var candidate = new RoutingCandidate(agent, null);
+
+            var model = new ExecutionModel<String>(
+                    new FirstMatchRouting<>(c -> true),
+                    new IdentityDecomposition<>(),
+                    new OnExplicitDispatch<>(),
+                    new PassThrough<>(),
+                    new MaxIterationsTermination<>(3),
+                    () -> List.of(candidate),
+                    FailurePolicy.defaults(),
+                    List.of(listener), "test");
+
+            new OrchestratedDriver<String>().execute(model, "ctx").await().indefinitely();
+
+            assertThat(capturedDurations).hasSize(1);
+            assertThat(capturedDurations.get(0)).isGreaterThan(Duration.ZERO);
+            assertThat(capturedIterations).containsExactly(3);
         }
     }
 }

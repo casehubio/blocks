@@ -45,7 +45,8 @@ class LedgerExecutionListenerTest {
                 "supervisor-123");
 
         listener.onExecutionComplete(
-                new io.casehub.blocks.agentic.model.ExecutionResult.Escalated("human needed"));
+                new io.casehub.blocks.agentic.model.ExecutionResult.Escalated("human needed"),
+                java.time.Duration.ofMillis(200), 5);
 
         assertThat(records).hasSize(1);
         assertThat(records.get(0).data()).containsEntry("reason", "human needed");
@@ -77,7 +78,8 @@ class LedgerExecutionListenerTest {
                 "supervisor-123");
 
         listener.onExecutionComplete(
-                new io.casehub.blocks.agentic.model.ExecutionResult.Failed("timeout", new RuntimeException()));
+                new io.casehub.blocks.agentic.model.ExecutionResult.Failed("timeout", new RuntimeException()),
+                java.time.Duration.ofMillis(300), 2);
 
         assertThat(records).hasSize(1);
         assertThat(records.get(0).data())

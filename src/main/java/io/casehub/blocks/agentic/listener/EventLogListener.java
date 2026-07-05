@@ -10,6 +10,7 @@ import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.routing.RoutingDecision;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,9 +107,12 @@ public class EventLogListener implements ExecutionEventListener {
     }
 
     @Override
-    public void onExecutionComplete(ExecutionResult result) {
+    public void onExecutionComplete(ExecutionResult result, Duration executionDuration,
+                                    int iterationCount) {
         sink.record(OrchestrationEventType.EXECUTION_COMPLETED, Map.of(
-                "result", result.getClass().getSimpleName()));
+                "result", result.getClass().getSimpleName(),
+                "durationMs", executionDuration.toMillis(),
+                "iterations", iterationCount));
     }
 
     private static String truncate(String s, int max) {

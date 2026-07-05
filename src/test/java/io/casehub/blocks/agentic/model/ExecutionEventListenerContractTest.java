@@ -2,6 +2,8 @@ package io.casehub.blocks.agentic.model;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 class ExecutionEventListenerContractTest {
@@ -10,6 +12,7 @@ class ExecutionEventListenerContractTest {
     void anonymousImplementationCompiles() {
         ExecutionEventListener listener = new ExecutionEventListener() {};
         assertThatCode(() -> listener.onExecutionStart(null)).doesNotThrowAnyException();
-        assertThatCode(() -> listener.onExecutionComplete(null)).doesNotThrowAnyException();
+        assertThatCode(() -> listener.onExecutionComplete(null, Duration.ZERO, 0))
+                .doesNotThrowAnyException();
     }
 }

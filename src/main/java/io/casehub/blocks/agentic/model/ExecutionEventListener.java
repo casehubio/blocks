@@ -7,6 +7,7 @@ import io.casehub.blocks.agentic.aggregation.AggregationResult;
 import io.casehub.blocks.agentic.routing.RoutingDecision;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
 
+import java.time.Duration;
 import java.util.List;
 
 public interface ExecutionEventListener {
@@ -20,7 +21,8 @@ public interface ExecutionEventListener {
     default void onStateTransition(ExecutionState from, ExecutionState to) {}
     default void onFailure(AgentRef agent, Throwable cause) {}
     default void onExecutionStart(ExecutionModel<?> model) {}
-    default void onExecutionComplete(ExecutionResult result) {}
+    default void onExecutionComplete(ExecutionResult result, Duration executionDuration,
+                                     int iterationCount) {}
 
     static String agentName(AgentRef agent) {
         if (agent instanceof AgentRef.WorkerAgent w) return w.worker().name();

@@ -41,6 +41,8 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     protected final Map<AgentRef, Integer> activationCounts = new HashMap<>();
     protected final Map<AgentRef, Integer> consecutiveIdleCounts = new HashMap<>();
     protected AggregationResult lastAggregationResult = null;
+    protected Instant executionStart;
+    protected int iterationCount;
 
     protected AbstractExecutionDriver() {
         this(AgentInvoker.defaultInvoker());
@@ -57,6 +59,8 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
             activationCounts.clear();
             consecutiveIdleCounts.clear();
             lastAggregationResult = null;
+            executionStart = Instant.now();
+            iterationCount = 0;
 
             notifyExecutionStart(model);
 
@@ -89,6 +93,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     protected ExecutionResult executeIteration(ExecutionModel<T> model, T context,
                                                 int iteration, Instant start,
                                                 List<AgentResult> allResults) {
+        iterationCount++;
         // Phase 1: refresh candidates and route
         var candidates = model.candidateSupplier().get();
         var routingCtx = new RoutingContext<>(model.task(), candidates, context);
@@ -177,13 +182,17 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     }
 
     protected AgentResult invokeAgent(ExecutionModel<T> model, AgentRef agent, T context) {
+        transition(model, new ExecutionState.WaitingForAgent(agent));
+        var start = Instant.now();
         try {
-            transition(model, new ExecutionState.WaitingForAgent(agent));
-            return invoker.invoke(agent, context).await().indefinitely();
+            var result = invoker.invoke(agent, context).await().indefinitely();
+            var elapsed = Duration.between(start, Instant.now());
+            return new AgentResult(result.agent(), result.output(), elapsed, result.status());
         } catch (Exception e) {
+            var elapsed = Duration.between(start, Instant.now());
             LOG.log(System.Logger.Level.WARNING, "Agent invocation failed", e);
             notifyFailure(model, agent, e);
-            return AgentResult.failure(agent, e.getMessage());
+            return new AgentResult(agent, e.getMessage(), elapsed, AgentResult.AgentResultStatus.FAILURE);
         }
     }
 
@@ -201,8 +210,9 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     }
 
     protected void notifyExecutionComplete(ExecutionModel<T> model, ExecutionResult result) {
+        var elapsed = Duration.between(executionStart, Instant.now());
         for (var listener : model.listeners()) {
-            listener.onExecutionComplete(result);
+            listener.onExecutionComplete(result, elapsed, iterationCount);
         }
     }
 

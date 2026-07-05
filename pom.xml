@@ -84,6 +84,13 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Provided — OTel metrics instrumentation (consumer brings the SDK) -->
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Test — foundation runtimes -->
     <dependency>
       <groupId>io.casehub</groupId>
@@ -128,6 +135,11 @@
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-sdk-testing</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
