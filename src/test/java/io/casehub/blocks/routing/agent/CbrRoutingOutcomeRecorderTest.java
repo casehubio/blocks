@@ -6,6 +6,8 @@ import io.casehub.neocortex.memory.MemoryDomain;
 import io.casehub.neocortex.memory.cbr.CbrCase;
 import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
 import io.casehub.neocortex.memory.cbr.PlanCbrCase;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,7 +39,7 @@ class CbrRoutingOutcomeRecorderTest {
     }
 
     private AgentRoutingContext context() {
-        return new AgentRoutingContext(UUID.randomUUID(), "analysis", NullNode.instance, "t");
+        return new AgentRoutingContext(UUID.randomUUID(), "analysis", NullNode.instance, "t", List.of());
     }
 
     @Test

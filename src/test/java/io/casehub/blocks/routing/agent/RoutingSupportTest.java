@@ -183,7 +183,7 @@ class RoutingSupportTest {
                     candidateNoDescriptor("agent-a"),
                     candidateNoDescriptor("agent-b"));
             var context = new AgentRoutingContext(
-                    UUID.randomUUID(), "analysis", NullNode.instance, "test");
+                    UUID.randomUUID(), "analysis", NullNode.instance, "test", List.of());
 
             var outcome = RoutingSupport.applyTrustFilter(
                     null, null, null, context, candidates);
@@ -211,7 +211,7 @@ class RoutingSupportTest {
                     .thenReturn(classified);
 
             var context = new AgentRoutingContext(
-                    UUID.randomUUID(), "analysis", NullNode.instance, "test");
+                    UUID.randomUUID(), "analysis", NullNode.instance, "test", List.of());
 
             var outcome = RoutingSupport.applyTrustFilter(
                     classifier, scoreSource, policyProvider, context, List.of(candidate));

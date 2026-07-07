@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RoutingPromptAssemblerTest {
 
     private AgentRoutingContext context() {
-        return new AgentRoutingContext(UUID.randomUUID(), "analysis", NullNode.instance, "t");
+        return new AgentRoutingContext(UUID.randomUUID(), "analysis", NullNode.instance, "t", List.of());
     }
 
     private List<AgentCandidate> candidates() {

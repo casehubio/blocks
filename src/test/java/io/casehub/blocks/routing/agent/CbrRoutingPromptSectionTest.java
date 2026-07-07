@@ -40,7 +40,7 @@ class CbrRoutingPromptSectionTest {
     private CbrRoutingPromptSection section;
 
     private AgentRoutingContext context() {
-        return new AgentRoutingContext(UUID.randomUUID(), "analysis", NullNode.instance, "t");
+        return new AgentRoutingContext(UUID.randomUUID(), "analysis", NullNode.instance, "t", List.of());
     }
 
     private AgentCandidate candidate(String id) {

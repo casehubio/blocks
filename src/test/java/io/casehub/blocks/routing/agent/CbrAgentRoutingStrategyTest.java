@@ -53,7 +53,7 @@ class CbrAgentRoutingStrategyTest {
     @Mock TrustRoutingPolicyProvider policyProvider;
 
     private AgentRoutingContext context(String capability) {
-        return new AgentRoutingContext(UUID.randomUUID(), capability, NullNode.instance, "test-tenant");
+        return new AgentRoutingContext(UUID.randomUUID(), capability, NullNode.instance, "test-tenant", List.of());
     }
 
     private AgentCandidate candidate(String id) {
@@ -107,6 +107,67 @@ class CbrAgentRoutingStrategyTest {
         verify(cbrStore).retrieveSimilar(queryCaptor.capture(), eq(CbrCase.class));
         assertThat(queryCaptor.getValue().problem()).isEqualTo("custom problem");
         assertThat(queryCaptor.getValue().features()).containsEntry("domain", "aml");
+    }
+
+    @Test
+    void structuredFeaturesFlowToCbrQuery() {
+        var customExtractor = mock(RoutingFeatureExtractor.class);
+        when(customExtractor.extractFeatures(any())).thenReturn(Map.of(
+                "riskScore", 0.87,
+                "entityType", "PEP",
+                "knownHighRisk", true));
+        when(customExtractor.extractProblem(any())).thenReturn("entityType=PEP, riskScore=0.87");
+
+        var planTrace = new PlanTrace("binding-a", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+        var cbrCase = new PlanCbrCase("problem", "solution", "RESOLVED", 0.9,
+                Map.of("riskScore", 0.85, "entityType", "PEP", "knownHighRisk", true),
+                List.of(planTrace));
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.92)));
+
+        var strategy = new CbrAgentRoutingStrategy(
+                10, 0.5, presentInstance(cbrStore), presentInstance(graphQuery),
+                absentInstance(), absentInstance(), absentInstance(),
+                customExtractor);
+
+        var result = strategy.select(context("analysis"),
+                List.of(candidate("agent-a"))).await().indefinitely();
+
+        assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+        assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+
+        var queryCaptor = org.mockito.ArgumentCaptor.forClass(CbrQuery.class);
+        verify(cbrStore).retrieveSimilar(queryCaptor.capture(), eq(CbrCase.class));
+        var query = queryCaptor.getValue();
+        assertThat(query.features())
+                .containsEntry("riskScore", 0.87)
+                .containsEntry("entityType", "PEP")
+                .containsEntry("knownHighRisk", true);
+        assertThat(query.problem()).isEqualTo("entityType=PEP, riskScore=0.87");
+    }
+
+    @Test
+    void nullProblemTextProducesQueryWithoutProblem() {
+        var customExtractor = mock(RoutingFeatureExtractor.class);
+        when(customExtractor.extractFeatures(any())).thenReturn(Map.of("grade", 3));
+        when(customExtractor.extractProblem(any())).thenReturn(null);
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                .thenReturn(List.of());
+        when(graphQuery.topAgentsByOutcome(eq("analysis"), any(), any(), eq(10)))
+                .thenReturn(List.of("agent-a"));
+
+        var strategy = new CbrAgentRoutingStrategy(
+                10, 0.5, presentInstance(cbrStore), presentInstance(graphQuery),
+                absentInstance(), absentInstance(), absentInstance(),
+                customExtractor);
+
+        strategy.select(context("analysis"),
+                List.of(candidate("agent-a"))).await().indefinitely();
+
+        var queryCaptor = org.mockito.ArgumentCaptor.forClass(CbrQuery.class);
+        verify(cbrStore).retrieveSimilar(queryCaptor.capture(), eq(CbrCase.class));
+        assertThat(queryCaptor.getValue().problem()).isNull();
+        assertThat(queryCaptor.getValue().features()).containsEntry("grade", 3);
     }
 
     @Nested
@@ -189,7 +250,7 @@ class CbrAgentRoutingStrategyTest {
                     .thenReturn(List.of("agent-a"));
 
             var nullContext = new AgentRoutingContext(
-                    UUID.randomUUID(), "analysis", NullNode.instance, "test-tenant");
+                    UUID.randomUUID(), "analysis", NullNode.instance, "test-tenant", List.of());
             var result = strategy.select(nullContext,
                     List.of(candidate("agent-a"))).await().indefinitely();
             assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
