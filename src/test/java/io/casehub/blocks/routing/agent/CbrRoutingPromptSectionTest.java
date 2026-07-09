@@ -146,4 +146,38 @@ class CbrRoutingPromptSectionTest {
                 .thenThrow(new RuntimeException("store error"));
         assertThat(section.render(context(), List.of(candidate("a")))).isNull();
     }
+
+    @Test
+    void rendersMixedOutcomes_perOutcomeCounts() {
+        var traces = List.of(
+                new PlanTrace("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
+                new PlanTrace("b2", "analysis", "agent-a", "GATE_REJECTED", 0, Map.of()),
+                new PlanTrace("b3", "analysis", "agent-a", "FAILURE", 0, Map.of()));
+        var planCase = new PlanCbrCase("problem", "solution", "SUCCESS", null,
+                Map.of(), traces);
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                .thenReturn(List.of(new ScoredCbrCase<>(planCase, 0.9)));
+
+        var result = section.render(context(), List.of(candidate("agent-a")));
+
+        assertThat(result).contains("1 SUCCESS, 1 GATE_REJECTED, 1 FAILURE");
+        assertThat(result).doesNotContain("2 FAILURE");
+        assertThat(result).contains("33% success");
+    }
+
+    @Test
+    void summaryDetailConsistency_gateRejectedShownInBoth() {
+        var traces = List.of(
+                new PlanTrace("b1", "analysis", "agent-a", "GATE_REJECTED", 0, Map.of()));
+        var planCase = new PlanCbrCase("problem", "solution", "GATE_REJECTED", null,
+                Map.of(), traces);
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                .thenReturn(List.of(new ScoredCbrCase<>(planCase, 0.85)));
+
+        var result = section.render(context(), List.of(candidate("agent-a")));
+
+        assertThat(result).contains("1 GATE_REJECTED");
+        assertThat(result).doesNotContain("1 FAILURE");
+        assertThat(result).contains("GATE_REJECTED");
+    }
 }

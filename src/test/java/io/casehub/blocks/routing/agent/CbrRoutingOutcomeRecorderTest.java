@@ -2,6 +2,7 @@ package io.casehub.blocks.routing.agent;
 
 import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.neocortex.memory.MemoryDomain;
 import io.casehub.neocortex.memory.cbr.CbrCase;
 import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
@@ -47,7 +48,7 @@ class CbrRoutingOutcomeRecorderTest {
         when(cbrStore.store(any(), anyString(), anyString(), any(), anyString(), anyString()))
                 .thenReturn("stored-id");
 
-        recorder.record(context(), "agent-a", "binding-x", "SUCCESS", null)
+        recorder.record(context(), "agent-a", "binding-x", RoutingOutcome.SUCCESS, null)
                 .await().indefinitely();
 
         var caseCaptor = ArgumentCaptor.forClass(CbrCase.class);
@@ -68,7 +69,7 @@ class CbrRoutingOutcomeRecorderTest {
         when(cbrStore.store(any(), anyString(), anyString(), any(), anyString(), anyString()))
                 .thenReturn("stored-id");
 
-        recorder.record(context(), "agent-b", "binding-y", "FAILURE", null)
+        recorder.record(context(), "agent-b", "binding-y", RoutingOutcome.FAILURE, null)
                 .await().indefinitely();
 
         var caseCaptor = ArgumentCaptor.forClass(CbrCase.class);
@@ -83,7 +84,7 @@ class CbrRoutingOutcomeRecorderTest {
     @Test
     void nullCbrStore_completesSuccessfully() {
         var noStore = new CbrRoutingOutcomeRecorder(null, extractor);
-        noStore.record(context(), "a", "b", "SUCCESS", null).await().indefinitely();
+        noStore.record(context(), "a", "b", RoutingOutcome.SUCCESS, null).await().indefinitely();
         // no exception, no store call
     }
 
@@ -92,11 +93,28 @@ class CbrRoutingOutcomeRecorderTest {
         when(cbrStore.store(any(), anyString(), anyString(), any(), anyString(), anyString()))
                 .thenReturn("stored-id");
         // NullNode context → extractProblem returns null → falls back to capabilityName
-        recorder.record(context(), "a", "b", "SUCCESS", null).await().indefinitely();
+        recorder.record(context(), "a", "b", RoutingOutcome.SUCCESS, null).await().indefinitely();
 
         var caseCaptor = ArgumentCaptor.forClass(CbrCase.class);
         verify(cbrStore).store(caseCaptor.capture(), anyString(), anyString(),
                 any(), anyString(), anyString());
         assertThat(((PlanCbrCase) caseCaptor.getValue()).problem()).isEqualTo("analysis");
+    }
+
+    @Test
+    void recordsGateRejected() {
+        when(cbrStore.store(any(), anyString(), anyString(), any(), anyString(), anyString()))
+                .thenReturn("stored-id");
+
+        recorder.record(context(), "agent-c", "binding-z", RoutingOutcome.GATE_REJECTED, null)
+                .await().indefinitely();
+
+        var caseCaptor = ArgumentCaptor.forClass(CbrCase.class);
+        verify(cbrStore).store(caseCaptor.capture(), anyString(),
+                eq("agent-routing"), any(MemoryDomain.class), anyString(), anyString());
+
+        var stored = (PlanCbrCase) caseCaptor.getValue();
+        assertThat(stored.outcome()).isEqualTo("GATE_REJECTED");
+        assertThat(stored.planTrace().getFirst().stepOutcome()).isEqualTo("GATE_REJECTED");
     }
 }

@@ -15,10 +15,11 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -93,26 +94,20 @@ public class CbrRoutingPromptSection implements RoutingPromptSection {
     private @Nullable String format(List<ScoredCbrCase<CbrCase>> results,
                                      Set<String> eligibleIds,
                                      String capabilityName) {
-        // Tally agent outcomes from PlanCbrCase entries
-        Map<String, int[]> agentStats = new HashMap<>(); // [successes, total]
+        Map<String, Map<String, Integer>> agentOutcomes = new LinkedHashMap<>();
         var caseDetails = new StringBuilder();
         int caseNum = 0;
 
         for (var scored : results) {
             CbrCase cbrCase = scored.cbrCase();
             if (cbrCase instanceof PlanCbrCase planCase) {
-                boolean hasEligibleTrace = false;
                 for (PlanTrace trace : planCase.planTrace()) {
                     if (capabilityName.equals(trace.capabilityName())
                             && trace.workerName() != null
                             && eligibleIds.contains(trace.workerName())) {
-                        hasEligibleTrace = true;
-                        var stats = agentStats.computeIfAbsent(
-                                trace.workerName(), k -> new int[]{0, 0});
-                        stats[1]++;
-                        if ("SUCCESS".equals(trace.stepOutcome())) {
-                            stats[0]++;
-                        }
+                        var outcomes = agentOutcomes.computeIfAbsent(
+                                trace.workerName(), k -> new LinkedHashMap<>());
+                        outcomes.merge(trace.stepOutcome(), 1, Integer::sum);
                         caseNum++;
                         caseDetails.append("  %d. [score: %.2f] problem: \"%s\" → agent: \"%s\" → %s%n"
                                 .formatted(caseNum, scored.score(),
@@ -121,7 +116,6 @@ public class CbrRoutingPromptSection implements RoutingPromptSection {
                     }
                 }
             } else {
-                // TextualCbrCase or unknown — show without agent attribution
                 caseNum++;
                 caseDetails.append("  %d. [score: %.2f] problem: \"%s\" → %s%n"
                         .formatted(caseNum, scored.score(),
@@ -136,15 +130,16 @@ public class CbrRoutingPromptSection implements RoutingPromptSection {
         sb.append("Historical context (%d similar past cases for capability \"%s\"):\n"
                 .formatted(caseNum, capabilityName));
 
-        if (!agentStats.isEmpty()) {
+        if (!agentOutcomes.isEmpty()) {
             sb.append("\nOutcomes by agent:\n");
-            agentStats.forEach((agent, stats) -> {
-                int successes = stats[0];
-                int total = stats[1];
-                int failures = total - successes;
+            agentOutcomes.forEach((agent, outcomes) -> {
+                int total = outcomes.values().stream().mapToInt(Integer::intValue).sum();
+                int successes = outcomes.getOrDefault("SUCCESS", 0);
                 int pct = total > 0 ? (int) Math.round(100.0 * successes / total) : 0;
-                sb.append("  \"%s\": %d cases — %d SUCCESS, %d FAILURE (%d%% success)%n"
-                        .formatted(agent, total, successes, failures, pct));
+                var parts = new StringJoiner(", ");
+                outcomes.forEach((outcome, count) -> parts.add(count + " " + outcome));
+                sb.append("  \"%s\": %d cases — %s (%d%% success)%n"
+                        .formatted(agent, total, parts, pct));
             });
         }
 

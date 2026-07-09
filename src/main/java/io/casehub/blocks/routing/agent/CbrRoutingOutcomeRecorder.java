@@ -1,6 +1,7 @@
 package io.casehub.blocks.routing.agent;
 
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.api.spi.routing.RoutingOutcomeRecorder;
 import io.casehub.neocortex.memory.MemoryDomain;
 import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
@@ -40,19 +41,19 @@ public class CbrRoutingOutcomeRecorder implements RoutingOutcomeRecorder {
 
     @Override
     public Uni<Void> record(AgentRoutingContext context, String workerId,
-                            String bindingName, String executionOutcome,
+                            String bindingName, RoutingOutcome outcome,
                             @Nullable Duration executionDuration) {
         if (cbrStore == null) return Uni.createFrom().voidItem();
 
         return Uni.createFrom().item(() -> {
             var trace = new PlanTrace(
                     bindingName, context.capabilityName(),
-                    workerId, executionOutcome, 0, Map.of());
+                    workerId, outcome.name(), 0, Map.of());
             var problem = featureExtractor.extractProblem(context);
             var cbrCase = new PlanCbrCase(
                     problem != null ? problem : context.capabilityName(),
                     "Routed to " + workerId,
-                    executionOutcome, null,
+                    outcome.name(), null,
                     featureExtractor.extractFeatures(context),
                     List.of(trace));
             cbrStore.store(cbrCase, context.caseId().toString(),
