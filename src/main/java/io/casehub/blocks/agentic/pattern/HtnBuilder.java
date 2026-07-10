@@ -77,39 +77,31 @@ public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
                 .flatMap(localModel -> new OrchestratedDriver<T>().execute(localModel, initialContext));
     }
 
-    /**
-     * Recursively flatten task tree into PrimitiveTasks.
-     * CompoundTasks are decomposed using their first guard-matching method.
-     */
-    private Uni<List<TaskNode.PrimitiveTask<T>>> flatten(TaskNode<T> node, T state) {
+    private Uni<List<TaskNode.LeafTask<T>>> flatten(TaskNode<T> node, T state) {
         return switch (node) {
-            case TaskNode.PrimitiveTask<T> primitive -> Uni.createFrom().item(List.of(primitive));
+            case TaskNode.LeafTask<T> leaf -> Uni.createFrom().item(List.of(leaf));
 
             case TaskNode.CompoundTask<T> compound -> {
-                // Find first matching decomposition method
                 var matchingMethod = compound.methods().stream()
                         .filter(m -> m.guard().test(state))
                         .findFirst()
                         .orElseThrow(() -> new IllegalStateException(
                                 "No decomposition method guard matched for task: " + compound.name()));
 
-                // Decompose using the matching strategy
                 var ctx = new DecompositionContext<>(state, List.of(), 0);
                 yield matchingMethod.strategy()
                         .decompose(compound, ctx)
                         .flatMap(children -> {
-                            // Recursively flatten all children
                             var childFlattens = children.stream()
                                     .map(child -> flatten(child, state))
                                     .toList();
 
-                            // Combine all child results
                             return Uni.combine().all().unis(childFlattens)
                                     .combinedWith(results -> {
-                                        var flattened = new ArrayList<TaskNode.PrimitiveTask<T>>();
+                                        var flattened = new ArrayList<TaskNode.LeafTask<T>>();
                                         for (var result : results) {
                                             @SuppressWarnings("unchecked")
-                                            var taskList = (List<TaskNode.PrimitiveTask<T>>) result;
+                                            var taskList = (List<TaskNode.LeafTask<T>>) result;
                                             flattened.addAll(taskList);
                                         }
                                         return flattened;

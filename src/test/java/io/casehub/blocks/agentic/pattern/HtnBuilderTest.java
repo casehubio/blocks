@@ -50,9 +50,9 @@ class HtnBuilderTest {
                 new DecompositionMethod<String>(
                         state -> true,
                         (compound, ctx) -> Uni.createFrom().item(List.of(
-                                new TaskNode.PrimitiveTask<String>(build, s -> true, s -> {}),
-                                new TaskNode.PrimitiveTask<String>(test, s -> true, s -> {}),
-                                new TaskNode.PrimitiveTask<String>(deploy, s -> true, s -> {}))))));
+                                new TaskNode.PrimitiveTask<String>(null, build, s -> true, s -> {}),
+                                new TaskNode.PrimitiveTask<String>(null, test, s -> true, s -> {}),
+                                new TaskNode.PrimitiveTask<String>(null, deploy, s -> true, s -> {}))))));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -80,11 +80,11 @@ class HtnBuilderTest {
                 new DecompositionMethod<>(
                         (String s) -> s.contains("hotfix"),
                         (compound, ctx) -> Uni.createFrom().item(List.of(
-                                new TaskNode.PrimitiveTask<>(hotfix, s -> true, s -> {})))),
+                                new TaskNode.PrimitiveTask<>(null, hotfix, s -> true, s -> {})))),
                 new DecompositionMethod<>(
                         (String s) -> true,
                         (compound, ctx) -> Uni.createFrom().item(List.of(
-                                new TaskNode.PrimitiveTask<>(fullDeploy, s -> true, s -> {}))))));
+                                new TaskNode.PrimitiveTask<>(null, fullDeploy, s -> true, s -> {}))))));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)

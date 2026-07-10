@@ -13,7 +13,7 @@ class IdentityDecompositionTest {
     @Test
     void returnsPrimitiveAsIs() {
         var agent = AgentRef.external(s -> CompletableFuture.completedFuture(null));
-        var primitive = new TaskNode.PrimitiveTask<String>(agent, null, null);
+        var primitive = new TaskNode.PrimitiveTask<String>(null, agent, null, null);
         var decomp = new IdentityDecomposition<String>();
         var ctx = new DecompositionContext<>("state", List.of(), 0);
 

@@ -479,4 +479,182 @@ class CbrAgentRoutingStrategyTest {
             verify(classifier).decide(any(), any(), eq("analysis"));
         }
     }
+
+    @Nested
+    class WeightedOutcomes {
+        private CbrAgentRoutingStrategy strategy;
+
+        @BeforeEach
+        void setUp() {
+            strategy = new CbrAgentRoutingStrategy(
+                    10, 0.5,
+                    presentInstance(cbrStore), presentInstance(graphQuery),
+                    absentInstance(), absentInstance(), absentInstance(),
+                    new TextOnlyFeatureExtractor());
+        }
+
+        @Test
+        void gateExpiredCountsAsHalfCredit() {
+            var expiredTrace = new PlanTrace("b", "analysis", "agent-a", "GATE_EXPIRED", 1, Map.of());
+            var failTrace = new PlanTrace("b", "analysis", "agent-b", "FAILURE", 1, Map.of());
+            var cbrCase = new PlanCbrCase("p", "s", "RESOLVED", 0.9, Map.of(),
+                    List.of(expiredTrace, failTrace));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+        }
+
+        @Test
+        void gateRejectedCountsAsQuarterCredit() {
+            var rejectedTrace = new PlanTrace("b", "analysis", "agent-a", "GATE_REJECTED", 1, Map.of());
+            var failTrace = new PlanTrace("b", "analysis", "agent-b", "FAILURE", 1, Map.of());
+            var cbrCase = new PlanCbrCase("p", "s", "RESOLVED", 0.9, Map.of(),
+                    List.of(rejectedTrace, failTrace));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+        }
+
+        @Test
+        void boldWorkerBeatsFailingWorker() {
+            var aSuccess = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var aRejected = new PlanTrace("b", "analysis", "agent-a", "GATE_REJECTED", 1, Map.of());
+            var bSuccess = new PlanTrace("b", "analysis", "agent-b", "SUCCESS", 1, Map.of());
+            var bFail = new PlanTrace("b", "analysis", "agent-b", "FAILURE", 1, Map.of());
+            var case1 = new PlanCbrCase("p1", "s1", "R", 0.9, Map.of(), List.of(aSuccess, bSuccess));
+            var case2 = new PlanCbrCase("p2", "s2", "R", 0.8, Map.of(), List.of(aRejected, bFail));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(case1, 0.9), new ScoredCbrCase<>(case2, 0.8)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+        }
+
+        @Test
+        void consistentSuccessBeatsGateRejected() {
+            var successTrace = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var rejectedTrace = new PlanTrace("b", "analysis", "agent-b", "GATE_REJECTED", 1, Map.of());
+            var cbrCase = new PlanCbrCase("p", "s", "R", 0.9, Map.of(),
+                    List.of(successTrace, rejectedTrace));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+        }
+
+        @Test
+        void mixedOutcomesWeightedCorrectly() {
+            var aS1 = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var aS2 = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var aR = new PlanTrace("b", "analysis", "agent-a", "GATE_REJECTED", 1, Map.of());
+            var aF = new PlanTrace("b", "analysis", "agent-a", "FAILURE", 1, Map.of());
+            var bS = new PlanTrace("b", "analysis", "agent-b", "SUCCESS", 1, Map.of());
+            var bE = new PlanTrace("b", "analysis", "agent-b", "GATE_EXPIRED", 1, Map.of());
+            var c1 = new PlanCbrCase("p", "s", "R", 0.9, Map.of(), List.of(aS1, aS2, aR, aF, bS, bE));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(c1, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-b");
+        }
+
+        @Test
+        void crossCaseAccumulationWeightsCorrectly() {
+            var aSuccess = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var aRejected = new PlanTrace("b", "analysis", "agent-a", "GATE_REJECTED", 1, Map.of());
+            var case1 = new PlanCbrCase("p1", "s1", "R", 0.9, Map.of(), List.of(aSuccess));
+            var case2 = new PlanCbrCase("p2", "s2", "R", 0.8, Map.of(), List.of(aRejected));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(case1, 0.9), new ScoredCbrCase<>(case2, 0.8)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+        }
+
+        @Test
+        void tiesBrokenByTotalCount() {
+            var aTrace = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var bTrace1 = new PlanTrace("b", "analysis", "agent-b", "SUCCESS", 1, Map.of());
+            var bTrace2 = new PlanTrace("b", "analysis", "agent-b", "SUCCESS", 1, Map.of());
+            var c1 = new PlanCbrCase("p", "s", "R", 0.9, Map.of(), List.of(aTrace, bTrace1, bTrace2));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(c1, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-b");
+        }
+
+        @Test
+        void unknownOutcomeTreatedAsFailure() {
+            var unknownTrace = new PlanTrace("b", "analysis", "agent-a", "UNKNOWN_OUTCOME", 1, Map.of());
+            var successTrace = new PlanTrace("b", "analysis", "agent-b", "SUCCESS", 1, Map.of());
+            var cbrCase = new PlanCbrCase("p", "s", "R", 0.9, Map.of(),
+                    List.of(unknownTrace, successTrace));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-b");
+        }
+
+        @Test
+        void successOnlyWorkerScoresOne() {
+            var s1 = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var s2 = new PlanTrace("b", "analysis", "agent-a", "SUCCESS", 1, Map.of());
+            var cbrCase = new PlanCbrCase("p", "s", "R", 0.9, Map.of(), List.of(s1, s2));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-a");
+        }
+
+        @Test
+        void failureOnlyWorkerLosesToSuccessWorker() {
+            var failTrace = new PlanTrace("b", "analysis", "agent-a", "FAILURE", 1, Map.of());
+            var successTrace = new PlanTrace("b", "analysis", "agent-b", "SUCCESS", 1, Map.of());
+            var cbrCase = new PlanCbrCase("p", "s", "R", 0.9, Map.of(),
+                    List.of(failTrace, successTrace));
+            when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+                    .thenReturn(List.of(new ScoredCbrCase<>(cbrCase, 0.9)));
+
+            var result = strategy.select(context("analysis"),
+                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+
+            assertThat(result).isInstanceOf(AgentAssignment.Assigned.class);
+            assertThat(((AgentAssignment.Assigned) result).workerId()).isEqualTo("agent-b");
+        }
+    }
 }

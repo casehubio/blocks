@@ -28,11 +28,24 @@ public final class Decomposition {
     }
 
     public static <T> TaskNode.PrimitiveTask<T> primitive(AgentRef agent) {
-        return new TaskNode.PrimitiveTask<>(agent, null, null);
+        return new TaskNode.PrimitiveTask<>(null, agent, null, null);
+    }
+
+    public static <T> TaskNode.PrimitiveTask<T> primitive(String description, AgentRef agent) {
+        return new TaskNode.PrimitiveTask<>(description, agent, null, null);
     }
 
     public static <T> TaskNode.CompoundTask<T> compound(String name,
                                                         List<DecompositionMethod<T>> methods) {
         return new TaskNode.CompoundTask<>(name, methods);
+    }
+
+    public static <T> TaskNode.PlannedTask<T> planned(String description, AgentRef agent) {
+        return new TaskNode.PlannedTask<>(description, agent, null);
+    }
+
+    public static <T> TaskNode.PlannedTask<T> planned(String description, AgentRef agent,
+                                                      String rationale) {
+        return new TaskNode.PlannedTask<>(description, agent, rationale);
     }
 }
