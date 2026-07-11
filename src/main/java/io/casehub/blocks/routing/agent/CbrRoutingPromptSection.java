@@ -2,6 +2,7 @@ package io.casehub.blocks.routing.agent;
 
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingPromptSection;
 import io.casehub.neocortex.memory.MemoryDomain;
 import io.casehub.neocortex.memory.cbr.CbrCase;
 import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;

@@ -16,10 +16,10 @@
 package io.casehub.blocks.routing.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.casehub.api.spi.routing.AgentAssignment;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.EscalationReason;
+import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.TrustRoutingPolicy;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.eidos.api.AgentCapability;
@@ -46,7 +46,7 @@ final class RoutingSupport {
         record Proceed(List<AgentCandidate> eligible,
                        @Nullable List<ClassifiedCandidate> classified)
                 implements TrustFilterOutcome {}
-        record Decided(AgentAssignment assignment)
+        record Decided(RoutingResult assignment)
                 implements TrustFilterOutcome {}
     }
 
@@ -71,7 +71,7 @@ final class RoutingSupport {
             boolean hasBootstrap =
                     classified.stream().anyMatch(c -> c.phase() == Phase.BOOTSTRAP);
             if (!hasQualified && hasBootstrap) {
-                return new TrustFilterOutcome.Decided(AgentAssignment.escalate(
+                return new TrustFilterOutcome.Decided(RoutingResult.escalate(
                         context.capabilityName(),
                         EscalationReason.NO_QUALIFIED_AGENT,
                         "bootstrap only — no qualified agents for capability '%s'"

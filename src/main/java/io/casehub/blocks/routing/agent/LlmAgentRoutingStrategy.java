@@ -20,6 +20,7 @@ import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.AgentRoutingStrategy;
 import io.casehub.api.spi.routing.EscalationReason;
+import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
@@ -103,41 +104,41 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
     return "llm";
   }
 
-  @Override
-  public Uni<AgentAssignment> select(
-      final AgentRoutingContext context, final List<AgentCandidate> candidates) {
-    if (candidates.isEmpty()) {
-      return Uni.createFrom().item(AgentAssignment.unresolvable("no candidates available"));
-    }
-    if (agentProvider == null) {
-      return Uni.createFrom()
-          .item(AgentAssignment.unresolvable("AgentProvider not available"));
+    @Override
+    public Uni<RoutingResult> select(
+            final AgentRoutingContext context, final List<AgentCandidate> candidates) {
+        if (candidates.isEmpty()) {
+            return Uni.createFrom().item(RoutingResult.unresolvable("no candidates available"));
+        }
+        if (agentProvider == null) {
+            return Uni.createFrom()
+                      .item(RoutingResult.unresolvable("AgentProvider not available"));
+        }
+
+        return Uni.createFrom()
+                  .item(() -> doSelect(context, candidates))
+                  .emitOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    return Uni.createFrom()
-        .item(() -> doSelect(context, candidates))
-        .emitOn(Infrastructure.getDefaultWorkerPool());
-  }
-
-  private AgentAssignment doSelect(
-      final AgentRoutingContext context, final List<AgentCandidate> candidates) {
+  private RoutingResult doSelect(
+          final AgentRoutingContext context, final List<AgentCandidate> candidates) {
     final var trustOutcome = RoutingSupport.applyTrustFilter(
-        classifier, scoreSource, policyProvider, context, candidates);
+            classifier, scoreSource, policyProvider, context, candidates);
 
     if (trustOutcome instanceof RoutingSupport.TrustFilterOutcome.Decided decided) {
       return decided.assignment();
     }
 
-    final var proceed = (RoutingSupport.TrustFilterOutcome.Proceed) trustOutcome;
+    final var proceed  = (RoutingSupport.TrustFilterOutcome.Proceed) trustOutcome;
     final var eligible = proceed.eligible();
 
     // NullNode case context filtering — avoid sending "null" as context to the LLM
     final String caseContextSummary = context.caseContext() != null
-        && !context.caseContext().isNull()
-            ? context.caseContext().toString()
-            : null;
+                                      && !context.caseContext().isNull()
+                                      ? context.caseContext().toString()
+                                      : null;
     String prompt =
-        RoutingSupport.buildUserPrompt(context.capabilityName(), caseContextSummary, eligible);
+            RoutingSupport.buildUserPrompt(context.capabilityName(), caseContextSummary, eligible);
 
     final String enrichment = promptAssembler.assemble(context, eligible);
     if (enrichment != null) {
@@ -145,31 +146,31 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
     }
 
     final String response =
-        RoutingSupport.invokeAndCollect(agentProvider, RoutingSupport.SYSTEM_PROMPT, prompt);
+            RoutingSupport.invokeAndCollect(agentProvider, RoutingSupport.SYSTEM_PROMPT, prompt);
 
     if (response == null) {
       if (proceed.classified() != null) {
         final var scored = proceed.classified().stream()
-            .map(c -> new ScoredCandidate(c, 0.0, "LLM invocation failed"))
-            .toList();
+                                  .map(c -> new ScoredCandidate(c, 0.0, "LLM invocation failed"))
+                                  .toList();
         return classifier.decide(proceed.classified(), scored, context.capabilityName());
       }
-      return AgentAssignment.unresolvable("LLM invocation failed or returned no response");
+      return RoutingResult.unresolvable("LLM invocation failed or returned no response");
     }
 
     final String workerId = RoutingSupport.parseSelection(response, eligible);
     if (workerId == null) {
       if (proceed.classified() != null) {
         final var scored = proceed.classified().stream()
-            .map(c -> new ScoredCandidate(c, 0.0, "LLM response unparseable"))
-            .toList();
+                                  .map(c -> new ScoredCandidate(c, 0.0, "LLM response unparseable"))
+                                  .toList();
         return classifier.decide(proceed.classified(), scored, context.capabilityName());
       }
-      return AgentAssignment.unresolvable(
-          "LLM response unparseable or selected unknown agent: " + response);
+      return RoutingResult.unresolvable(
+              "LLM response unparseable or selected unknown agent: " + response);
     }
 
-    return AgentAssignment.assign(
-        workerId, "LLM selected from %d candidates".formatted(eligible.size()));
+    return RoutingResult.assigned(
+            workerId, "LLM selected from %d candidates".formatted(eligible.size()));
   }
 }

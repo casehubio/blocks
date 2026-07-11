@@ -152,42 +152,42 @@ public class CbrAgentRoutingStrategy implements AgentRoutingStrategy {
     return "cbr";
   }
 
-  @Override
-  public Uni<AgentAssignment> select(
-      final AgentRoutingContext context, final List<AgentCandidate> candidates) {
-    if (candidates.isEmpty()) {
-      return Uni.createFrom().item(AgentAssignment.unresolvable("no candidates available"));
-    }
-    if (cbrStore == null && graphQuery == null) {
-      return Uni.createFrom()
-          .item(AgentAssignment.unresolvable("CBR and graph query both unavailable"));
+    @Override
+    public Uni<RoutingResult> select(
+            final AgentRoutingContext context, final List<AgentCandidate> candidates) {
+        if (candidates.isEmpty()) {
+            return Uni.createFrom().item(RoutingResult.unresolvable("no candidates available"));
+        }
+        if (cbrStore == null && graphQuery == null) {
+            return Uni.createFrom()
+                      .item(RoutingResult.unresolvable("CBR and graph query both unavailable"));
+        }
+
+        return Uni.createFrom()
+                  .item(() -> doSelect(context, candidates))
+                  .emitOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    return Uni.createFrom()
-        .item(() -> doSelect(context, candidates))
-        .emitOn(Infrastructure.getDefaultWorkerPool());
-  }
-
-  private AgentAssignment doSelect(
-      final AgentRoutingContext context, final List<AgentCandidate> candidates) {
+  private RoutingResult doSelect(
+          final AgentRoutingContext context, final List<AgentCandidate> candidates) {
     final var trustOutcome = RoutingSupport.applyTrustFilter(
-        classifier, scoreSource, policyProvider, context, candidates);
+            classifier, scoreSource, policyProvider, context, candidates);
 
     if (trustOutcome instanceof RoutingSupport.TrustFilterOutcome.Decided decided) {
       return decided.assignment();
     }
 
-    final var proceed = (RoutingSupport.TrustFilterOutcome.Proceed) trustOutcome;
+    final var proceed  = (RoutingSupport.TrustFilterOutcome.Proceed) trustOutcome;
     final var eligible = proceed.eligible();
     final Set<String> eligibleIds =
-        eligible.stream().map(AgentCandidate::workerId).collect(Collectors.toSet());
+            eligible.stream().map(AgentCandidate::workerId).collect(Collectors.toSet());
 
     // Try CBR store first
     if (cbrStore != null) {
       final String cbrResult = tryCbrStore(context, eligibleIds);
       if (cbrResult != null) {
-        return AgentAssignment.assign(
-            cbrResult, "CBR selected based on historical success rate");
+        return RoutingResult.assigned(
+                cbrResult, "CBR selected based on historical success rate");
       }
     }
 
@@ -195,20 +195,20 @@ public class CbrAgentRoutingStrategy implements AgentRoutingStrategy {
     if (graphQuery != null) {
       final String graphResult = tryGraphQuery(context, eligibleIds);
       if (graphResult != null) {
-        return AgentAssignment.assign(graphResult, "graph query fallback — CBR produced no match");
+        return RoutingResult.assigned(graphResult, "graph query fallback — CBR produced no match");
       }
     }
 
     // Neither source produced a match — if trust classified, delegate decision
     if (proceed.classified() != null) {
       final List<ScoredCandidate> scored =
-          proceed.classified().stream()
-              .map(c -> new ScoredCandidate(c, 0.0, "no CBR or graph match"))
-              .toList();
+              proceed.classified().stream()
+                     .map(c -> new ScoredCandidate(c, 0.0, "no CBR or graph match"))
+                     .toList();
       return classifier.decide(proceed.classified(), scored, context.capabilityName());
     }
 
-    return AgentAssignment.unresolvable("no CBR or graph match found");
+    return RoutingResult.unresolvable("no CBR or graph match found");
   }
 
   private @Nullable String tryCbrStore(
