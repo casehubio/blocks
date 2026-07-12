@@ -1,35 +1,74 @@
 package io.casehub.blocks.agentic;
 
+import io.casehub.api.model.ExecutorRef;
 import io.casehub.blocks.agentic.model.ExecutionModel;
 import io.casehub.blocks.channel.ChannelAgentHandler;
-import io.casehub.worker.api.Worker;
 import io.casehub.work.api.WorkItemCreateRequest;
+import io.casehub.worker.api.Worker;
+import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-public sealed interface AgentRef
+public sealed interface AgentRef extends ExecutorRef
         permits AgentRef.WorkerAgent, AgentRef.ChannelAgent,
                 AgentRef.HumanAgent, AgentRef.ExternalAgent,
                 AgentRef.ComposedAgent {
 
-    record WorkerAgent(Worker worker) implements AgentRef {}
+    record WorkerAgent(Worker worker) implements AgentRef {
+        @Override
+        public String name()                  {return worker.name();}
+
+        @Override
+        public @Nullable String description() {return worker.description();}
+    }
 
     record ChannelAgent(UUID channelId, ChannelAgentHandler handler)
-            implements AgentRef {}
+            implements AgentRef {
+        @Override
+        public String name()                  {return "channel:" + channelId;}
 
-    record HumanAgent(WorkItemCreateRequest template) implements AgentRef {}
+        @Override
+        public @Nullable String description() {return null;}
+    }
 
-    record ExternalAgent(Function<Object, CompletionStage<AgentResult>> fn)
-            implements AgentRef {}
+    record HumanAgent(WorkItemCreateRequest template) implements AgentRef {
+        @Override
+        public String name()                  {return template != null && template.title != null ? template.title : "human";}
 
-    record ComposedAgent(ExecutionModel<?> model) implements AgentRef {}
+        @Override
+        public @Nullable String description() {return null;}
+    }
+
+    record ExternalAgent(@Nullable String label,
+                         Function<Object, CompletionStage<AgentResult>> fn)
+            implements AgentRef {
+        @Override
+        public String name()                  {return label != null ? label : "external";}
+
+        @Override
+        public @Nullable String description() {return null;}
+    }
+
+    record ComposedAgent(ExecutionModel<?> model) implements AgentRef {
+        @Override
+        public String name()                  {return model != null && model.task() != null ? model.task() : "composed";}
+
+        @Override
+        public @Nullable String description() {return null;}
+    }
 
     @SuppressWarnings("unchecked")
     static <T> ExternalAgent external(Function<T, CompletionStage<AgentResult>> fn) {
         var erased = (Function<Object, CompletionStage<AgentResult>>) (Function<?, ?>) fn;
-        return new ExternalAgent(erased);
+        return new ExternalAgent(null, erased);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> ExternalAgent external(String label, Function<T, CompletionStage<AgentResult>> fn) {
+        var erased = (Function<Object, CompletionStage<AgentResult>>) (Function<?, ?>) fn;
+        return new ExternalAgent(label, erased);
     }
 
     static WorkerAgent worker(Worker worker) {

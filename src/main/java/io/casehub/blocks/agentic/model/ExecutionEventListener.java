@@ -24,12 +24,5 @@ public interface ExecutionEventListener {
     default void onExecutionComplete(ExecutionResult result, Duration executionDuration,
                                      int iterationCount) {}
 
-    static String agentName(AgentRef agent) {
-        if (agent instanceof AgentRef.WorkerAgent w) return w.worker().name();
-        if (agent instanceof AgentRef.ChannelAgent c) return "channel:" + c.channelId();
-        if (agent instanceof AgentRef.ExternalAgent e) return "external:" + Integer.toHexString(System.identityHashCode(e));
-        if (agent instanceof AgentRef.HumanAgent) return "human";
-        if (agent instanceof AgentRef.ComposedAgent) return "composed";
-        return agent.getClass().getSimpleName();
-    }
+    static String agentName(AgentRef agent) {return agent.name();}
 }

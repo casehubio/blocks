@@ -6,7 +6,6 @@ import io.casehub.worker.api.Worker;
 import io.casehub.worker.api.WorkerFunction;
 import org.junit.jupiter.api.Test;
 
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -34,14 +33,12 @@ class ExecutionEventListenerTest {
     }
 
     @Test
-    void agentNameDistinguishesExternalAgents() {
-        var a = AgentRef.external(x -> CompletableFuture.completedFuture(AgentResult.success(null, "a")));
-        var b = AgentRef.external(x -> CompletableFuture.completedFuture(AgentResult.success(null, "b")));
-        var nameA = ExecutionEventListener.agentName(a);
-        var nameB = ExecutionEventListener.agentName(b);
-        assertThat(nameA).startsWith("external:");
-        assertThat(nameB).startsWith("external:");
-        assertThat(nameA).isNotEqualTo(nameB);
+    void agentNameDistinguishesLabeledExternalAgents() {
+        var a = AgentRef.external("tool-a", x -> CompletableFuture.completedFuture(AgentResult.success(null, "a")));
+        var b = AgentRef.external("tool-b", x -> CompletableFuture.completedFuture(AgentResult.success(null, "b")));
+        assertThat(ExecutionEventListener.agentName(a)).isEqualTo("tool-a");
+        assertThat(ExecutionEventListener.agentName(b)).isEqualTo("tool-b");
+        assertThat(ExecutionEventListener.agentName(a)).isNotEqualTo(ExecutionEventListener.agentName(b));
     }
 
     @Test
