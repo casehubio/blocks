@@ -19,6 +19,7 @@ import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.AgentRoutingStrategy;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.eidos.api.AgentGraphQuery;
@@ -54,39 +55,37 @@ public class CbrAgentRoutingStrategy implements AgentRoutingStrategy {
   private static final System.Logger LOG =
       System.getLogger(CbrAgentRoutingStrategy.class.getName());
 
-  private static final Map<String, Double> OUTCOME_WEIGHTS =
-      Map.of(
-          "SUCCESS", 1.0,
-          "GATE_EXPIRED", 0.5,
-          "GATE_REJECTED", 0.25,
-          "FAILURE", 0.0);
-
   private final @Nullable AgentGraphQuery graphQuery;
   private final @Nullable TrustCandidateClassifier classifier;
   private final @Nullable TrustScoreSource scoreSource;
   private final @Nullable TrustRoutingPolicyProvider policyProvider;
+  private final CbrOutcomeWeights outcomeWeights;
 
   @Inject
   public CbrAgentRoutingStrategy(
       final Instance<AgentGraphQuery> graphQuery,
       final Instance<TrustCandidateClassifier> classifier,
       final Instance<TrustScoreSource> scoreSource,
-      final Instance<TrustRoutingPolicyProvider> policyProvider) {
+      final Instance<TrustRoutingPolicyProvider> policyProvider,
+      final CbrOutcomeWeights outcomeWeights) {
     this.graphQuery = graphQuery.isUnsatisfied() ? null : graphQuery.get();
     this.classifier = classifier.isUnsatisfied() ? null : classifier.get();
     this.scoreSource = scoreSource.isUnsatisfied() ? null : scoreSource.get();
     this.policyProvider = policyProvider.isUnsatisfied() ? null : policyProvider.get();
+    this.outcomeWeights = outcomeWeights;
   }
 
   CbrAgentRoutingStrategy(
       @Nullable AgentGraphQuery graphQuery,
       @Nullable TrustCandidateClassifier classifier,
       @Nullable TrustScoreSource scoreSource,
-      @Nullable TrustRoutingPolicyProvider policyProvider) {
+      @Nullable TrustRoutingPolicyProvider policyProvider,
+      CbrOutcomeWeights outcomeWeights) {
     this.graphQuery = graphQuery;
     this.classifier = classifier;
     this.scoreSource = scoreSource;
     this.policyProvider = policyProvider;
+    this.outcomeWeights = outcomeWeights;
   }
 
   @Override
@@ -121,10 +120,20 @@ public class CbrAgentRoutingStrategy implements AgentRoutingStrategy {
     final Set<String> eligibleIds =
         eligible.stream().map(AgentCandidate::workerId).collect(Collectors.toSet());
 
-    final String cbrResult =
+    final Map<String, Double> experienceScores =
         analyseExperiences(context.experiences(), eligibleIds, context.capabilityName());
-    if (cbrResult != null) {
-      return RoutingResult.assigned(cbrResult, "CBR selected based on historical success rate");
+
+    String bestCandidate = null;
+    double bestScore = 0.0;
+    for (final var entry : experienceScores.entrySet()) {
+      if (entry.getValue() > bestScore) {
+        bestScore = entry.getValue();
+        bestCandidate = entry.getKey();
+      }
+    }
+
+    if (bestCandidate != null) {
+      return RoutingResult.assigned(bestCandidate, "CBR selected based on historical success rate");
     }
 
     if (graphQuery != null) {
@@ -146,43 +155,47 @@ public class CbrAgentRoutingStrategy implements AgentRoutingStrategy {
     return RoutingResult.unresolvable("no CBR or graph match found");
   }
 
-  private @Nullable String analyseExperiences(
+  Map<String, Double> analyseExperiences(
       final List<RetrievedExperience> experiences,
       final Set<String> eligibleIds,
       final String capabilityName) {
     final Map<String, double[]> workerStats = new HashMap<>();
+    final var weights = outcomeWeights.weights();
 
     for (final var exp : experiences) {
+      final double relevance = Math.max(0.0, exp.similarityScore());
+      if (relevance == 0.0) {
+        continue;
+      }
+
       for (final var step : exp.planTrace()) {
         if (capabilityName.equals(step.capabilityName())
             && step.workerName() != null
             && eligibleIds.contains(step.workerName())) {
           final var stats =
-              workerStats.computeIfAbsent(step.workerName(), k -> new double[] {0.0, 0});
-          stats[1]++;
-          stats[0] += OUTCOME_WEIGHTS.getOrDefault(step.stepOutcome(), 0.0);
+              workerStats.computeIfAbsent(step.workerName(), k -> new double[] {0.0, 0.0});
+          RoutingOutcome outcome;
+          try {
+            outcome = RoutingOutcome.valueOf(step.stepOutcome());
+          } catch (IllegalArgumentException e) {
+            outcome = null;
+          }
+          final double outcomeWeight =
+              outcome != null ? weights.getOrDefault(outcome, 0.0) : 0.0;
+          stats[0] += outcomeWeight * relevance;
+          stats[1] += relevance;
         }
       }
     }
 
-    if (workerStats.isEmpty()) {
-      return null;
-    }
-
-    String bestWorker = null;
-    double bestRate = -1;
-    int bestCount = 0;
+    final Map<String, Double> scores = new HashMap<>();
     for (final var entry : workerStats.entrySet()) {
-      final double weightedScore = entry.getValue()[0];
-      final int total = (int) entry.getValue()[1];
-      final double rate = weightedScore / total;
-      if (rate > bestRate || (rate == bestRate && total > bestCount)) {
-        bestRate = rate;
-        bestCount = total;
-        bestWorker = entry.getKey();
+      final double evidenceMass = entry.getValue()[1];
+      if (evidenceMass > 0.0) {
+        scores.put(entry.getKey(), entry.getValue()[0] / evidenceMass);
       }
     }
-    return bestWorker;
+    return scores;
   }
 
   private @Nullable String tryGraphQuery(
