@@ -1,10 +1,10 @@
 package io.casehub.blocks.routing.agent;
 
 import com.fasterxml.jackson.databind.node.NullNode;
-import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.TrustRoutingPolicy;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.eidos.api.AgentCapability;
@@ -199,7 +199,7 @@ class RoutingSupportTest {
             var classifier = mock(TrustCandidateClassifier.class);
             var scoreSource = mock(TrustScoreSource.class);
             var policyProvider = mock(TrustRoutingPolicyProvider.class);
-            var policy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), true, null);
+            var policy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), true, null, Set.of());
             when(policyProvider.forCapability("analysis")).thenReturn(policy);
 
             var candidate = candidateNoDescriptor("bootstrap-agent");

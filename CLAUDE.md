@@ -198,13 +198,13 @@ AI-powered `AgentRoutingStrategy` implementations for the engine's routing pipel
 | Class | What it does |
 |-------|-------------|
 | `LlmAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"llm"`). Asks an LLM via `AgentProvider` to reason about which candidate best fits the task. Delegates to `RoutingPromptAssembler` for composable prompt enrichment (CBR history, future signal sources). Optional trust classification. Worker pool offloading. |
-| `CbrAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"cbr"`). Uses `CbrCaseMemoryStore` to retrieve similar past cases and analyse worker success rates from `PlanTrace` entries. Falls back to `AgentGraphQuery.topAgentsByOutcome()` when CBR store unavailable. Uses `RoutingFeatureExtractor` for query construction. Optional trust classification. |
-| `RoutingPromptSection` | SPI for composable LLM prompt enrichment. CDI-discovered — all implementations render into the prompt. Returns null to skip. Not a `NamedStrategy`. |
-| `RoutingPromptAssembler` | `@ApplicationScoped` bean that iterates all `RoutingPromptSection` implementations, sorts by `@Priority`, catches rendering failures, and concatenates non-null results. Used by `LlmAgentRoutingStrategy`. |
-| `CbrRoutingPromptSection` | `RoutingPromptSection` implementation — queries `CbrCaseMemoryStore` for similar past cases and formats historical context (agent success rates + case details) for the LLM prompt. Filters to eligible agents only. |
-| `RoutingFeatureExtractor` | SPI for extracting structured features and problem text from `AgentRoutingContext`. `@DefaultBean` `TextOnlyFeatureExtractor` uses `caseContext.toString()` for problem text and `Map.of()` for features. Domain repos override with `@ApplicationScoped` (displaces `@DefaultBean` automatically — Pattern C). |
-| `TextOnlyFeatureExtractor` | `@DefaultBean` implementation of `RoutingFeatureExtractor` — text-only similarity, no structured features. |
-| `CbrRoutingOutcomeRecorder` | Implements engine-api `RoutingOutcomeRecorder` — records routing outcomes as `PlanCbrCase` entries in the CBR store, creating a feedback loop. Uses `RoutingFeatureExtractor` for consistent feature vocabulary. |
+| `CbrAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"cbr"`). Reads pre-retrieved experiences from `AgentRoutingContext.experiences()` and analyses worker success rates with configurable `CbrOutcomeWeights`, similarity-weighted scoring, and `RoutingSignalAssembler` integration. Falls back to `AgentGraphQuery.topAgentsByOutcome()` when CBR produces no match. Optional trust classification. |
+| `CbrOutcomeWeights` | SPI for step-level routing outcome weights used by `CbrAgentRoutingStrategy`. Returns `Map<RoutingOutcome, Double>`. Domain repos override `DefaultCbrOutcomeWeights` with `@ApplicationScoped`. |
+| `DefaultCbrOutcomeWeights` | `@DefaultBean` — SUCCESS=1.0, GATE_EXPIRED=0.5, GATE_REJECTED=0.25, FAILURE=0.0. |
+| `CbrCaseOutcomeWeights` | SPI for case-level outcome weights used by `PlanCompositionAnalyser`. Returns `Map<String, Double>` (string keys — case outcomes are domain-dependent). |
+| `DefaultCbrCaseOutcomeWeights` | `@DefaultBean` — COMPLETED=1.0, FAULTED=0.2, CANCELLED=0.0. |
+| `PlanCompositionAnalyser` | `RoutingSignalProvider` (id: `"plan-composition"`). Scores candidates based on case-level outcomes in multi-step plans (planTrace.size >= 2). Uses `CbrCaseOutcomeWeights` for case outcome weighting and similarity-weighted scoring. Returns null when no multi-step plan data exists. |
+| `CbrRoutingPromptSection` | `RoutingPromptSection` implementation — formats historical CBR outcomes per eligible agent for LLM routing prompts. |
 | `RoutingSupport` | Package-private utility — shared prompt building, response parsing, `AgentProvider` invocation, and trust classification extraction (`TrustFilterOutcome` sealed interface). Used by both `LlmAgentRoutingStrategy` and `CbrAgentRoutingStrategy`. |
 
 ## Package: `io.casehub.blocks.summarisation`
@@ -236,11 +236,11 @@ Two integration patterns: **Pattern A** (SummarisationRunner pipeline — sync h
 | casehub-drafthouse | Channel + conversation blocks — DebateProtocol delegates to `ConversationProtocol`, DebateChannelProjection extends `ConversationProjection`, ReviewChannelProjection uses `ConversationFold`/`ConversationState`, `ChannelAgentDispatcher` subclass with debate-specific error dispatch, `BoundedProjectionDecorator` for round bounding, `ContextTracker` for LLM window tracking |
 | casehub-engine | Oversight: `GateOutcome`, `OversightGateService`, `ReactiveOversightGateService` (NoOp impls), `ReactiveActionRiskClassifier`, `RiskDecision`, `ClassificationContext` (handler + health check) |
 | casehub-openclaw | Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext`, `GateOutcome` (concrete OversightGateService impl) |
-| casehub-aml | Routing: `TrustRoutingPolicyKeys`, `TrustRoutingPolicyResolver`, `DoublePreference`, `IntPreference`, `AmlRoutingFeatureExtractor` (implements `RoutingFeatureExtractor`). Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
+| casehub-aml | Routing: `TrustRoutingPolicyKeys`, `TrustRoutingPolicyResolver`, `DoublePreference`, `IntPreference`. Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
 | casehub-devtown | Routing: `TrustRoutingPolicyKeys`, `TrustRoutingPolicyResolver.collectFloors()`, `DoublePreference`. Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
 | casehub-life | Routing: `TrustRoutingPolicyKeys`, `TrustRoutingPolicyResolver.collectFloors()`, `DoublePreference`. Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
 | casehub-soc | Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
-| casehub-clinical | Routing: `ClinicalRoutingFeatureExtractor` (implements `RoutingFeatureExtractor`). Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
+| casehub-clinical | Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
 | casehub-iot | Oversight: `ActionRiskClassifier`, `RiskClassifier`, `RiskDecision`, `ClassificationContext` |
 | casehub-quarkmind | Summarisation: `SummarisationRunner`, `EventStreamBus`, `EventAccumulator`, `WindowPolicy`, `Summariser`, `EventLevel`, `LevelEvent` — SC2 game event hierarchy (L2→L3→L4 pipeline via `SummarisationLifecycle`, `GamePhaseSummariser`, `GameArcSummariser`) |
 

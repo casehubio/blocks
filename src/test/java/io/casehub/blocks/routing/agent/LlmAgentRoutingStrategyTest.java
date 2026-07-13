@@ -1,13 +1,12 @@
 package io.casehub.blocks.routing.agent;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.NullNode;
-import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.EscalationReason;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
+import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.TrustRoutingPolicy;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.eidos.api.AgentCapability;
@@ -39,7 +38,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -181,7 +179,7 @@ class LlmAgentRoutingStrategyTest {
 
         @BeforeEach
         void setUp() {
-            policy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), false, null);
+            policy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), false, null, Set.of());
             lenient().when(policyProvider.forCapability(anyString())).thenReturn(policy);
             strategy = new LlmAgentRoutingStrategy(
                     presentInstance(agentProvider), presentInstance(classifier),
@@ -230,7 +228,7 @@ class LlmAgentRoutingStrategyTest {
 
         @Test
         void bootstrapGuardEscalatesWhenPolicyRequires() {
-            var bootstrapPolicy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), true, null);
+            var bootstrapPolicy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), true, null, Set.of());
             when(policyProvider.forCapability("analysis")).thenReturn(bootstrapPolicy);
             var a = candidate("bootstrap-agent");
             var classified = List.of(
@@ -269,7 +267,7 @@ class LlmAgentRoutingStrategyTest {
 
         @Test
         void qualifiedPlusBootstrapGuardOnFiltersBootstrap() {
-            var bootstrapPolicy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), true, null);
+            var bootstrapPolicy = new TrustRoutingPolicy(0.7, 5, 0.1, 0.5, Map.of(), true, null, Set.of());
             when(policyProvider.forCapability("analysis")).thenReturn(bootstrapPolicy);
             var qualified = candidate("qual-agent");
             var bootstrap = candidate("boot-agent");
