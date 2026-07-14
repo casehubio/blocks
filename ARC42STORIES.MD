@@ -52,6 +52,8 @@ Channel utility blocks — foundational patterns for LLM-mediated channel commun
 | `ChannelAgentRequest` | Sub-task trigger record: channelId, correlationId, OutboundMessage. | DraftHouse `ChannelAgentRequest` |
 | `AgentTask` | LLM input record: systemPrompt, assembledInput. | DraftHouse `AgentTask` |
 | `AgentResultParseException` | Unchecked exception signalling handler parse failure — dispatcher catches and routes to `onError()`. | DraftHouse `AgentResultParseException` |
+| `ChannelEventAdapter<E>` | Direction 1 bridge: implements `MessageObserver`, extracts domain events via extractor function, publishes `LevelEvent<E>` to `EventStreamBus`. Null return filters. Extractor exceptions caught and logged. | #40 |
+| `ChannelEventPublisher<E>` | Direction 2 bridge: subscribes to `EventStreamBus<E>`, converts events to `MessageDispatch` via builder function, dispatches via `MessageDispatcher`. Best-effort — never propagates. | #40 |
 
 ### Package: `io.casehub.blocks.agentic`
 
@@ -83,12 +85,15 @@ Temporal abstraction framework for summarising high-frequency event streams into
 | `EventStreamBus<E>` | Predicate-based pub/sub for level events. `subscribe(Predicate, Consumer)`, `publish(LevelEvent)`, `clear()`. CopyOnWriteArrayList-backed — concurrent publish+subscribe safe. | quarkmind `EventStreamBus` |
 | `Summariser<IN, OUT>` | `@FunctionalInterface` for summarisation logic: `CompletionStage<List<OUT>> summarise(List<LevelEvent<IN>>)`. `ofSync()` factory for deterministic implementations. | quarkmind `Summariser` |
 | `SummarisationRunner<IN, OUT>` | Wires accumulator → summariser → output bus. `collect()`, `tick()` (returns `CompletionStage<Void>`), `clear()`, `size()`. | quarkmind `SummarisationRunner` |
+| `KeyedAccumulator<K, E>` | Groups events by key, emits each group on completion predicate or stale timeout. Thread-safe. Clock-from-last-event staleness. `collect()`, `drain(long)`, `clear()`, `groupCount()`, `eventCount()`. | #40 |
+| `KeyedSummarisationRunner<K, IN, OUT>` | Wires `KeyedAccumulator` → `Summariser` → output bus. Per-group at-most-once error semantics. `collect()`, `tick(long)`, `clear()`, `groupCount()`, `eventCount()`. | #40 |
 
 Two integration patterns:
 - **Pattern A** (SummarisationRunner pipeline): sync heuristics, microsecond latency. Used for rule-based summarisation where speed is critical.
 - **Pattern B** (direct EventAccumulator): async LLM dispatch, caller manages execution. Used when summarisation requires LLM reasoning and latency tolerance is higher.
+- `KeyedSummarisationRunner` is the grouped counterpart to `SummarisationRunner` — same compositional role, groups by key instead of flat windowing.
 
-**Implementation issue:** casehubio/blocks#27
+**Implementation issues:** casehubio/blocks#27, casehubio/blocks#40
 
 ### Planned packages (per parent#310)
 

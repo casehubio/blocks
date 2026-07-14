@@ -124,6 +124,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `ChannelAgentRequest` | Record: channelId, correlationId, message (the sub-task trigger) |
 | `AgentTask` | Record: systemPrompt, assembledInput (what to send to the LLM) |
 | `AgentResultParseException` | Unchecked exception for handler parse failures |
+| `ChannelEventAdapter<E>` | Direction 1 bridge: implements `MessageObserver`, extracts domain events via a `Function<MessageReceivedEvent, E>`, publishes `LevelEvent<E>` to an `EventStreamBus`. Null return from extractor filters. Extractor exceptions caught and logged. |
+| `ChannelEventPublisher<E>` | Direction 2 bridge: subscribes to `EventStreamBus<E>`, converts events to `MessageDispatch` via a builder function, dispatches via `MessageDispatcher`. Best-effort — catches + logs, never propagates. |
 
 ## Package: `io.casehub.blocks.conversation`
 
@@ -220,8 +222,10 @@ Temporal abstraction framework for summarising high-frequency event streams into
 | `EventStreamBus<E>` | Predicate-based pub/sub. `subscribe(Predicate, Consumer)`, `publish(LevelEvent)`, `clear()`. CopyOnWriteArrayList-backed — concurrent publish+subscribe safe. |
 | `Summariser<IN, OUT>` | `@FunctionalInterface`. `CompletionStage<List<OUT>> summarise(List<LevelEvent<IN>>)`. `ofSync()` factory for deterministic implementations. |
 | `SummarisationRunner<IN, OUT>` | Wires accumulator → summariser → output bus. `collect()`, `tick()` (returns `CompletionStage<Void>`), `clear()`, `size()`. |
+| `KeyedAccumulator<K, E>` | Groups events by key (via `Function<E, K>`), emits each group independently on completion predicate or stale timeout. Thread-safe. `collect()`, `drain(long now)`, `clear()`, `groupCount()`, `eventCount()`. Clock-from-last-event staleness semantics. |
+| `KeyedSummarisationRunner<K, IN, OUT>` | Wires `KeyedAccumulator` → `Summariser` → output bus. Per-group at-most-once error semantics. `collect()`, `tick(long now)`, `clear()`, `groupCount()`, `eventCount()`. |
 
-Two integration patterns: **Pattern A** (SummarisationRunner pipeline — sync heuristics, microsecond latency) and **Pattern B** (direct EventAccumulator — async LLM dispatch, caller manages). See spec for details.
+Two integration patterns: **Pattern A** (SummarisationRunner pipeline — sync heuristics, microsecond latency) and **Pattern B** (direct EventAccumulator — async LLM dispatch, caller manages). `KeyedSummarisationRunner` is the grouped counterpart to `SummarisationRunner` — same compositional role, groups by key instead of flat windowing. See spec for details.
 
 ## Dependencies
 
