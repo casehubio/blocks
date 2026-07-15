@@ -35,7 +35,7 @@ class ChannelSummarisationPipelineTest {
     private MessageReceivedEvent channelMessage(MessageType type, String content,
                                                  String correlationId, String sender,
                                                  long epochMillis) {
-        return new MessageReceivedEvent("test-channel", CHANNEL_ID, "tenant-1",
+        return new MessageReceivedEvent(null, "test-channel", CHANNEL_ID, "tenant-1",
             type, sender, correlationId, Instant.ofEpochMilli(epochMillis),
             content, "general");
     }
