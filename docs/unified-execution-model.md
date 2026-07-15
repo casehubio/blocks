@@ -2,7 +2,9 @@
 
 The canonical spec lives in the engine repo:
 
-**`casehubio/engine/docs/specs/2026-07-15-unified-execution-model-design.md`**
+Engine repo: `docs/specs/2026-07-15-unified-execution-model-design.md`
+
+GitHub: https://github.com/casehubio/engine/blob/main/docs/specs/2026-07-15-unified-execution-model-design.md
 
 This document was consolidated from two sources (engine spec + this blocks doc)
 on 2026-07-15. All content — including the LangChain4j comparison, execution
