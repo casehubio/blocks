@@ -15,19 +15,17 @@
  */
 package io.casehub.blocks.routing.agent;
 
-import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.AgentRoutingStrategy;
 import io.casehub.api.spi.routing.EscalationReason;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
+import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.ledger.routing.TrustCandidateClassifier.ScoredCandidate;
 import io.casehub.platform.agent.AgentProvider;
-import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -105,19 +103,16 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
   }
 
     @Override
-    public Uni<RoutingResult> select(
+    public RoutingResult select(
             final AgentRoutingContext context, final List<AgentCandidate> candidates) {
         if (candidates.isEmpty()) {
-            return Uni.createFrom().item(RoutingResult.unresolvable("no candidates available"));
+            return RoutingResult.unresolvable("no candidates available");
         }
         if (agentProvider == null) {
-            return Uni.createFrom()
-                      .item(RoutingResult.unresolvable("AgentProvider not available"));
+            return RoutingResult.unresolvable("AgentProvider not available");
         }
 
-        return Uni.createFrom()
-                  .item(() -> doSelect(context, candidates))
-                  .emitOn(Infrastructure.getDefaultWorkerPool());
+        return doSelect(context, candidates);
     }
 
   private RoutingResult doSelect(

@@ -108,14 +108,14 @@ class LlmAgentRoutingStrategyTest {
         void selectsAgentByLlmResponse() {
             agentReturns("{\"agent\": \"agent-b\", \"reason\": \"best fit\"}");
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"), candidate("agent-b"))).await().indefinitely();
+                    List.of(candidate("agent-a"), candidate("agent-b")));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
         }
 
         @Test
         void emptyCandidatesReturnsUnresolvable() {
-            var result = strategy.select(context("analysis"), List.of()).await().indefinitely();
+            var result = strategy.select(context("analysis"), List.of());
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
         }
 
@@ -123,7 +123,7 @@ class LlmAgentRoutingStrategyTest {
         void unknownAgentReturnsUnresolvable() {
             agentReturns("{\"agent\": \"ghost\", \"reason\": \"?\"}");
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
         }
 
@@ -131,7 +131,7 @@ class LlmAgentRoutingStrategyTest {
         void unparseableResponseReturnsUnresolvable() {
             agentReturns("not json");
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
         }
 
@@ -140,7 +140,7 @@ class LlmAgentRoutingStrategyTest {
             when(agentProvider.invoke(any(AgentSessionConfig.class)))
                     .thenReturn(Multi.createFrom().failure(new RuntimeException("LLM down")));
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
         }
 
@@ -148,7 +148,7 @@ class LlmAgentRoutingStrategyTest {
         void neverReturnsEscalateWithoutTrust() {
             agentReturns("{\"agent\": \"agent-a\", \"reason\": \"ok\"}");
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isNotInstanceOf(RoutingResult.Escalated.class);
         }
 
@@ -158,7 +158,7 @@ class LlmAgentRoutingStrategyTest {
             var nullContext = new AgentRoutingContext(
                     UUID.randomUUID(), "analysis", NullNode.instance, "test-tenant", List.of());
             var result = strategy.select(nullContext,
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
         }
 
@@ -167,7 +167,7 @@ class LlmAgentRoutingStrategyTest {
             when(agentProvider.invoke(any(AgentSessionConfig.class)))
                     .thenReturn(Multi.createFrom().empty());
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
         }
     }
@@ -203,7 +203,7 @@ class LlmAgentRoutingStrategyTest {
             agentReturns("{\"agent\": \"qualified-agent\", \"reason\": \"only option\"}");
 
             var result = strategy.select(context("analysis"),
-                    List.of(good, bad)).await().indefinitely();
+                    List.of(good, bad));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("qualified-agent");
         }
@@ -220,7 +220,7 @@ class LlmAgentRoutingStrategyTest {
             when(classifier.decide(any(), any(), eq("analysis")))
                     .thenReturn(RoutingResult.escalate("analysis", EscalationReason.BORDERLINE_STALEMATE, "all borderline"));
 
-            var result = strategy.select(context("analysis"), List.of(a)).await().indefinitely();
+            var result = strategy.select(context("analysis"), List.of(a));
             assertThat(result).isInstanceOf(RoutingResult.Escalated.class);
             assertThat(((RoutingResult.Escalated) result).escalationReason())
                     .isEqualTo(EscalationReason.BORDERLINE_STALEMATE);
@@ -238,7 +238,7 @@ class LlmAgentRoutingStrategyTest {
             when(classifier.classify(any(), eq("analysis"), eq(bootstrapPolicy), eq(scoreSource)))
                     .thenReturn(classified);
 
-            var result = strategy.select(context("analysis"), List.of(a)).await().indefinitely();
+            var result = strategy.select(context("analysis"), List.of(a));
             assertThat(result).isInstanceOf(RoutingResult.Escalated.class);
             assertThat(((RoutingResult.Escalated) result).escalationReason())
                     .isEqualTo(EscalationReason.NO_QUALIFIED_AGENT);
@@ -260,7 +260,7 @@ class LlmAgentRoutingStrategyTest {
             agentReturns("{\"agent\": \"qual-agent\", \"reason\": \"only eligible\"}");
 
             var result = strategy.select(context("analysis"),
-                    List.of(qualified, borderline)).await().indefinitely();
+                    List.of(qualified, borderline));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("qual-agent");
         }
@@ -283,7 +283,7 @@ class LlmAgentRoutingStrategyTest {
             agentReturns("{\"agent\": \"qual-agent\", \"reason\": \"qualified\"}");
 
             var result = strategy.select(context("analysis"),
-                    List.of(qualified, bootstrap)).await().indefinitely();
+                    List.of(qualified, bootstrap));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("qual-agent");
         }
@@ -304,7 +304,7 @@ class LlmAgentRoutingStrategyTest {
             agentReturns("{\"agent\": \"boot-agent\", \"reason\": \"picked bootstrap\"}");
 
             var result = strategy.select(context("analysis"),
-                    List.of(qualified, bootstrap)).await().indefinitely();
+                    List.of(qualified, bootstrap));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("boot-agent");
         }
@@ -324,7 +324,7 @@ class LlmAgentRoutingStrategyTest {
                     .thenReturn(RoutingResult.assigned("qual-agent", "classifier fallback"));
 
             var result = strategy.select(context("analysis"),
-                    List.of(qualified)).await().indefinitely();
+                    List.of(qualified));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             verify(classifier).decide(any(), any(), eq("analysis"));
         }
@@ -343,7 +343,7 @@ class LlmAgentRoutingStrategyTest {
                     .thenReturn(RoutingResult.assigned("qual-agent", "classifier fallback"));
 
             var result = strategy.select(context("analysis"),
-                    List.of(qualified)).await().indefinitely();
+                    List.of(qualified));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             verify(classifier).decide(any(), any(), eq("analysis"));
         }
@@ -357,7 +357,7 @@ class LlmAgentRoutingStrategyTest {
                     absentInstance(), absentInstance(), absentInstance(), absentInstance(),
                     new RoutingPromptAssembler(List.of()));
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
         }
     }
@@ -375,7 +375,7 @@ class LlmAgentRoutingStrategyTest {
                     absentInstance(), absentInstance(), assembler);
 
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
 
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             // Verify the prompt passed to agentProvider includes the enrichment
@@ -396,7 +396,7 @@ class LlmAgentRoutingStrategyTest {
                     absentInstance(), absentInstance(), assembler);
 
             var result = strategy.select(context("analysis"),
-                    List.of(candidate("agent-a"))).await().indefinitely();
+                    List.of(candidate("agent-a")));
 
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);
             var configCaptor = org.mockito.ArgumentCaptor.forClass(AgentSessionConfig.class);

@@ -71,7 +71,7 @@ class CbrAgentRoutingStrategyTest {
   @Test
   void emptyCandidatesReturnsUnresolvable() {
     var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
-    var result = strategy.select(context("cap", List.of()), List.of()).await().indefinitely();
+    var result = strategy.select(context("cap", List.of()), List.of());
     assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
   }
 
@@ -371,7 +371,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-a");
@@ -388,7 +388,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -423,7 +423,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       // agent-a: (1.0*0.95 + 0.0*0.3) / (0.95+0.3) = 0.76
       // agent-b: (1.0*0.3 + 0.0*0.95) / (0.3+0.95) = 0.24
@@ -442,7 +442,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -459,7 +459,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -495,7 +495,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -514,7 +514,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", List.of()),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-a");
@@ -530,7 +530,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", List.of()),
           List.of(candidate("agent-a")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
     }
@@ -552,7 +552,7 @@ class CbrAgentRoutingStrategyTest {
       var result = strategy.select(
           context("analysis", experiences),
           List.of(candidate("agent-a"), candidate("agent-b")))
-          .await().indefinitely();
+          ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-a");
