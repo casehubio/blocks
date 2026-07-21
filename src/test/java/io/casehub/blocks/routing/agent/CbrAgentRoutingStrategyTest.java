@@ -81,8 +81,7 @@ class CbrAgentRoutingStrategyTest {
     var result =
         strategy
             .select(context("analysis", List.of()), List.of(candidate("agent-a")))
-            .await()
-            .indefinitely();
+            ;
     assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
   }
 
@@ -103,8 +102,7 @@ class CbrAgentRoutingStrategyTest {
               .select(
                   context("analysis", experiences),
                   List.of(candidate("agent-a"), candidate("agent-b")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-a");
@@ -118,8 +116,7 @@ class CbrAgentRoutingStrategyTest {
       var result =
           strategy
               .select(context("analysis", experiences), List.of(candidate("agent-a")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
     }
@@ -132,8 +129,7 @@ class CbrAgentRoutingStrategyTest {
       var result =
           strategy
               .select(context("analysis", experiences), List.of(candidate("agent-a")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
     }
@@ -160,8 +156,7 @@ class CbrAgentRoutingStrategyTest {
               .select(
                   context("analysis", List.of(exp)),
                   List.of(candidate("agent-a"), candidate("agent-b")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -193,8 +188,7 @@ class CbrAgentRoutingStrategyTest {
                           .select(
                                   context("analysis", List.of(exp)),
                                   List.of(candidate("agent-a"), candidate("agent-b")))
-                          .await()
-                          .indefinitely();
+                          ;
 
           assertThat(result).isInstanceOf(RoutingResult.Selected.class);
           assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -226,8 +220,7 @@ class CbrAgentRoutingStrategyTest {
                       .select(
                               context("analysis", List.of(exp)),
                               List.of(candidate("agent-a"), candidate("agent-b")))
-                      .await()
-                      .indefinitely();
+                      ;
 
       // agent-a excluded (SUBSTITUTED), agent-b has FAILURE (0.0 score)
       // Both have no positive score — should be unresolvable
@@ -253,8 +246,7 @@ class CbrAgentRoutingStrategyTest {
               .select(
                   context("analysis", experiences),
                   List.of(candidate("agent-a"), candidate("agent-b")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-a");
@@ -273,8 +265,7 @@ class CbrAgentRoutingStrategyTest {
               .select(
                   context("analysis", experiences),
                   List.of(candidate("agent-a"), candidate("agent-b")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -295,8 +286,7 @@ class CbrAgentRoutingStrategyTest {
               .select(
                   context("analysis", List.of()),
                   List.of(candidate("agent-a"), candidate("agent-b")))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("agent-b");
@@ -338,8 +328,7 @@ class CbrAgentRoutingStrategyTest {
       var result =
           strategy
               .select(context("analysis", experiences), List.of(good, bad))
-              .await()
-              .indefinitely();
+              ;
 
       assertThat(result).isInstanceOf(RoutingResult.Selected.class);
       assertThat(((RoutingResult.Selected) result).single().executorId()).isEqualTo("qualified");
