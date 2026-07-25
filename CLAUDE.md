@@ -110,6 +110,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/routing/agent/` | Tests for AI routing strategies |
 | `src/main/java/io/casehub/blocks/summarisation/` | Temporal abstraction framework — event levels, windowed accumulation, pluggable summarisation |
 | `src/test/java/io/casehub/blocks/summarisation/` | Tests for summarisation framework |
+| `src/main/java/io/casehub/blocks/summarisation/observation/` | Observation accumulator — tiered, demand-driven rendering for LLM agent prompts with RAG-able chunks |
+| `src/test/java/io/casehub/blocks/summarisation/observation/` | Tests for observation accumulator |
 | `src/test/java/io/casehub/blocks/summarisation/examples/clinical/` | Clinical temporal abstraction example (L1-L4 pipeline) |
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
 
@@ -252,6 +254,20 @@ Temporal abstraction framework for summarising high-frequency event streams into
 | `KeyedSummarisationRunner<K, IN, OUT>` | Wires `KeyedAccumulator` → `Summariser` → output bus. Per-group at-most-once error semantics. `collect()`, `tick(long now)`, `clear()`, `groupCount()`, `eventCount()`. |
 
 Two integration patterns: **Pattern A** (SummarisationRunner pipeline — sync heuristics, microsecond latency) and **Pattern B** (direct EventAccumulator — async LLM dispatch, caller manages). `KeyedSummarisationRunner` is the grouped counterpart to `SummarisationRunner` — same compositional role, groups by key instead of flat windowing. See spec for details.
+
+## Sub-package: `io.casehub.blocks.summarisation.observation`
+
+Terminal consumer of the summarisation pipeline — tiered, demand-driven rendering for LLM agent prompts with RAG-able chunk production.
+
+| Class | What it does |
+|-------|-------------|
+| `ObservationTier` | Record: named tier in rendering hierarchy `(String name, int ordinal)`. Mirrors `EventLevel`. Predefined: VERBATIM, GROUPED, SUMMARISED. |
+| `ObservationContext` | Record: render-time context `(long currentTime, long timeSinceLastDrain)`. |
+| `ObservationChunk` | Record: RAG-able content unit with extensible `Map<String, String>` metadata. Agent-agnostic — consumer adds identity when storing. |
+| `ObservationResult` | Record: drain output — `renderedText` + `chunks` + metadata. Factory: `empty(timeSinceLastDrain)`. |
+| `ObservationRenderer<E>` | `@FunctionalInterface` SPI: `render(List<LevelEvent<E>>, ObservationContext) → CompletionStage<ObservationResult>`. Stateless and shareable. |
+| `TieredObservationRenderer<E>` | Standard implementation: routes to verbatim (≤ threshold), grouped (≤ threshold), or summarised (via `Summariser<E, String>`) based on batch size. Configurable header via `withHeaderFormatter`. Two-tier and three-tier constructors. |
+| `ObservationAccumulator<E>` | Thread-safe buffer with demand-driven drain. Own buffer (not `EventAccumulator`). Tracks `lastDrainTimestamp`. Empty drain → `ObservationResult.empty()`. At-most-once delivery on renderer failure. |
 
 ## Dependencies
 

@@ -95,6 +95,22 @@ Two integration patterns:
 
 **Implementation issues:** casehubio/blocks#27, casehubio/blocks#40
 
+#### Sub-package: `io.casehub.blocks.summarisation.observation`
+
+Terminal consumer of the summarisation pipeline — tiered, demand-driven rendering for LLM agent prompts with RAG-able chunk production. Sits at the end of the pipeline, not in the middle.
+
+| Block | What it does |
+|-------|-------------|
+| `ObservationTier` | Record: named tier in rendering hierarchy `(String name, int ordinal)`. Mirrors `EventLevel`. Predefined: VERBATIM, GROUPED, SUMMARISED. |
+| `ObservationContext` | Record: render-time context `(long currentTime, long timeSinceLastDrain)`. |
+| `ObservationChunk` | Record: RAG-able content unit `(String content, long timestamp, ObservationTier tier, int eventCount, Map<String, String> metadata)`. Agent-agnostic. |
+| `ObservationResult` | Record: drain output `(String renderedText, List<ObservationChunk> chunks, int eventCount, long timeSinceLastDrain, ObservationTier tier)`. Factory: `empty(timeSinceLastDrain)`. |
+| `ObservationRenderer<E>` | `@FunctionalInterface`: SPI for rendering batch → `CompletionStage<ObservationResult>`. Parallels `Summariser` structurally. |
+| `TieredObservationRenderer<E>` | Standard tiered implementation: verbatim/grouped/summarised by batch size. Configurable thresholds, pluggable header via `withHeaderFormatter`. Two-tier (no summariser) and three-tier constructors. |
+| `ObservationAccumulator<E>` | Thread-safe buffer with demand-driven drain. Own buffer (not `EventAccumulator`). Tracks `lastDrainTimestamp`. At-most-once delivery. |
+
+**Implementation issue:** casehubio/blocks#68
+
 ### Planned packages (per parent#310)
 
 | Package | What it will contain | Priority |
