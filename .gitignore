@@ -3,3 +3,5 @@ wksp
 target/
 *.class
 .idea/
+.claude
+package-lock.json
