@@ -15,6 +15,7 @@ public class SequenceBuilder<T> extends AbstractPatternBuilder<T, SequenceBuilde
 
     public SequenceBuilder() {
         this.task = "sequence";
+        this.patternType = io.casehub.blocks.agentic.model.PatternType.SEQUENCE;
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();
         this.aggregation = new PassThrough<>();

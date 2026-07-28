@@ -18,6 +18,7 @@ public class LoopBuilder<T> extends AbstractPatternBuilder<T, LoopBuilder<T>> {
 
     public LoopBuilder() {
         this.task = "loop";
+        this.patternType = io.casehub.blocks.agentic.model.PatternType.LOOP;
         this.routing = new RoundRobinRouting<>();
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();

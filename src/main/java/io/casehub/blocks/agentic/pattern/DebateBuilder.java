@@ -18,6 +18,7 @@ public class DebateBuilder<T> extends AbstractPatternBuilder<T, DebateBuilder<T>
 
     public DebateBuilder() {
         this.task = "debate";
+        this.patternType = io.casehub.blocks.agentic.model.PatternType.DEBATE;
         this.routing = new RoundRobinRouting<>();
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();

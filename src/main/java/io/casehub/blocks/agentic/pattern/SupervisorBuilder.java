@@ -19,6 +19,7 @@ public class SupervisorBuilder<T> extends AbstractPatternBuilder<T, SupervisorBu
 
     public SupervisorBuilder() {
         this.task = "supervisor";
+        this.patternType = io.casehub.blocks.agentic.model.PatternType.SUPERVISOR;
         this.routing = new FirstMatchRouting<>(c -> true);
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();

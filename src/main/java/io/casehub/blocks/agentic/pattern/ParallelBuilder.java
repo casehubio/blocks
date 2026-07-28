@@ -13,6 +13,7 @@ public class ParallelBuilder<T> extends AbstractPatternBuilder<T, ParallelBuilde
 
     public ParallelBuilder() {
         this.task = "parallel";
+        this.patternType = io.casehub.blocks.agentic.model.PatternType.PARALLEL;
         this.routing = ctx -> Uni.createFrom().item(
                 new RoutingDecision.Selected(
                         ctx.candidates().stream().map(RoutingCandidate::ref).toList()));

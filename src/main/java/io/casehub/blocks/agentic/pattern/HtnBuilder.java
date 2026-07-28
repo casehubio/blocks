@@ -22,6 +22,7 @@ public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
 
     public HtnBuilder() {
         this.task          = "htn";
+        this.patternType   = io.casehub.blocks.agentic.model.PatternType.HTN;
         this.routing       = new SequentialRouting<>();
         this.decomposition = new StaticDecomposition<>();
         this.activation    = new OnExplicitDispatch<>();

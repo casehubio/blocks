@@ -4,9 +4,9 @@ import io.casehub.blocks.agentic.FailurePolicy;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.activation.ActivationRule;
 import io.casehub.blocks.agentic.aggregation.AggregationStrategy;
-import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.blocks.agentic.routing.RoutingStrategy;
 import io.casehub.blocks.agentic.termination.TerminationCondition;
+import io.casehub.engine.plan.DecompositionStrategy;
 
 import java.util.List;
 import java.util.Objects;
@@ -21,7 +21,8 @@ public record ExecutionModel<T>(
         Supplier<List<RoutingCandidate>> candidateSupplier,
         FailurePolicy failurePolicy,
         List<ExecutionEventListener> listeners,
-        String task
+        String task,
+        PatternType patternType
 ) {
     public ExecutionModel {
         Objects.requireNonNull(routing, "routing");
@@ -33,5 +34,15 @@ public record ExecutionModel<T>(
         Objects.requireNonNull(failurePolicy, "failurePolicy");
         listeners = List.copyOf(listeners);
         Objects.requireNonNull(task, "task");
+    }
+
+    public ExecutionModel(RoutingStrategy<T> routing, DecompositionStrategy<T> decomposition,
+                          ActivationRule<T> activation, AggregationStrategy<T> aggregation,
+                          TerminationCondition<T> termination,
+                          Supplier<List<RoutingCandidate>> candidateSupplier,
+                          FailurePolicy failurePolicy, List<ExecutionEventListener> listeners,
+                          String task) {
+        this(routing, decomposition, activation, aggregation, termination,
+             candidateSupplier, failurePolicy, listeners, task, null);
     }
 }
