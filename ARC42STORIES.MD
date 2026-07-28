@@ -111,6 +111,20 @@ Terminal consumer of the summarisation pipeline — tiered, demand-driven render
 
 **Implementation issue:** casehubio/blocks#68
 
+#### Sub-package: `io.casehub.blocks.summarisation.observation.affordance`
+
+Grounded observation rendering for LLM agents — per-entity affordance chains (identity + action + consequence) and typed section assembly. Parallel producer to the temporal observation pipeline — consumer concatenates both.
+
+| Block | What it does |
+|-------|-------------|
+| `ObservableEntity` | Record: entity visible to an agent `(String id, String displayName, @Nullable String description, List<Affordance> affordances)`. Convenience constructor for entities without affordances. |
+| `Affordance` | Record: action available on an entity `(String actionType, @Nullable String label, @Nullable String requiredItem, List<String> acceptsItems)`. Compositional tag format: `[ACTION label, requires: item, with: items]`. |
+| `ObservationSection` | Sealed interface: `EntityGroup` (entities with grounding chains), `TextBlock` (contextual prose), `ItemList` (bulleted items). Factory methods: `entities()`, `text()`, `items()`. |
+| `ActionDescriptor` | Record: action type in the vocabulary `(String actionType, String description, @Nullable String parameterFormat)`. |
+| `AffordanceRenderer` | Concrete class: `renderEntities()` (core grounding chains), `renderObservation()` (section assembly), `renderActionVocabulary()` (action vocabulary). Configurable header formatter via `withHeaderFormatter()`. |
+
+**Implementation issue:** casehubio/blocks#69
+
 ### Planned packages (per parent#310)
 
 | Package | What it will contain | Priority |

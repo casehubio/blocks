@@ -112,6 +112,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/summarisation/` | Tests for summarisation framework |
 | `src/main/java/io/casehub/blocks/summarisation/observation/` | Observation accumulator — tiered, demand-driven rendering for LLM agent prompts with RAG-able chunks |
 | `src/test/java/io/casehub/blocks/summarisation/observation/` | Tests for observation accumulator |
+| `src/main/java/io/casehub/blocks/summarisation/observation/affordance/` | Affordance grounding — per-entity observation rendering for LLM agents |
+| `src/test/java/io/casehub/blocks/summarisation/observation/affordance/` | Tests for affordance rendering |
 | `src/test/java/io/casehub/blocks/summarisation/examples/clinical/` | Clinical temporal abstraction example (L1-L4 pipeline) |
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
 
@@ -268,6 +270,18 @@ Terminal consumer of the summarisation pipeline — tiered, demand-driven render
 | `ObservationRenderer<E>` | `@FunctionalInterface` SPI: `render(List<LevelEvent<E>>, ObservationContext) → CompletionStage<ObservationResult>`. Stateless and shareable. |
 | `TieredObservationRenderer<E>` | Standard implementation: routes to verbatim (≤ threshold), grouped (≤ threshold), or summarised (via `Summariser<E, String>`) based on batch size. Configurable header via `withHeaderFormatter`. Two-tier and three-tier constructors. |
 | `ObservationAccumulator<E>` | Thread-safe buffer with demand-driven drain. Own buffer (not `EventAccumulator`). Tracks `lastDrainTimestamp`. Empty drain → `ObservationResult.empty()`. At-most-once delivery on renderer failure. |
+
+## Sub-package: `io.casehub.blocks.summarisation.observation.affordance`
+
+Grounded observation rendering for LLM agents. Per-entity affordance chains (identity + action + consequence) and typed section assembly. Parallel producer to the temporal observation pipeline — consumer concatenates both.
+
+| Class | What it does |
+|-------|-------------|
+| `ObservableEntity` | Record: entity visible to an agent `(String id, String displayName, @Nullable String description, List<Affordance> affordances)` |
+| `Affordance` | Record: action available on an entity `(String actionType, @Nullable String label, @Nullable String requiredItem, List<String> acceptsItems)`. Compositional tag format: `[ACTION label, requires: item, with: items]` |
+| `ObservationSection` | Sealed interface: `EntityGroup` (entities with grounding chains), `TextBlock` (contextual prose), `ItemList` (bulleted items). Factory methods: `entities()`, `text()`, `items()` |
+| `ActionDescriptor` | Record: action type in the vocabulary `(String actionType, String description, @Nullable String parameterFormat)` |
+| `AffordanceRenderer` | Concrete class: `renderEntities()` (core grounding chains), `renderObservation()` (section assembly), `renderActionVocabulary()` (action vocabulary). Configurable header formatter via `withHeaderFormatter()` |
 
 ## Dependencies
 
