@@ -291,6 +291,13 @@ Grounded observation rendering for LLM agents. Per-entity affordance chains (ide
 **Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `io.opentelemetry:opentelemetry-api`
 **Test:** `casehub-qhorus`, `casehub-qhorus-testing`, `casehub-engine`, `casehub-engine-testing`, `assertj`, `mockito`, `awaitility`, `io.opentelemetry:opentelemetry-sdk-testing`
 
+**No Jandex index.** blocks does not include a Jandex index — its CDI beans are not auto-discovered by Quarkus. Consumers that need blocks' CDI beans (routing strategies, channel summarisers) must opt in:
+```properties
+quarkus.index-dependency.casehub-blocks.group-id=io.casehub
+quarkus.index-dependency.casehub-blocks.artifact-id=casehub-blocks
+```
+Consumers that only use blocks' pure types (records, sealed interfaces, plain classes) need no configuration.
+
 ## Consumers
 
 | Repo | What it uses |
