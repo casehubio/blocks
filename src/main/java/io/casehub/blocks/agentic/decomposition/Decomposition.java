@@ -1,7 +1,10 @@
 package io.casehub.blocks.agentic.decomposition;
 
 import io.casehub.blocks.agentic.AgentRef;
-import io.casehub.blocks.agentic.plan.ExecutionPlan;
+import io.casehub.engine.plan.DagPlan;
+import io.casehub.engine.plan.DecompositionMethod;
+import io.casehub.engine.plan.DecompositionStrategy;
+import io.casehub.engine.plan.TaskNode;
 
 import java.time.Instant;
 import java.util.List;
@@ -42,15 +45,15 @@ public final class Decomposition {
                                         .map(t -> (TaskNode.LeafTask<T>) t)
                                         .toList();
         return (compound, ctx) -> io.smallrye.mutiny.Uni.createFrom()
-                                                        .item(ExecutionPlan.sequence(leafTasks));
+                                                        .item(DagPlan.sequence(leafTasks));
     }
 
-    public static <T> TaskNode.PrimitiveTask<T> primitive(AgentRef agent) {
-        return new TaskNode.PrimitiveTask<>(UUID.randomUUID().toString(), Instant.now(), null, agent, null, null);
+    public static <T> PrimitiveTask<T> primitive(AgentRef agent) {
+        return new PrimitiveTask<>(UUID.randomUUID().toString(), Instant.now(), null, agent, null, null);
     }
 
-    public static <T> TaskNode.PrimitiveTask<T> primitive(String description, AgentRef agent) {
-        return new TaskNode.PrimitiveTask<>(UUID.randomUUID().toString(), Instant.now(), description, agent, null, null);
+    public static <T> PrimitiveTask<T> primitive(String description, AgentRef agent) {
+        return new PrimitiveTask<>(UUID.randomUUID().toString(), Instant.now(), description, agent, null, null);
     }
 
     public static <T> TaskNode.CompoundTask<T> compound(String name,
@@ -58,12 +61,12 @@ public final class Decomposition {
         return new TaskNode.CompoundTask<>(name, methods);
     }
 
-    public static <T> TaskNode.PlannedTask<T> planned(String description, AgentRef agent) {
-        return new TaskNode.PlannedTask<>(UUID.randomUUID().toString(), Instant.now(), description, agent, null);
+    public static <T> PlannedTask<T> planned(String description, AgentRef agent) {
+        return new PlannedTask<>(UUID.randomUUID().toString(), Instant.now(), description, agent, null);
     }
 
-    public static <T> TaskNode.PlannedTask<T> planned(String description, AgentRef agent,
+    public static <T> PlannedTask<T> planned(String description, AgentRef agent,
                                                       String rationale) {
-        return new TaskNode.PlannedTask<>(UUID.randomUUID().toString(), Instant.now(), description, agent, rationale);
+        return new PlannedTask<>(UUID.randomUUID().toString(), Instant.now(), description, agent, rationale);
     }
 }

@@ -4,6 +4,8 @@ import io.casehub.api.model.TaskDescriptor;
 import io.casehub.api.model.TaskStatus;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
+import io.casehub.engine.plan.DecompositionMethod;
+import io.casehub.engine.plan.TaskNode;
 import io.casehub.worker.api.Worker;
 import io.casehub.worker.api.WorkerResult;
 import org.junit.jupiter.api.Nested;
@@ -30,7 +32,7 @@ class TaskNodeTest {
         @Test
         void carriesAllFields() {
             var agent = dummyAgent();
-            var task  = new TaskNode.PrimitiveTask<String>("p1", NOW, "build it", agent, s -> true, s -> {});
+            var task  = new PrimitiveTask<String>("p1", NOW, "build it", agent, s -> true, s -> {});
             assertThat(task.id()).isEqualTo("p1");
             assertThat(task.createdAt()).isEqualTo(NOW);
             assertThat(task.description()).isEqualTo("build it");
@@ -41,7 +43,7 @@ class TaskNodeTest {
         @Test
         void nullDescriptionAllowed() {
             var agent = dummyAgent();
-            var task  = new TaskNode.PrimitiveTask<String>("p2", NOW, null, agent, null, null);
+            var task  = new PrimitiveTask<String>("p2", NOW, null, agent, null, null);
             assertThat(task.description()).isNull();
             assertThat(task.precondition()).isNull();
             assertThat(task.effect()).isNull();
@@ -49,19 +51,19 @@ class TaskNodeTest {
 
         @Test
         void rejectsNullId() {
-            assertThatThrownBy(() -> new TaskNode.PrimitiveTask<String>(null, NOW, null, dummyAgent(), null, null))
+            assertThatThrownBy(() -> new PrimitiveTask<String>(null, NOW, null, dummyAgent(), null, null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         void rejectsNullCreatedAt() {
-            assertThatThrownBy(() -> new TaskNode.PrimitiveTask<String>("p1", null, null, dummyAgent(), null, null))
+            assertThatThrownBy(() -> new PrimitiveTask<String>("p1", null, null, dummyAgent(), null, null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         void rejectsNullAgent() {
-            assertThatThrownBy(() -> new TaskNode.PrimitiveTask<String>("p1", NOW, null, null, null, null))
+            assertThatThrownBy(() -> new PrimitiveTask<String>("p1", NOW, null, null, null, null))
                     .isInstanceOf(NullPointerException.class);
         }
     }
@@ -91,7 +93,7 @@ class TaskNodeTest {
         @Test
         void carriesAllFields() {
             var agent = dummyAgent();
-            var task  = new TaskNode.PlannedTask<String>("t1", NOW, "analyse data", agent, "best fit for domain");
+            var task  = new PlannedTask<String>("t1", NOW, "analyse data", agent, "best fit for domain");
             assertThat(task.id()).isEqualTo("t1");
             assertThat(task.createdAt()).isEqualTo(NOW);
             assertThat(task.description()).isEqualTo("analyse data");
@@ -102,31 +104,31 @@ class TaskNodeTest {
         @Test
         void nullRationaleAllowed() {
             var agent = dummyAgent();
-            var task  = new TaskNode.PlannedTask<String>("t2", NOW, "analyse data", agent, null);
+            var task  = new PlannedTask<String>("t2", NOW, "analyse data", agent, null);
             assertThat(task.rationale()).isNull();
         }
 
         @Test
         void rejectsNullDescription() {
-            assertThatThrownBy(() -> new TaskNode.PlannedTask<String>("t1", NOW, null, dummyAgent(), null))
+            assertThatThrownBy(() -> new PlannedTask<String>("t1", NOW, null, dummyAgent(), null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         void rejectsNullAgent() {
-            assertThatThrownBy(() -> new TaskNode.PlannedTask<String>("t1", NOW, "desc", null, null))
+            assertThatThrownBy(() -> new PlannedTask<String>("t1", NOW, "desc", null, null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         void rejectsNullId() {
-            assertThatThrownBy(() -> new TaskNode.PlannedTask<String>(null, NOW, "desc", dummyAgent(), null))
+            assertThatThrownBy(() -> new PlannedTask<String>(null, NOW, "desc", dummyAgent(), null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         void rejectsNullCreatedAt() {
-            assertThatThrownBy(() -> new TaskNode.PlannedTask<String>("t1", null, "desc", dummyAgent(), null))
+            assertThatThrownBy(() -> new PlannedTask<String>("t1", null, "desc", dummyAgent(), null))
                     .isInstanceOf(NullPointerException.class);
         }
     }
@@ -136,7 +138,7 @@ class TaskNodeTest {
         @Test
         void primitiveTaskImplementsTaskDescriptor() {
             var agent = dummyAgent();
-            var task  = new TaskNode.PrimitiveTask<String>("p1", NOW, "do work", agent, null, null);
+            var task  = new PrimitiveTask<String>("p1", NOW, "do work", agent, null, null);
             assertThat(task).isInstanceOf(TaskDescriptor.class);
             assertThat(task.status()).isEqualTo(TaskStatus.PENDING);
             assertThat(task.executor()).isSameAs(agent);
@@ -145,7 +147,7 @@ class TaskNodeTest {
         @Test
         void plannedTaskImplementsTaskDescriptor() {
             var agent = dummyAgent();
-            var task  = new TaskNode.PlannedTask<String>("t1", NOW, "analyse", agent, null);
+            var task  = new PlannedTask<String>("t1", NOW, "analyse", agent, null);
             assertThat(task).isInstanceOf(TaskDescriptor.class);
             assertThat(task.status()).isEqualTo(TaskStatus.PENDING);
             assertThat(task.executor()).isSameAs(agent);
@@ -154,7 +156,7 @@ class TaskNodeTest {
         @Test
         void executorDelegatesToAgent() {
             var            agent = dummyAgent();
-            TaskDescriptor desc  = new TaskNode.PlannedTask<String>("t1", NOW, "task", agent, null);
+            TaskDescriptor desc  = new PlannedTask<String>("t1", NOW, "task", agent, null);
             assertThat(desc.executor()).isSameAs(agent);
             assertThat(desc.executor().name()).isEqualTo("external");
         }
@@ -165,7 +167,7 @@ class TaskNodeTest {
                                .description("Reviews data")
                                .function(x -> WorkerResult.of(Map.of())).build();
             var agent    = AgentRef.worker(worker);
-            var task     = new TaskNode.PlannedTask<String>("snap-1", NOW, "review step", agent, null);
+            var task     = new PlannedTask<String>("snap-1", NOW, "review step", agent, null);
             var snapshot = task.snapshot();
             assertThat(snapshot.id()).isEqualTo("snap-1");
             assertThat(snapshot.description()).isEqualTo("review step");
@@ -181,22 +183,22 @@ class TaskNodeTest {
         @Test
         void leafTaskAgentAccessorWorksForPrimitive() {
             var                       agent = dummyAgent();
-            TaskNode.LeafTask<String> leaf  = new TaskNode.PrimitiveTask<>("p1", NOW, null, agent, null, null);
-            assertThat(leaf.agent()).isSameAs(agent);
+            TaskNode.LeafTask<String> leaf  = new PrimitiveTask<>("p1", NOW, null, agent, null, null);
+            assertThat(leaf.executor()).isSameAs(agent);
         }
 
         @Test
         void leafTaskAgentAccessorWorksForPlanned() {
             var                       agent = dummyAgent();
-            TaskNode.LeafTask<String> leaf  = new TaskNode.PlannedTask<>("t1", NOW, "do analysis", agent, null);
-            assertThat(leaf.agent()).isSameAs(agent);
+            TaskNode.LeafTask<String> leaf  = new PlannedTask<>("t1", NOW, "do analysis", agent, null);
+            assertThat(leaf.executor()).isSameAs(agent);
         }
 
         @Test
         void leafTaskDescriptionAccessorWorksForBothVariants() {
             var                       agent       = dummyAgent();
-            TaskNode.LeafTask<String> withDesc    = new TaskNode.PlannedTask<>("t1", NOW, "do analysis", agent, null);
-            TaskNode.LeafTask<String> withoutDesc = new TaskNode.PrimitiveTask<>("p1", NOW, null, agent, null, null);
+            TaskNode.LeafTask<String> withDesc    = new PlannedTask<>("t1", NOW, "do analysis", agent, null);
+            TaskNode.LeafTask<String> withoutDesc = new PrimitiveTask<>("p1", NOW, null, agent, null, null);
             assertThat(withDesc.description()).isEqualTo("do analysis");
             assertThat(withoutDesc.description()).isNull();
         }
@@ -205,6 +207,8 @@ class TaskNodeTest {
     @Test
     void sealedInterfacePermitsLeafAndCompound() {
         assertThat(TaskNode.class.getPermittedSubclasses()).hasSize(2);
-        assertThat(TaskNode.LeafTask.class.getPermittedSubclasses()).hasSize(2);
+        assertThat(TaskNode.LeafTask.class.isSealed()).isFalse();
+        assertThat(PrimitiveTask.class).isAssignableTo(TaskNode.LeafTask.class);
+        assertThat(PlannedTask.class).isAssignableTo(TaskNode.LeafTask.class);
     }
 }

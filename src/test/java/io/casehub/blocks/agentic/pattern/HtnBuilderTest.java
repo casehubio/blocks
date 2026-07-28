@@ -2,11 +2,13 @@ package io.casehub.blocks.agentic.pattern;
 
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
-import io.casehub.blocks.agentic.decomposition.DecompositionMethod;
-import io.casehub.blocks.agentic.decomposition.DecompositionStrategy;
-import io.casehub.blocks.agentic.decomposition.TaskNode;
+import io.casehub.blocks.agentic.decomposition.AgenticDecompositionContext;
+import io.casehub.blocks.agentic.decomposition.PrimitiveTask;
+import io.casehub.engine.plan.DecompositionMethod;
+import io.casehub.engine.plan.DecompositionStrategy;
+import io.casehub.engine.plan.TaskNode;
 import io.casehub.blocks.agentic.model.ExecutionResult;
-import io.casehub.blocks.agentic.plan.ExecutionPlan;
+import io.casehub.engine.plan.DagPlan;
 import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Test;
 
@@ -51,10 +53,10 @@ class HtnBuilderTest {
         var rootTask = new TaskNode.CompoundTask<String>("deploy-app", List.of(
                 new DecompositionMethod<String>(
                         state -> true,
-                        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
-                                new TaskNode.PrimitiveTask<String>("h1", java.time.Instant.now(), null, build, s -> true, s -> {}),
-                                new TaskNode.PrimitiveTask<String>("h2", java.time.Instant.now(), null, test, s -> true, s -> {}),
-                                new TaskNode.PrimitiveTask<String>("h3", java.time.Instant.now(), null, deploy, s -> true, s -> {})))))));
+                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                                new PrimitiveTask<String>("h1", java.time.Instant.now(), null, build, s -> true, s -> {}),
+                                new PrimitiveTask<String>("h2", java.time.Instant.now(), null, test, s -> true, s -> {}),
+                                new PrimitiveTask<String>("h3", java.time.Instant.now(), null, deploy, s -> true, s -> {})))))));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -81,12 +83,12 @@ class HtnBuilderTest {
         var rootTask = new TaskNode.CompoundTask<String>("deploy", List.of(
                 new DecompositionMethod<>(
                         (String s) -> s.contains("hotfix"),
-                        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.singleton(
-                                new TaskNode.PrimitiveTask<>("h4", java.time.Instant.now(), null, hotfix, s -> true, s -> {})))),
+                        (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(
+                                new PrimitiveTask<>("h4", java.time.Instant.now(), null, hotfix, s -> true, s -> {})))),
                 new DecompositionMethod<>(
                         (String s) -> true,
-                        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.singleton(
-                                new TaskNode.PrimitiveTask<>("h5", java.time.Instant.now(), null, fullDeploy, s -> true, s -> {}))))));
+                        (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(
+                                new PrimitiveTask<>("h5", java.time.Instant.now(), null, fullDeploy, s -> true, s -> {}))))));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -105,10 +107,10 @@ class HtnBuilderTest {
             return CompletableFuture.completedFuture(AgentResult.success(null, "done"));
         });
 
-        var customPlan = new TaskNode.PrimitiveTask<String>("c1", java.time.Instant.now(), null, agent, null, null);
+        var customPlan = new PrimitiveTask<String>("c1", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> customStrategy = (compound, ctx) ->
-                                                               Uni.createFrom().item(ExecutionPlan.singleton(customPlan));
+                                                               Uni.createFrom().item(DagPlan.singleton(customPlan));
 
         var rootTask = new TaskNode.CompoundTask<String>("root", List.of(
                 new DecompositionMethod<>(s -> true,
@@ -130,12 +132,12 @@ class HtnBuilderTest {
     void agentsPassedToDecompositionContext() {
         var agent = AgentRef.external((Object in) ->
                                               CompletableFuture.completedFuture(AgentResult.success(null, "done")));
-        var captured = new java.util.concurrent.atomic.AtomicReference<io.casehub.blocks.agentic.decomposition.DecompositionContext<String>>();
+        var captured = new java.util.concurrent.atomic.AtomicReference<io.casehub.blocks.agentic.decomposition.AgenticDecompositionContext<String>>();
 
         DecompositionStrategy<String> capturing = (compound, ctx) -> {
-            captured.set(ctx);
-            var leaf = new TaskNode.PrimitiveTask<String>("c1", java.time.Instant.now(), null, agent, null, null);
-            return Uni.createFrom().item(ExecutionPlan.singleton(leaf));
+            captured.set((AgenticDecompositionContext<String>) ctx);
+            var leaf = new PrimitiveTask<String>("c1", java.time.Instant.now(), null, agent, null, null);
+            return Uni.createFrom().item(DagPlan.singleton(leaf));
         };
 
         var rootTask = new TaskNode.CompoundTask<String>("root", List.of());

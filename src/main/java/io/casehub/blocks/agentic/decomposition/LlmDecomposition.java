@@ -3,9 +3,12 @@ package io.casehub.blocks.agentic.decomposition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.casehub.blocks.agentic.AgentCardSupport;
-import io.casehub.blocks.agentic.plan.ExecutionPlan;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.RoutingCandidate;
+import io.casehub.engine.plan.DagPlan;
+import io.casehub.engine.plan.DecompositionContext;
+import io.casehub.engine.plan.DecompositionStrategy;
+import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
@@ -46,30 +49,31 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
     }
 
     @Override
-    public Uni<ExecutionPlan<T>> decompose(TaskNode<T> compound,
-                                            DecompositionContext<T> context) {
+    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> compound,
+                                                        DecompositionContext<T> context) {
         if (!(compound instanceof TaskNode.CompoundTask<T> goal)) {
             if (compound instanceof TaskNode.LeafTask<T> leaf) {
-                return Uni.createFrom().item(ExecutionPlan.singleton(leaf));
+                return Uni.createFrom().item(DagPlan.singleton(leaf));
             }
             return Uni.createFrom().failure(
-                new IllegalStateException("Unexpected TaskNode type: " + compound.getClass()));
+                    new IllegalStateException("Unexpected TaskNode type: " + compound.getClass()));
         }
 
+        var agenticCtx = (AgenticDecompositionContext<T>) context;
         return Uni.createFrom().item(() -> {
             try {
-                var userPrompt = buildUserPrompt(goal, context);
-                var config = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
+                var userPrompt = buildUserPrompt(goal, agenticCtx);
+                var config     = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
 
                 var text = agentProvider.invoke(config)
-                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                        .collect().with(Collectors.joining())
-                        .await().indefinitely();
+                                        .filter(e -> e instanceof AgentEvent.TextDelta)
+                                        .map(e -> ((AgentEvent.TextDelta) e).text())
+                                        .collect().with(Collectors.joining())
+                                        .await().indefinitely();
 
-                var tasks = parseResponse(text, context.agents());
-                if (tasks.isEmpty()) throw new IllegalStateException("LLM returned empty plan");
-                return ExecutionPlan.sequence(tasks);
+                var tasks = parseResponse(text, agenticCtx.agents());
+                if (tasks.isEmpty()) {throw new IllegalStateException("LLM returned empty plan");}
+                return DagPlan.<TaskNode.LeafTask<T>>sequence(tasks);
             } catch (Exception e) {
                 LOG.log(System.Logger.Level.WARNING, "LLM decomposition failed", e);
                 throw e;
@@ -78,7 +82,7 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
     }
 
     private String buildUserPrompt(TaskNode.CompoundTask<T> goal,
-                                   DecompositionContext<T> context) {
+                                   AgenticDecompositionContext<T> context) {
         var sb = new StringBuilder();
         sb.append("Goal: ").append(goal.name()).append("\n\n");
 
@@ -128,7 +132,7 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
                     continue;
                 }
 
-                result.add(new TaskNode.PlannedTask<>(UUID.randomUUID().toString(), Instant.now(), task, agentRef, rationale));
+                result.add(new PlannedTask<>(UUID.randomUUID().toString(), Instant.now(), task, agentRef, rationale));
             }
             return result;
         } catch (Exception e) {
