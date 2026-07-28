@@ -1,0 +1,78 @@
+package io.casehub.blocks.agentic.model;
+
+import io.casehub.blocks.agentic.AgentRef;
+import io.casehub.blocks.agentic.AgentResult;
+import io.casehub.blocks.agentic.RoutingCandidate;
+import io.casehub.blocks.agentic.activation.OnExplicitDispatch;
+import io.casehub.blocks.agentic.aggregation.PassThrough;
+import io.casehub.blocks.agentic.decomposition.IdentityDecomposition;
+import io.casehub.blocks.agentic.pattern.Patterns;
+import io.casehub.blocks.agentic.routing.FirstMatchRouting;
+import io.casehub.blocks.agentic.termination.MaxIterationsTermination;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class ExecutionBackendTest {
+
+    @Test
+    void orchestratedBackendExecutesModel() {
+        var agent = AgentRef.external((Object s) ->
+            CompletableFuture.completedFuture(AgentResult.success(null, "done")));
+
+        var model = new ExecutionModel<>(
+            new FirstMatchRouting<>(c -> true),
+            new IdentityDecomposition<>(),
+            new OnExplicitDispatch<>(),
+            new PassThrough<>(),
+            new MaxIterationsTermination<>(1),
+            () -> List.of(new RoutingCandidate(agent, null)),
+            io.casehub.blocks.agentic.FailurePolicy.defaults(),
+            List.of(), "test", null);
+
+        ExecutionBackend<Object> backend = ExecutionBackend.orchestrated();
+        var result = backend.execute(model, "input").await().indefinitely();
+
+        assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
+    }
+
+    @Test
+    void customBackendIsUsedByBuilder() {
+        var callCount = new AtomicInteger(0);
+        ExecutionBackend<Object> custom = (model, ctx) -> {
+            callCount.incrementAndGet();
+            return io.smallrye.mutiny.Uni.createFrom()
+                .item(new ExecutionResult.Completed("custom-result"));
+        };
+
+        var agent = AgentRef.external((Object s) ->
+            CompletableFuture.completedFuture(AgentResult.success(null, "x")));
+
+        var result = Patterns.<Object>sequence()
+            .agents(agent)
+            .backend(custom)
+            .execute("input")
+            .await().indefinitely();
+
+        assertThat(callCount.get()).isEqualTo(1);
+        assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
+        assertThat(((ExecutionResult.Completed) result).result()).isEqualTo("custom-result");
+    }
+
+    @Test
+    void defaultBackendUsesOrchestratedDriver() {
+        var agent = AgentRef.external((Object s) ->
+            CompletableFuture.completedFuture(AgentResult.success(null, "output")));
+
+        var result = Patterns.<Object>sequence()
+            .agents(agent)
+            .execute("input")
+            .await().indefinitely();
+
+        assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
+    }
+}

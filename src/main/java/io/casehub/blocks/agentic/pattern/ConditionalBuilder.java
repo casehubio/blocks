@@ -15,6 +15,7 @@ public class ConditionalBuilder<T> extends AbstractPatternBuilder<T, Conditional
 
     public ConditionalBuilder() {
         this.task = "conditional";
+        this.patternType = io.casehub.blocks.agentic.model.PatternType.CONDITIONAL;
         this.routing = new FirstMatchRouting<>(c -> true);
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();
