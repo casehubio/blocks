@@ -5,7 +5,7 @@ import io.casehub.blocks.agentic.FailurePolicy;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.activation.ActivationRule;
 import io.casehub.blocks.agentic.aggregation.AggregationStrategy;
-import io.casehub.blocks.agentic.decomposition.DecompositionStrategy;
+import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.blocks.agentic.model.ExecutionEventListener;
 import io.casehub.blocks.agentic.model.ExecutionModel;
 import io.casehub.blocks.agentic.model.ExecutionResult;

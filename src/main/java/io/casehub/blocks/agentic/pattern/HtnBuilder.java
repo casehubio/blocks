@@ -1,15 +1,16 @@
 package io.casehub.blocks.agentic.pattern;
 
+import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.RoutingCandidate;
+import io.casehub.engine.plan.DagPlan;
 import io.casehub.blocks.agentic.activation.OnExplicitDispatch;
 import io.casehub.blocks.agentic.aggregation.CollectAll;
-import io.casehub.blocks.agentic.decomposition.DecompositionContext;
+import io.casehub.blocks.agentic.decomposition.AgenticDecompositionContext;
 import io.casehub.blocks.agentic.decomposition.StaticDecomposition;
-import io.casehub.blocks.agentic.decomposition.TaskNode;
+import io.casehub.engine.plan.TaskNode;
 import io.casehub.blocks.agentic.model.ExecutionModel;
 import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.model.OrchestratedDriver;
-import io.casehub.blocks.agentic.plan.ExecutionPlan;
 import io.casehub.blocks.agentic.routing.SequentialRouting;
 import io.casehub.blocks.agentic.termination.TerminationCondition;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
@@ -57,7 +58,7 @@ public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
                        .map(plan -> {
                            var sortedNodes = plan.topologicalSort();
                            var agents = sortedNodes.stream()
-                                                   .map(n -> new RoutingCandidate(n.task().agent(), null))
+                                                   .map(n -> new RoutingCandidate((AgentRef) n.task().executor(), null))
                                                    .toList();
 
                            var localTermination = (TerminationCondition<T>) ctx -> Uni.createFrom().item(
@@ -82,13 +83,13 @@ public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
                        .flatMap(localModel -> new OrchestratedDriver<T>().execute(localModel, initialContext));
     }
 
-    private Uni<ExecutionPlan<T>> flatten(TaskNode<T> node, T state) {
+    private Uni<DagPlan<TaskNode.LeafTask<T>>> flatten(TaskNode<T> node, T state) {
         return switch (node) {
-            case TaskNode.LeafTask<T> leaf -> Uni.createFrom().item(ExecutionPlan.singleton(leaf));
+            case TaskNode.LeafTask<T> leaf -> Uni.createFrom().item(DagPlan.singleton(leaf));
             case TaskNode.CompoundTask<T> compound -> {
                 var agents = candidateSupplier != null
                              ? candidateSupplier.get() : java.util.List.<io.casehub.blocks.agentic.RoutingCandidate>of();
-                var ctx = new DecompositionContext<>(state, agents, 0);
+                var ctx = new AgenticDecompositionContext<>(state, agents, 0);
                 yield decomposition.decompose(compound, ctx);
             }
         };

@@ -3,12 +3,14 @@ package io.casehub.blocks.agentic.decomposition.examples.incident;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.RoutingCandidate;
-import io.casehub.blocks.agentic.decomposition.DecompositionContext;
-import io.casehub.blocks.agentic.decomposition.DecompositionMethod;
+import io.casehub.blocks.agentic.decomposition.AgenticDecompositionContext;
 import io.casehub.blocks.agentic.decomposition.HybridDecomposition;
+import io.casehub.blocks.agentic.decomposition.PlannedTask;
+import io.casehub.blocks.agentic.decomposition.PrimitiveTask;
 import io.casehub.blocks.agentic.decomposition.StaticDecomposition;
-import io.casehub.blocks.agentic.decomposition.TaskNode;
-import io.casehub.blocks.agentic.plan.ExecutionPlan;
+import io.casehub.engine.plan.DecompositionMethod;
+import io.casehub.engine.plan.TaskNode;
+import io.casehub.engine.plan.DagPlan;
 import io.casehub.eidos.api.AgentCapability;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.platform.agent.AgentEvent;
@@ -56,22 +58,22 @@ class IncidentResponseHybridTest {
         return new TaskNode.CompoundTask<>("respond-to-incident", List.of(
                 new DecompositionMethod<>(
                         state -> "DATABASE_OUTAGE".equals(state.type()),
-                        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
-                                new TaskNode.PrimitiveTask<>("t1", Instant.now(), "failover-db", failoverAgent, null, null),
-                                new TaskNode.PrimitiveTask<>("t2", Instant.now(), "verify-connectivity", verifyAgent, null, null),
-                                new TaskNode.PrimitiveTask<>("t3", Instant.now(), "notify-stakeholders", notifyAgent, null, null))))),
+                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                                new PrimitiveTask<>("t1", Instant.now(), "failover-db", failoverAgent, null, null),
+                                new PrimitiveTask<>("t2", Instant.now(), "verify-connectivity", verifyAgent, null, null),
+                                new PrimitiveTask<>("t3", Instant.now(), "notify-stakeholders", notifyAgent, null, null))))),
                 new DecompositionMethod<>(
                         state -> "SECURITY_BREACH".equals(state.type()),
-                        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
-                                new TaskNode.PrimitiveTask<>("t4", Instant.now(), "isolate-systems", isolateAgent, null, null),
-                                new TaskNode.PrimitiveTask<>("t5", Instant.now(), "forensic-analysis", forensicsAgent, null, null),
-                                new TaskNode.PrimitiveTask<>("t6", Instant.now(), "notify-stakeholders", notifyAgent, null, null))))),
+                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                                new PrimitiveTask<>("t4", Instant.now(), "isolate-systems", isolateAgent, null, null),
+                                new PrimitiveTask<>("t5", Instant.now(), "forensic-analysis", forensicsAgent, null, null),
+                                new PrimitiveTask<>("t6", Instant.now(), "notify-stakeholders", notifyAgent, null, null))))),
                 new DecompositionMethod<>(
                         state -> "NETWORK_FAILURE".equals(state.type()),
-                        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
-                                new TaskNode.PrimitiveTask<>("t7", Instant.now(), "diagnose-network", diagnoseAgent, null, null),
-                                new TaskNode.PrimitiveTask<>("t8", Instant.now(), "reroute-traffic", rerouteAgent, null, null),
-                                new TaskNode.PrimitiveTask<>("t9", Instant.now(), "notify-stakeholders", notifyAgent, null, null)))))
+                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                                new PrimitiveTask<>("t7", Instant.now(), "diagnose-network", diagnoseAgent, null, null),
+                                new PrimitiveTask<>("t8", Instant.now(), "reroute-traffic", rerouteAgent, null, null),
+                                new PrimitiveTask<>("t9", Instant.now(), "notify-stakeholders", notifyAgent, null, null)))))
         ));
     }
 
@@ -80,7 +82,7 @@ class IncidentResponseHybridTest {
         var hybrid = new HybridDecomposition<>(new StaticDecomposition<IncidentState>(),
                 (compound, ctx) -> Uni.createFrom().failure(new AssertionError("LLM should not be called")));
         var state = new IncidentState("DATABASE_OUTAGE", "HIGH", "DB cluster down");
-        var ctx = new DecompositionContext<>(state, List.of(), 0);
+        var ctx = new AgenticDecompositionContext<>(state, List.of(), 0);
 
         var plan = hybrid.decompose(incidentTree(), ctx).await().indefinitely();
 
@@ -96,7 +98,7 @@ class IncidentResponseHybridTest {
         var hybrid = new HybridDecomposition<>(new StaticDecomposition<IncidentState>(),
                 (compound, ctx) -> Uni.createFrom().failure(new AssertionError("LLM should not be called")));
         var state = new IncidentState("SECURITY_BREACH", "CRITICAL", "Unauthorised access detected");
-        var ctx = new DecompositionContext<>(state, List.of(), 0);
+        var ctx = new AgenticDecompositionContext<>(state, List.of(), 0);
 
         var plan = hybrid.decompose(incidentTree(), ctx).await().indefinitely();
 
@@ -125,13 +127,13 @@ class IncidentResponseHybridTest {
 
         var hybrid = new HybridDecomposition<IncidentState>(provider, state -> state.description());
         var state = new IncidentState("PERFORMANCE_DEGRADATION", "MEDIUM", "API response times elevated");
-        var ctx = new DecompositionContext<>(state, agents, 0);
+        var ctx = new AgenticDecompositionContext<>(state, agents, 0);
 
         var plan = hybrid.decompose(incidentTree(), ctx).await().indefinitely();
 
         assertThat(plan.nodes()).hasSize(2);
         var tasks = plan.topologicalSort();
-        assertThat(tasks.get(0).task()).isInstanceOf(TaskNode.PlannedTask.class);
+        assertThat(tasks.get(0).task()).isInstanceOf(PlannedTask.class);
         assertThat(tasks.get(0).task().description()).isEqualTo("check latency and throughput metrics");
         assertThat(tasks.get(1).task().description()).isEqualTo("alert ops team");
     }

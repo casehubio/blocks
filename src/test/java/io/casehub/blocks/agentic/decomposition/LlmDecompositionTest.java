@@ -1,7 +1,8 @@
 package io.casehub.blocks.agentic.decomposition;
 
 import io.casehub.blocks.agentic.AgentRef;
-import io.casehub.blocks.agentic.plan.ExecutionPlan;
+import io.casehub.engine.plan.DagPlan;
+import io.casehub.engine.plan.TaskNode;
 import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.eidos.api.AgentCapability;
@@ -73,17 +74,17 @@ class LlmDecompositionTest {
                     """;
             var decomp = new LlmDecomposition<String>(providerReturning(json));
             var agents = List.of(candidate("analyst", "data analysis"), candidate("reporter", "reporting"));
-            var ctx = new DecompositionContext<>("initial state", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("initial state", agents, 0);
             var compound = new TaskNode.CompoundTask<String>("investigate", List.of());
 
             var result = decomp.decompose(compound, ctx).await().indefinitely();
 
             assertThat(result.nodes()).hasSize(2);
-            assertThat(result.topologicalSort().get(0).task()).isInstanceOf(TaskNode.PlannedTask.class);
-            var t0 = (TaskNode.PlannedTask<String>) result.topologicalSort().get(0).task();
+            assertThat(result.topologicalSort().get(0).task()).isInstanceOf(PlannedTask.class);
+            var t0 = (PlannedTask<String>) result.topologicalSort().get(0).task();
             assertThat(t0.description()).isEqualTo("review the data");
             assertThat(t0.rationale()).isEqualTo("domain expert");
-            var t1 = (TaskNode.PlannedTask<String>) result.topologicalSort().get(1).task();
+            var t1 = (PlannedTask<String>) result.topologicalSort().get(1).task();
             assertThat(t1.description()).isEqualTo("write the report");
         }
 
@@ -95,14 +96,14 @@ class LlmDecompositionTest {
                     """;
             var decomp = new LlmDecomposition<String>(providerReturning(json));
             var agents = List.of(candidate("analyst", "a"), candidate("reporter", "r"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
             var compound = new TaskNode.CompoundTask<String>("goal", List.of());
 
             var result = decomp.decompose(compound, ctx).await().indefinitely();
 
             assertThat(result.nodes()).hasSize(2);
-            assertThat(((TaskNode.PlannedTask<String>) result.topologicalSort().get(0).task()).description()).isEqualTo("step-1");
-            assertThat(((TaskNode.PlannedTask<String>) result.topologicalSort().get(1).task()).description()).isEqualTo("step-2");
+            assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).description()).isEqualTo("step-1");
+            assertThat(((PlannedTask<String>) result.topologicalSort().get(1).task()).description()).isEqualTo("step-2");
         }
 
         @Test
@@ -114,7 +115,7 @@ class LlmDecompositionTest {
                     """;
             var decomp = new LlmDecomposition<String>(providerReturning(json));
             var agents = List.of(candidate("analyst", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             var result = decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely();
@@ -132,13 +133,13 @@ class LlmDecompositionTest {
                     """;
             var decomp = new LlmDecomposition<String>(providerReturning(json));
             var agents = List.of(candidate("analyst", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             var result = decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely();
 
             assertThat(result.nodes()).hasSize(1);
-            assertThat(((TaskNode.PlannedTask<String>) result.topologicalSort().get(0).task()).agent())
+            assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).agent())
                     .isSameAs(agents.get(0).ref());
         }
 
@@ -150,13 +151,13 @@ class LlmDecompositionTest {
                     """;
             var decomp = new LlmDecomposition<String>(providerReturning(json));
             var agents = List.of(candidate("analyst", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             var result = decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely();
 
             assertThat(result.nodes()).hasSize(1);
-            assertThat(((TaskNode.PlannedTask<String>) result.topologicalSort().get(0).task()).description()).isEqualTo("keep me");
+            assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).description()).isEqualTo("keep me");
         }
     }
 
@@ -166,7 +167,7 @@ class LlmDecompositionTest {
         void throwsOnUnparseableResponse() {
             var decomp = new LlmDecomposition<String>(providerReturning("not json at all"));
             var agents = List.of(candidate("a", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             assertThatThrownBy(() -> decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely())
@@ -177,7 +178,7 @@ class LlmDecompositionTest {
         void throwsWhenAgentProviderFails() {
             var decomp = new LlmDecomposition<String>(failingProvider());
             var agents = List.of(candidate("a", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             assertThatThrownBy(() -> decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely())
@@ -188,7 +189,7 @@ class LlmDecompositionTest {
         void throwsOnEmptyLlmPlan() {
             var decomp = new LlmDecomposition<String>(providerReturning("[]"));
             var agents = List.of(candidate("a", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             assertThatThrownBy(() -> decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely())
@@ -198,8 +199,8 @@ class LlmDecompositionTest {
         @Test
         void returnsInputUnchangedForNonCompoundTask() {
             var decomp = new LlmDecomposition<String>(failingProvider());
-            var leaf = new TaskNode.PlannedTask<String>("id1", java.time.Instant.now(), "task", dummyAgent(), null);
-            var ctx = new DecompositionContext<String>("s", List.of(), 0);
+            var leaf = new PlannedTask<String>("id1", java.time.Instant.now(), "task", dummyAgent(), null);
+            var ctx = new AgenticDecompositionContext<String>("s", List.of(), 0);
 
             var result = decomp.decompose(leaf, ctx).await().indefinitely();
 
@@ -216,7 +217,7 @@ class LlmDecompositionTest {
             var provider = capturingProvider(promptCapture, "analyst");
             var decomp = new LlmDecomposition<String>(provider, s -> "STATE:" + s);
             var agents = List.of(candidate("analyst", "a"));
-            var ctx = new DecompositionContext<>("my-state", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("my-state", agents, 0);
 
             decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely();
@@ -230,7 +231,7 @@ class LlmDecompositionTest {
             var provider = capturingProvider(promptCapture, "analyst");
             var decomp = new LlmDecomposition<String>(provider);
             var agents = List.of(candidate("analyst", "a"));
-            var ctx = new DecompositionContext<String>(null, agents, 0);
+            var ctx = new AgenticDecompositionContext<String>(null, agents, 0);
 
             decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely();
@@ -244,7 +245,7 @@ class LlmDecompositionTest {
             var provider = capturingProvider(promptCapture, "analyst");
             var decomp = new LlmDecomposition<String>(provider);
             var agents = List.of(candidate("analyst", "a"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             decomp.decompose(new TaskNode.CompoundTask<>("investigate-fraud", List.of()), ctx)
                     .await().indefinitely();
@@ -258,7 +259,7 @@ class LlmDecompositionTest {
             var provider = capturingProvider(promptCapture, "analyst");
             var decomp = new LlmDecomposition<String>(provider);
             var agents = List.of(candidate("analyst", "expert in data analysis"));
-            var ctx = new DecompositionContext<>("s", agents, 0);
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
             decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
                     .await().indefinitely();
