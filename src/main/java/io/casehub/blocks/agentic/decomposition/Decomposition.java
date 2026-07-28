@@ -22,6 +22,11 @@ public final class Decomposition {
         return new StaticDecomposition<>();
     }
 
+    public static <T> GoalOrientedDecomposition<T> goap() {
+        return new GoalOrientedDecomposition<>();
+    }
+
+
     public static <T> HybridDecomposition<T> hybrid(io.casehub.platform.agent.AgentProvider agentProvider) {
         return new HybridDecomposition<>(agentProvider);
     }
