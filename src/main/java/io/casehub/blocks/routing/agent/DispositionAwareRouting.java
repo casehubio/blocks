@@ -48,26 +48,26 @@ public class DispositionAwareRouting implements RoutingSignalProvider {
     return candidates.isEmpty() ? null : new RoutingSignal(candidates);
   }
 
-  static double score(DispositionProfile profile, AgentDisposition disposition) {
-    double totalWeight = 0.0;
-    double weightedMatch = 0.0;
+    static double score(DispositionProfile profile, AgentDisposition disposition) {
+        double totalWeight   = 0.0;
+        double weightedMatch = 0.0;
 
-    for (var entry : profile.desired().entrySet()) {
-      DispositionAxis axis = entry.getKey();
-      String desiredValue = entry.getValue();
-      double weight = profile.weight(axis);
-      totalWeight += weight;
+        for (var entry : profile.desired().entrySet()) {
+            DispositionAxis axis         = entry.getKey();
+            String          desiredValue = entry.getValue();
+            double          weight       = profile.weight(axis);
+            totalWeight += weight;
 
-      var actual = disposition.get(axis);
-      if (actual.isEmpty()) {
-        weightedMatch += weight * 0.5;
-      } else if (desiredValue.equals(actual.get())) {
-        weightedMatch += weight;
-      }
+            var actual = disposition.primaryTerm(axis);
+            if (actual == null) {
+                weightedMatch += weight * 0.5;
+            } else if (desiredValue.equals(actual)) {
+                weightedMatch += weight;
+            }
+        }
+
+        return totalWeight > 0.0 ? weightedMatch / totalWeight : 0.0;
     }
-
-    return totalWeight > 0.0 ? weightedMatch / totalWeight : 0.0;
-  }
 
   static @Nullable DispositionProfile extractProfile(JsonNode caseContext,
                                                       String capabilityName) {
