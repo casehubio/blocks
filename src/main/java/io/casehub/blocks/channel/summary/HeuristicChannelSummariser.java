@@ -1,6 +1,7 @@
 package io.casehub.blocks.channel.summary;
 
 import io.casehub.qhorus.api.message.Message;
+import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.qhorus.api.spi.SummaryUpdateContext;
 import io.casehub.qhorus.api.spi.SummaryUpdateHook;
 import io.quarkus.arc.DefaultBean;
@@ -11,11 +12,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 public class HeuristicChannelSummariser implements SummaryUpdateHook {
 
     @Override
-    public String update(SummaryUpdateContext context) {
+    public SummaryResult update(SummaryUpdateContext context) {
         if (context.recentMessages() == null || context.recentMessages().isEmpty()) {
-            return context.currentSummary();
+            return SummaryResult.ofText(context.currentSummary());
         }
-        return appendDelta(context);
+        return SummaryResult.ofText(appendDelta(context));
     }
 
     private String appendDelta(SummaryUpdateContext context) {

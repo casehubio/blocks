@@ -4,6 +4,7 @@ import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.casehub.qhorus.api.message.Message;
+import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.qhorus.api.spi.SummaryUpdateContext;
 import io.casehub.qhorus.api.spi.SummaryUpdateHook;
 import jakarta.annotation.Priority;
@@ -48,9 +49,9 @@ public class LlmChannelSummariser implements SummaryUpdateHook {
     }
 
     @Override
-    public String update(SummaryUpdateContext context) {
+    public SummaryResult update(SummaryUpdateContext context) {
         if (context.recentMessages() == null || context.recentMessages().isEmpty()) {
-            return context.currentSummary();
+            return SummaryResult.ofText(context.currentSummary());
         }
 
         try {
@@ -58,11 +59,12 @@ public class LlmChannelSummariser implements SummaryUpdateHook {
             var systemPrompt = mode == SummaryMode.EDIT ? SYSTEM_PROMPT_EDIT : SYSTEM_PROMPT_APPEND;
             var config = AgentSessionConfig.of(systemPrompt, userPrompt);
 
-            return agentProvider.invoke(config)
+            String text = agentProvider.invoke(config)
                     .filter(e -> e instanceof AgentEvent.TextDelta)
                     .map(e -> ((AgentEvent.TextDelta) e).text())
                     .collect().with(Collectors.joining())
                     .await().indefinitely();
+            return SummaryResult.ofText(text);
         } catch (Exception e) {
             LOG.log(System.Logger.Level.WARNING,
                     "LLM summarisation failed for channel " + context.channelName(), e);

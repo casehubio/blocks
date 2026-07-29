@@ -5,6 +5,7 @@ import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.casehub.qhorus.api.message.Message;
 import io.casehub.qhorus.api.message.MessageType;
+import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.qhorus.api.spi.SummaryUpdateContext;
 import io.smallrye.mutiny.Multi;
 import org.junit.jupiter.api.Test;
@@ -29,10 +30,10 @@ class LlmChannelSummariserTest {
     void emptyMessages_returnsCurrentSummaryWithoutLlmCall() {
         var ctx = new SummaryUpdateContext(
                 UUID.randomUUID(), "test-channel", "tenant-1",
-                "existing summary", 10L, 0,
+                SummaryResult.ofText("existing summary"), 10L, 0,
                 List.of(), q -> List.of());
 
-        assertThat(summariser.update(ctx)).isEqualTo("existing summary");
+        assertThat(summariser.update(ctx).text()).isEqualTo("existing summary");
         verifyNoInteractions(agentProvider);
     }
 
@@ -41,7 +42,7 @@ class LlmChannelSummariserTest {
         var msg = message("alice", "We decided on Redis.");
         var ctx = new SummaryUpdateContext(
                 UUID.randomUUID(), "dev-channel", "tenant-1",
-                "Discussing caching options.", null, 1,
+                SummaryResult.ofText("Discussing caching options."), null, 1,
                 List.of(msg), q -> List.of());
 
         when(agentProvider.invoke(any()))
@@ -49,7 +50,7 @@ class LlmChannelSummariserTest {
                         new AgentEvent.TextDelta("Updated summary.")));
 
         var result = summariser.update(ctx);
-        assertThat(result).isEqualTo("Updated summary.");
+        assertThat(result.text()).isEqualTo("Updated summary.");
 
         var configCaptor = ArgumentCaptor.forClass(AgentSessionConfig.class);
         verify(agentProvider).invoke(configCaptor.capture());
@@ -66,7 +67,7 @@ class LlmChannelSummariserTest {
         var msg = message("bob", "Agreed.");
         var ctx = new SummaryUpdateContext(
                 UUID.randomUUID(), "dev", "tenant-1",
-                "Prior summary.", null, 1,
+                SummaryResult.ofText("Prior summary."), null, 1,
                 List.of(msg), q -> List.of());
 
         when(agentProvider.invoke(any()))

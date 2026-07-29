@@ -2,6 +2,7 @@ package io.casehub.blocks.channel.summary;
 
 import io.casehub.qhorus.api.message.Message;
 import io.casehub.qhorus.api.message.MessageType;
+import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.qhorus.api.spi.SummaryUpdateContext;
 import org.junit.jupiter.api.Test;
 
@@ -19,10 +20,10 @@ class HeuristicChannelSummariserTest {
     void emptyMessages_returnsCurrentSummary() {
         var ctx = new SummaryUpdateContext(
                 UUID.randomUUID(), "test-channel", "tenant-1",
-                "existing summary", 10L, 0,
+                SummaryResult.ofText("existing summary"), 10L, 0,
                 List.of(), q -> List.of());
 
-        assertThat(summariser.update(ctx)).isEqualTo("existing summary");
+        assertThat(summariser.update(ctx).text()).isEqualTo("existing summary");
     }
 
     @Test
@@ -33,7 +34,7 @@ class HeuristicChannelSummariserTest {
                 null, null, 1,
                 List.of(msg), q -> List.of());
 
-        var result = summariser.update(ctx);
+        var result = summariser.update(ctx).text();
         assertThat(result).contains("1 messages");
         assertThat(result).contains("alice");
         assertThat(result).doesNotContain("null");
@@ -47,10 +48,10 @@ class HeuristicChannelSummariserTest {
                 message("alice", "Response"));
         var ctx = new SummaryUpdateContext(
                 UUID.randomUUID(), "debate", "tenant-1",
-                "Prior summary.", null, 3,
+                SummaryResult.ofText("Prior summary."), null, 3,
                 msgs, q -> List.of());
 
-        var result = summariser.update(ctx);
+        var result = summariser.update(ctx).text();
         assertThat(result).contains("alice", "bob");
         assertThat(result).contains("Prior summary.");
         assertThat(result).contains("3 messages");
@@ -69,7 +70,7 @@ class HeuristicChannelSummariserTest {
                 null, null, 2,
                 List.of(msg1, msg2), q -> List.of());
 
-        var result = summariser.update(ctx);
+        var result = summariser.update(ctx).text();
         assertThat(result).contains("architecture", "testing");
     }
 

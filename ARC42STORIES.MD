@@ -125,6 +125,20 @@ Grounded observation rendering for LLM agents — per-entity affordance chains (
 
 **Implementation issue:** casehubio/blocks#69
 
+### Package: `io.casehub.blocks.routing.agent`
+
+AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` implementations for the engine's routing pipeline.
+
+| Block | What it does |
+|-------|-------------|
+| `LlmAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"llm"`). LLM-reasoned agent selection via `AgentProvider`. Composable prompt enrichment via `RoutingPromptAssembler`. |
+| `CbrAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"cbr"`). CBR-evidence agent selection from pre-retrieved experiences. Similarity-weighted worker success rates via `ExperienceAnalyser`. |
+| `PlanCompositionAnalyser` | `RoutingSignalProvider` (id: `"plan-composition"`). Scores candidates by case-level outcomes in multi-step plans. |
+| `CoordinationSignalProvider` | `RoutingSignalProvider` (id: `"coordination"`). Scores candidates by historical team composition outcomes with adaptation-guided retrieval (AGR). Weights by team re-assembly feasibility. |
+| `CbrOutcomeWeights` / `CbrCaseOutcomeWeights` / `CoordinationOutcomeWeights` | SPIs for configurable outcome weighting — step-level, case-level, and coordination-level respectively. Each has a `@DefaultBean` default. |
+
+**Implementation issues:** casehubio/blocks#30, casehubio/qhorus#361
+
 ### Planned packages (per parent#310)
 
 | Package | What it will contain | Priority |
@@ -143,6 +157,10 @@ Grounded observation rendering for LLM agents — per-entity affordance chains (
 ### BoundedProjectionDecorator uses a value extractor function
 
 Rather than hardcoding "round number" as the bound concept, the decorator takes a `ToIntFunction<MessageView>` that extracts the bound value from each message. DraftHouse passes `msg -> DebateProtocol.parseRound(parseMeta(msg.content()))`. Other apps can bound on sequence number, timestamp, or any integer field.
+
+### Coordination memory enriches existing cases, not a new case type
+
+Team composition effects (Worker A + Worker B together succeed more than A + C) are captured by enriching existing `PlanCbrCase` experience cases with team features (`team_members` as `CategoricalList`, `team_size` as `Numeric`) at retention time, rather than creating a separate coordination case type. A second team-weighted `CbrQuery` through the existing retrieval pipeline provides team-centric retrieval without bypassing the decorator chain. The `CoordinationSignalProvider` is analysis-only — same pattern as `PlanCompositionAnalyser`. Adaptation-guided retrieval (AGR) weights cases by team re-assembly feasibility at scoring time, not in the decorator chain, because AGR requires routing context (candidate pool) that decorators don't have. See [ADR 0001](docs/adr/0001-cbr-coordination-memory-architecture.md).
 
 ### ChannelAgentDispatcher uses Consumer/Function, not MessageService
 
