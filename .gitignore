@@ -4,4 +4,5 @@ target/
 *.class
 .idea/
 .claude
+.mvn/maven.config
 package-lock.json
