@@ -1,12 +1,11 @@
 package io.casehub.blocks.agentic.decomposition;
 
 import io.casehub.blocks.agentic.AgentRef;
-import io.casehub.engine.plan.DagPlan;
-import io.casehub.engine.plan.TaskNode;
 import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.eidos.api.AgentCapability;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
@@ -267,5 +266,22 @@ class LlmDecompositionTest {
             assertThat(promptCapture.get()).contains("analyst");
             assertThat(promptCapture.get()).contains("expert in data analysis");
         }
+
+        @Test
+        void includesStaticFailureHintWhenPresent() {
+            var promptCapture = new AtomicReference<String>();
+            var provider      = capturingProvider(promptCapture, "analyst");
+            var decomp        = new LlmDecomposition<String>(provider);
+            var agents        = List.of(candidate("analyst", "a"));
+            var ctx = new AgenticDecompositionContext<>("s", agents, 0,
+                                                        "3 static method(s) evaluated, none matched for 'respond-to-incident'");
+
+            decomp.decompose(new TaskNode.CompoundTask<>("g", List.of()), ctx)
+                  .await().indefinitely();
+
+            assertThat(promptCapture.get()).contains("3 static method(s) evaluated");
+            assertThat(promptCapture.get()).contains("respond-to-incident");
+        }
+
     }
 }

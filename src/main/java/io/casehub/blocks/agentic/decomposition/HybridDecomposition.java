@@ -39,19 +39,28 @@ public class HybridDecomposition<T> implements DecompositionStrategy<T> {
                                                       "Primary strategy succeeded for ''{0}''", taskName(compound)))
                               .onFailure(NoMethodMatchedException.class)
                               .recoverWithUni(failure -> {
-                                  var taskName = ((NoMethodMatchedException) failure).taskName();
+                                  var nmme = (NoMethodMatchedException) failure;
                                   LOG.log(System.Logger.Level.INFO,
-                                          "No static method matched for ''{0}'' — falling back to LLM", taskName);
-                                  if (context instanceof AgenticDecompositionContext<T> ac && ac.agents().isEmpty()) {
-                                      LOG.log(System.Logger.Level.WARNING,
-                                              "Fallback for task ''{0}'' has no agents — call .agents() on the builder",
-                                              taskName);
-                                  }
-                                  return fallbackStrategy.decompose(compound, context)
+                                          "No static method matched for ''{0}'' ({1} evaluated) — falling back to LLM",
+                                          nmme.taskName(), nmme.methodCount());
+
+                                  var fallbackCtx = enrichContext(context, nmme);
+                                  return fallbackStrategy.decompose(compound, fallbackCtx)
                                                          .invoke(plan -> LOG.log(System.Logger.Level.DEBUG,
                                                                                  "Fallback produced plan with {0} task(s) for ''{1}''",
-                                                                                 plan.nodes().size(), taskName));
+                                                                                 plan.nodes().size(), nmme.taskName()));
                               });
+    }
+
+
+    private DecompositionContext<T> enrichContext(DecompositionContext<T> context,
+                                                  NoMethodMatchedException failure) {
+        var hint = failure.methodCount() + " static method(s) evaluated, none matched for '"
+                   + failure.taskName() + "'";
+        if (context instanceof AgenticDecompositionContext<T> ac) {
+            return new AgenticDecompositionContext<>(ac.state(), ac.agents(), ac.depth(), hint);
+        }
+        return context;
     }
 
     private static <T> String taskName(TaskNode<T> node) {

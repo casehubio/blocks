@@ -86,6 +86,10 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
         var sb = new StringBuilder();
         sb.append("Goal: ").append(goal.name()).append("\n\n");
 
+        if (context.staticFailureHint() != null) {
+            sb.append("Note: ").append(context.staticFailureHint()).append("\n\n");
+        }
+
         if (context.state() != null) {
             var stateStr = stateRenderer.apply(context.state());
             if (stateStr != null && !stateStr.isBlank()) {
@@ -97,8 +101,7 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
         for (int i = 0; i < context.agents().size(); i++) {
             sb.append(AgentCardSupport.buildCard(context.agents().get(i), i)).append("\n");
         }
-        return sb.toString();
-    }
+        return sb.toString();}
 
     private List<TaskNode.LeafTask<T>> parseResponse(@Nullable String text,
                                             List<RoutingCandidate> agents) {

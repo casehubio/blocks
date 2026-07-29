@@ -3,12 +3,13 @@ package io.casehub.blocks.agentic.decomposition;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.RoutingCandidate;
+import io.casehub.eidos.api.AgentCapability;
+import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.engine.plan.DagPlan;
+import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import io.casehub.eidos.api.AgentCapability;
-import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
@@ -24,7 +25,9 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class HybridDecompositionTest {
 
@@ -109,6 +112,31 @@ class HybridDecompositionTest {
             assertThat(result.nodes()).hasSize(1);
             assertThat(result.topologicalSort().get(0).task()).isSameAs(fallbackTask);
         }
+
+        @Test
+        void staticFails_fallbackReceivesStaticFailureHint() {
+            var captured = new java.util.concurrent.atomic.AtomicReference<DecompositionContext<String>>();
+            DecompositionStrategy<String> capturingFallback = (compound, ctx) -> {
+                captured.set(ctx);
+                var task = new PrimitiveTask<String>("f1", Instant.now(), "planned", dummyAgent(), null, null);
+                return Uni.createFrom().item(DagPlan.singleton(task));
+            };
+
+            DecompositionStrategy<String> staticWith3Methods = (compound, ctx) ->
+                                                                       Uni.createFrom().failure(new NoMethodMatchedException("incident-response", 3));
+
+            var hybrid   = new HybridDecomposition<>(staticWith3Methods, capturingFallback);
+            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var ctx      = new AgenticDecompositionContext<>("state", List.of(), 0);
+
+            hybrid.decompose(compound, ctx).await().indefinitely();
+
+            assertThat(captured.get()).isInstanceOf(AgenticDecompositionContext.class);
+            var enriched = (AgenticDecompositionContext<String>) captured.get();
+            assertThat(enriched.staticFailureHint()).contains("3 static method(s) evaluated");
+            assertThat(enriched.staticFailureHint()).contains("incident-response");
+        }
+
 
         @Test
         void staticFails_llmAlsoFails_errorPropagates() {

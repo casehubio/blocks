@@ -18,7 +18,7 @@ public class StaticDecomposition<T> implements DecompositionStrategy<T> {
                 }
             }
             return Uni.createFrom().failure(
-                    new NoMethodMatchedException(ct.name()));
+                    new NoMethodMatchedException(ct.name(), ct.methods().size()));
         }
         return Uni.createFrom().item(DagPlan.singleton((TaskNode.LeafTask<T>) compound));
     }
