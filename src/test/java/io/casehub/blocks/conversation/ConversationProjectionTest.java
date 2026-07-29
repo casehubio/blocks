@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -601,6 +602,37 @@ class ConversationProjectionTest {
 
     // ── test subclass ────────────────────────────────────────────────────────
 
+
+    @Test
+    void skipEntryTypes_skipsMatchingEntryType() {
+        var skipping = new SkippingConversationProjection();
+        var state    = skipping.identity();
+        var msg = message(ChannelMessageMeta.encode("TEST:", meta(
+                "entryType", "ROUND_SNAPSHOT",
+                "role", "MODERATOR",
+                "round", "1"), "snapshot data"), "corr-skip");
+
+        var result = skipping.apply(state, msg);
+
+        assertThat(result).isSameAs(state);
+    }
+
+    @Test
+    void skipEntryTypes_doesNotSkipNonMatchingEntryType() {
+        var skipping = new SkippingConversationProjection();
+        var state    = skipping.identity();
+        var msg = message(ChannelMessageMeta.encode("TEST:", meta(
+                "entryType", "OPEN_TOPIC",
+                "role", "REVIEWER",
+                "round", "1",
+                "priority", "NORMAL"), "A real point"), "corr-no-skip");
+
+        var result = skipping.apply(state, msg);
+
+        assertThat(result).isNotSameAs(state);
+        assertThat(result.points()).hasSize(1);
+    }
+
     static class TestConversationProjection extends ConversationProjection {
         @Override
         protected String sentinel() {
@@ -622,4 +654,21 @@ class ConversationProjectionTest {
             };
         }
     }
+
+    static class SkippingConversationProjection extends ConversationProjection {
+        private static final Set<String> SKIPPED = Set.of("ROUND_SNAPSHOT");
+
+        @Override
+        protected String sentinel() {return "TEST:";}
+
+        @Override
+        protected boolean isPointInitiator(String entryType) {return "OPEN_TOPIC".equals(entryType);}
+
+        @Override
+        protected String statusAfter(String entryType) {return null;}
+
+        @Override
+        protected Set<String> skipEntryTypes() {return SKIPPED;}
+    }
+
 }

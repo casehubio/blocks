@@ -9,6 +9,7 @@ import java.lang.System.Logger.Level;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Abstract base class for conversation-style channel projections.
@@ -46,6 +47,9 @@ public abstract class ConversationProjection implements ChannelProjection<Conver
      */
     protected abstract String statusAfter(String entryType);
 
+    protected Set<String> skipEntryTypes() {return Set.of();}
+
+
     // ── ChannelProjection contract ───────────────────────────────────────────
 
     @Override
@@ -66,18 +70,15 @@ public abstract class ConversationProjection implements ChannelProjection<Conver
     // ── dispatch logic ──────────────────────────────────────────────────────
 
     private ConversationState doApply(ConversationState state, MessageView message) {
-        // 1. Parse meta — no sentinel → plain content, return unchanged
         Map<String, String> meta = ChannelMessageMeta.parseMeta(sentinel(), message.content());
         if (meta.isEmpty()) {return state;}
 
-        // 2. Extract entryType — absent → return unchanged
         String entryType = meta.get(ConversationProtocol.ENTRY_TYPE);
         if (entryType == null) {return state;}
 
-        // 3. RESTART_CONTEXT → transparent (protocol PP-20260610-073663)
         if (ConversationProtocol.RESTART_CONTEXT.equals(entryType)) {return state;}
+        if (skipEntryTypes().contains(entryType)) {return state;}
 
-        // 4. Infrastructure dispatch
         return switch (entryType) {
             case ConversationProtocol.MEMO -> handleMemo(state, message, meta);
             case ConversationProtocol.SUB_TASK_REQUEST -> handleSubTaskRequest(state, message, meta);
