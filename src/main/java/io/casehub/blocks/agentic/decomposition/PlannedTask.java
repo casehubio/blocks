@@ -10,26 +10,32 @@ import java.time.Instant;
 import java.util.Objects;
 
 public record PlannedTask<T>(
-    String id,
-    Instant createdAt,
-    String description,
-    AgentRef agent,
-    @Nullable String rationale)
-    implements TaskNode.LeafTask<T> {
-  public PlannedTask {
-    Objects.requireNonNull(id, "id");
-    Objects.requireNonNull(createdAt, "createdAt");
-    Objects.requireNonNull(description, "description");
-    Objects.requireNonNull(agent, "agent");
-  }
+        String id,
+        Instant createdAt,
+        String description,
+        AgentRef agent,
+        @Nullable String rationale,
+        @Nullable OutputContract outputContract)
+        implements TaskNode.LeafTask<T> {
+    public PlannedTask {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(createdAt, "createdAt");
+        Objects.requireNonNull(description, "description");
+        Objects.requireNonNull(agent, "agent");
+    }
 
-  @Override
-  public ExecutorRef executor() {
-    return agent;
-  }
+    public PlannedTask(String id, Instant createdAt, String description,
+                       AgentRef agent, @Nullable String rationale) {
+        this(id, createdAt, description, agent, rationale, null);
+    }
 
-  @Override
-  public TaskStatus status() {
-    return TaskStatus.PENDING;
-  }
+    @Override
+    public ExecutorRef executor() {
+        return agent;
+    }
+
+    @Override
+    public TaskStatus status() {
+        return TaskStatus.PENDING;
+    }
 }

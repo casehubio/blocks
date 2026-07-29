@@ -48,6 +48,23 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
         this(agentProvider, Object::toString);
     }
 
+    private static @Nullable AgentRef resolveAgent(String name,
+                                                   List<RoutingCandidate> agents) {
+        for (int i = 0; i < agents.size(); i++) {
+            if (name.equals(AgentCardSupport.candidateName(agents.get(i), i))) {
+                return agents.get(i).ref();
+            }
+        }
+        for (int i = 0; i < agents.size(); i++) {
+            var candidate = agents.get(i);
+            if (candidate.ref() instanceof AgentRef.WorkerAgent w
+                    && name.equals(w.worker().name())) {
+                return candidate.ref();
+            }
+        }
+        return null;
+    }
+
     @Override
     public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> compound,
                                                         DecompositionContext<T> context) {
@@ -101,7 +118,8 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
         for (int i = 0; i < context.agents().size(); i++) {
             sb.append(AgentCardSupport.buildCard(context.agents().get(i), i)).append("\n");
         }
-        return sb.toString();}
+        return sb.toString();
+    }
 
     private List<TaskNode.LeafTask<T>> parseResponse(@Nullable String text,
                                             List<RoutingCandidate> agents) {
@@ -142,22 +160,5 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
             LOG.log(System.Logger.Level.WARNING, "Failed to parse LLM decomposition response", e);
             return List.of();
         }
-    }
-
-    private static @Nullable AgentRef resolveAgent(String name,
-                                                   List<RoutingCandidate> agents) {
-        for (int i = 0; i < agents.size(); i++) {
-            if (name.equals(AgentCardSupport.candidateName(agents.get(i), i))) {
-                return agents.get(i).ref();
-            }
-        }
-        for (int i = 0; i < agents.size(); i++) {
-            var candidate = agents.get(i);
-            if (candidate.ref() instanceof AgentRef.WorkerAgent w
-                    && name.equals(w.worker().name())) {
-                return candidate.ref();
-            }
-        }
-        return null;
     }
 }

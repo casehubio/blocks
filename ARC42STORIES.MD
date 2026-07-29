@@ -63,7 +63,7 @@ Compositional agentic orchestration framework — five SPIs for agent selection,
 |-------------|-----------------|
 | `io.casehub.blocks.agentic` | Foundation types: `AgentRef` (sealed, 5 variants), `AgentResult`, `RoutingCandidate`, `FailurePolicy` |
 | `io.casehub.blocks.agentic.routing` | Routing SPI: `RoutingStrategy<T>`, `RoutingDecision` (sealed), `FirstMatchRouting`, `RoundRobinRouting`, `SequentialRouting` |
-| `io.casehub.blocks.agentic.decomposition` | Decomposition SPI: `DecompositionStrategy<T>`, `TaskNode` (sealed), `IdentityDecomposition`, `StaticDecomposition`, `LlmDecomposition`, `HybridDecomposition`, `NoMethodMatchedException` |
+| `io.casehub.blocks.agentic.decomposition` | Decomposition SPI: `DecompositionStrategy<T>`, `TaskNode` (sealed), `PrimitiveTask`, `PlannedTask`, `OutputContract`, `Tasks` (DSL factories), `IdentityDecomposition`, `StaticDecomposition`, `ForwardReasoningDecomposition`, `LlmDecomposition`, `HybridDecomposition`, `NoMethodMatchedException` |
 | `io.casehub.blocks.agentic.activation` | Activation SPI: `ActivationRule<T>`, `OnExplicitDispatch`, `MaxIterationsGuard` |
 | `io.casehub.blocks.agentic.aggregation` | Aggregation SPI: `AggregationStrategy<T>`, `AggregationResult` (sealed), `PassThrough`, `CollectAll`, `MajorityVote` |
 | `io.casehub.blocks.agentic.termination` | Termination SPI: `TerminationCondition<T>`, `TerminationDecision` (sealed), `GoalReached`, `MaxIterationsTermination` |
@@ -134,6 +134,7 @@ AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` im
 | `LlmAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"llm"`). LLM-reasoned agent selection via `AgentProvider`. Composable prompt enrichment via `RoutingPromptAssembler`. |
 | `CbrAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"cbr"`). CBR-evidence agent selection from pre-retrieved experiences. Similarity-weighted worker success rates via `ExperienceAnalyser`. |
 | `PlanCompositionAnalyser` | `RoutingSignalProvider` (id: `"plan-composition"`). Scores candidates by case-level outcomes in multi-step plans. |
+| `PredecessorAnalyser` | `RoutingSignalProvider` (id: `"predecessor"`). Scores candidates by immediate predecessor context in historical plan traces. |
 | `CoordinationSignalProvider` | `RoutingSignalProvider` (id: `"coordination"`). Scores candidates by historical team composition outcomes with adaptation-guided retrieval (AGR). Weights by team re-assembly feasibility. |
 | `CbrOutcomeWeights` / `CbrCaseOutcomeWeights` / `CoordinationOutcomeWeights` | SPIs for configurable outcome weighting — step-level, case-level, and coordination-level respectively. Each has a `@DefaultBean` default. |
 
