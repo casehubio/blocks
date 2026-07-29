@@ -1,4 +1,4 @@
-package io.casehub.blocks.channel.summary;
+package io.casehub.blocks.summarisation;
 
 public enum SummaryMode {
     APPEND,

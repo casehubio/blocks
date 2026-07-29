@@ -87,13 +87,26 @@ Temporal abstraction framework for summarising high-frequency event streams into
 | `SummarisationRunner<IN, OUT>` | Wires accumulator → summariser → output bus. `collect()`, `tick()` (returns `CompletionStage<Void>`), `clear()`, `size()`. | quarkmind `SummarisationRunner` |
 | `KeyedAccumulator<K, E>` | Groups events by key, emits each group on completion predicate or stale timeout. Thread-safe. Clock-from-last-event staleness. `collect()`, `drain(long)`, `clear()`, `groupCount()`, `eventCount()`. | #40 |
 | `KeyedSummarisationRunner<K, IN, OUT>` | Wires `KeyedAccumulator` → `Summariser` → output bus. Per-group at-most-once error semantics. `collect()`, `tick(long)`, `clear()`, `groupCount()`, `eventCount()`. | #40 |
+| `SummaryMode` | Enum: `APPEND` / `EDIT` — summarisation lifecycle mode for `LlmContentSummariser`. | qhorus#359 |
+| `ContentSummariser<T>` | `@FunctionalInterface` SPI for batch summarisation. Takes `List<T>` + previous `SummaryResult`, returns `CompletionStage<SummaryResult>`. Decoupled from pipeline event model — reusable in both hook and pipeline contexts. | qhorus#359 |
+| `VerbatimContentSummariser<T>` | Renders items as bullet list. Preserves previous text and propagates annotations across invocations. | qhorus#359 |
+| `TieredContentSummariser<T>` | Dispatches to delegates based on batch size thresholds. 2-tier and 3-tier constructors. | qhorus#359 |
+| `ContentSummariserToSummariser<T>` | Pipeline adapter: `ContentSummariser<T>` → `Summariser<T, String>`. Passes null previous (pipeline batches are independent). | qhorus#359 |
 
 Two integration patterns:
 - **Pattern A** (SummarisationRunner pipeline): sync heuristics, microsecond latency. Used for rule-based summarisation where speed is critical.
 - **Pattern B** (direct EventAccumulator): async LLM dispatch, caller manages execution. Used when summarisation requires LLM reasoning and latency tolerance is higher.
 - `KeyedSummarisationRunner` is the grouped counterpart to `SummarisationRunner` — same compositional role, groups by key instead of flat windowing.
 
-**Implementation issues:** casehubio/blocks#27, casehubio/blocks#40
+**Implementation issues:** casehubio/blocks#27, casehubio/blocks#40, casehubio/qhorus#359
+
+#### Sub-package: `io.casehub.blocks.summarisation.llm`
+
+LLM-backed content summarisation. Separated from the pure-Java `blocks.summarisation` package to preserve its zero-CDI/Quarkus character.
+
+| Block | What it does |
+|-------|-------------|
+| `LlmContentSummariser<T>` | Generic `ContentSummariser<T>` backed by `AgentProvider`. EDIT/APPEND via `SummaryMode`, optional `preamble` for static context. Propagates previous annotations. | qhorus#359 |
 
 #### Sub-package: `io.casehub.blocks.summarisation.observation`
 
@@ -134,7 +147,10 @@ AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` im
 | `LlmAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"llm"`). LLM-reasoned agent selection via `AgentProvider`. Composable prompt enrichment via `RoutingPromptAssembler`. |
 | `CbrAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"cbr"`). CBR-evidence agent selection from pre-retrieved experiences. Similarity-weighted worker success rates via `ExperienceAnalyser`. |
 | `PlanCompositionAnalyser` | `RoutingSignalProvider` (id: `"plan-composition"`). Scores candidates by case-level outcomes in multi-step plans. |
+<<<<<<< HEAD
 | `PredecessorAnalyser` | `RoutingSignalProvider` (id: `"predecessor"`). Scores candidates by immediate predecessor context in historical plan traces. |
+=======
+>>>>>>> f33eccf (feat(qhorus#359): ContentSummariser<T> — reusable summarisation SPI with tiered dispatch)
 | `CoordinationSignalProvider` | `RoutingSignalProvider` (id: `"coordination"`). Scores candidates by historical team composition outcomes with adaptation-guided retrieval (AGR). Weights by team re-assembly feasibility. |
 | `CbrOutcomeWeights` / `CbrCaseOutcomeWeights` / `CoordinationOutcomeWeights` | SPIs for configurable outcome weighting — step-level, case-level, and coordination-level respectively. Each has a `@DefaultBean` default. |
 
