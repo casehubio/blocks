@@ -64,6 +64,36 @@ public final class ConversationFold {
                                      new ArrayList<>(state.memos()), new LinkedHashMap<>(state.subTaskFindings()));
     }
 
+    public static ConversationState reprioritisePoint(ConversationState state,
+                                                      String targetId,
+                                                      Long messageId,
+                                                      io.casehub.qhorus.api.message.MessageType messageType,
+                                                      String sender,
+                                                      java.time.Instant createdAt,
+                                                      String role, int round,
+                                                      Priority newPriority,
+                                                      String content) {
+        if (!state.points().containsKey(targetId)) {return state;}
+
+        ConversationPoint existing = state.points().get(targetId);
+        var               thread   = new ArrayList<>(existing.thread());
+        thread.add(new ThreadEntry(null, messageId, messageType, sender, createdAt,
+                                   role, round, "REPRIORITISE", content));
+
+        PointClassification oldClass = existing.classification();
+        PointClassification newClass = new PointClassification(newPriority,
+                                                               oldClass.scope(), oldClass.location());
+        var updated = new ConversationPoint(existing.id(), existing.topic(), newClass,
+                                            thread, existing.status());
+
+        var points = new LinkedHashMap<>(state.points());
+        points.put(targetId, updated);
+
+        return new ConversationState(points, new ArrayList<>(state.humanFlags()),
+                                     new ArrayList<>(state.memos()), new LinkedHashMap<>(state.subTaskFindings()));
+    }
+
+
     public static ConversationState flagHuman(ConversationState state,
                                               String targetId,
                                               Long messageId,

@@ -394,4 +394,91 @@ class ConversationFoldTest {
             assertThat(result.subTaskFindings().get("st-1").pointId()).isEqualTo("original-point");
         }
     }
+
+    @Nested
+    class ReprioritisePoint {
+
+        @Test
+        void updatesPointPriority() {
+            var classification = new PointClassification(Priority.LOW, "ISOLATED", "§3.2");
+            var state = ConversationFold.createPoint(empty,
+                                                     "point-1", "general", 1L, null, "rev-sender", null,
+                                                     classification, "REV", 1, "RAISE", "Minor issue");
+
+            var result = ConversationFold.reprioritisePoint(state,
+                                                            "point-1", 2L, null, "human-sender", null,
+                                                            "HUMAN", 2, Priority.HIGH, "Actually critical");
+
+            ConversationPoint point = result.points().get("point-1");
+            assertThat(point.classification().priority()).isEqualTo(Priority.HIGH);
+            assertThat(point.classification().scope()).isEqualTo("ISOLATED");
+            assertThat(point.classification().location()).isEqualTo("§3.2");
+        }
+
+        @Test
+        void addsThreadEntry() {
+            var classification = new PointClassification(Priority.LOW, null, null);
+            var state = ConversationFold.createPoint(empty,
+                                                     "point-1", "general", 1L, null, "rev-sender", null,
+                                                     classification, "REV", 1, "RAISE", "Issue");
+
+            var result = ConversationFold.reprioritisePoint(state,
+                                                            "point-1", 2L, null, "human-sender", null,
+                                                            "HUMAN", 2, Priority.HIGH, "Escalating");
+
+            ConversationPoint point = result.points().get("point-1");
+            assertThat(point.thread()).hasSize(2);
+            ThreadEntry entry = point.thread().get(1);
+            assertThat(entry.role()).isEqualTo("HUMAN");
+            assertThat(entry.round()).isEqualTo(2);
+            assertThat(entry.entryType()).isEqualTo("REPRIORITISE");
+            assertThat(entry.content()).isEqualTo("Escalating");
+        }
+
+        @Test
+        void preservesStatusUnchanged() {
+            var classification = new PointClassification(Priority.LOW, null, null);
+            var s0 = ConversationFold.createPoint(empty,
+                                                  "point-1", "general", 1L, null, "rev-sender", null,
+                                                  classification, "REV", 1, "RAISE", "Issue");
+            var s1 = ConversationFold.respondToPoint(s0,
+                                                     "point-1", 2L, null, "imp-sender", null,
+                                                     "IMP", 1, "AGREE", "Agreed", "AGREED");
+
+            var result = ConversationFold.reprioritisePoint(s1,
+                                                            "point-1", 3L, null, "human-sender", null,
+                                                            "HUMAN", 2, Priority.HIGH, "Escalating");
+
+            assertThat(result.points().get("point-1").status()).isEqualTo("AGREED");
+        }
+
+        @Test
+        void unknownPointId_returnsStateUnchanged() {
+            var result = ConversationFold.reprioritisePoint(empty,
+                                                            "nonexistent", 1L, null, "human-sender", null,
+                                                            "HUMAN", 1, Priority.HIGH, "content");
+
+            assertThat(result).isSameAs(empty);
+        }
+
+        @Test
+        void preservesOtherPointsAndState() {
+            var classification = new PointClassification(Priority.LOW, null, null);
+            var s0 = ConversationFold.createPoint(empty,
+                                                  "point-1", "general", 1L, null, "rev-sender", null,
+                                                  classification, "REV", 1, "RAISE", "first");
+            var s1 = ConversationFold.createPoint(s0,
+                                                  "point-2", "general", 2L, null, "rev-sender", null,
+                                                  classification, "REV", 1, "RAISE", "second");
+            var s2 = ConversationFold.addMemo(s1, "REV", 1, "a memo");
+
+            var result = ConversationFold.reprioritisePoint(s2,
+                                                            "point-1", 3L, null, "human-sender", null,
+                                                            "HUMAN", 2, Priority.HIGH, "escalating");
+
+            assertThat(result.points()).hasSize(2);
+            assertThat(result.points().get("point-2").classification().priority()).isEqualTo(Priority.LOW);
+            assertThat(result.memos()).hasSize(1);
+        }
+    }
 }
