@@ -6,3 +6,4 @@ target/
 .claude
 .mvn/maven.config
 package-lock.json
+proj
