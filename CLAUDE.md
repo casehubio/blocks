@@ -242,10 +242,7 @@ AI-powered `AgentRoutingStrategy` implementations for the engine's routing pipel
 | `CoordinationOutcomeWeights` | SPI for case-level outcome weights used by `CoordinationSignalProvider`. Returns `Map<String, Double>` (string keys — case outcomes are domain-dependent). Domain repos override `DefaultCoordinationOutcomeWeights` with `@ApplicationScoped`. |
 | `DefaultCoordinationOutcomeWeights` | `@DefaultBean` — COMPLETED=1.0, FAULTED=0.2, CANCELLED=0.0. |
 | `RoutingSupport` | Package-private utility — shared prompt building, response parsing, `AgentProvider` invocation, and trust classification extraction (`TrustFilterOutcome` sealed interface). Used by both `LlmAgentRoutingStrategy` and `CbrAgentRoutingStrategy`. |
-<<<<<<< HEAD
 | `PredecessorAnalyser` | `RoutingSignalProvider` (id: `"predecessor"`). Scores candidates based on immediate predecessor context in historical plan traces — sorts steps by priority, finds steps matching target capability, scores by case outcome weighted by similarity with predecessor (capability:worker) pair in reason. |
-=======
->>>>>>> f33eccf (feat(qhorus#359): ContentSummariser<T> — reusable summarisation SPI with tiered dispatch)
 | `DispositionAwareRouting` | `RoutingSignalProvider` (id: `"disposition"`). Scores candidates by personality/disposition match against a desired `DispositionProfile` extracted from case context (`_routing.disposition.<capabilityName>` or `default`). Exact-match scoring per `DispositionAxis` with optional per-axis weights. No-op when profile absent or no candidates have dispositions. |
 | `DispositionProfile` | Record: `Map<DispositionAxis, String> desired` + `Map<DispositionAxis, Double> weights`. Compact value type for desired agent personality traits. |
 
