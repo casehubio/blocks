@@ -36,6 +36,17 @@ public final class Decomposition {
         return new HybridDecomposition<>(agentProvider, stateRenderer);
     }
 
+    public static <T> HybridDecomposition<T> hybrid(io.casehub.platform.agent.AgentProvider agentProvider,
+                                                    int maxDepth) {
+        return new HybridDecomposition<>(agentProvider, maxDepth);
+    }
+
+    public static <T> HybridDecomposition<T> hybrid(io.casehub.platform.agent.AgentProvider agentProvider,
+                                                    java.util.function.Function<T, String> stateRenderer,
+                                                    int maxDepth) {
+        return new HybridDecomposition<>(agentProvider, stateRenderer, maxDepth);
+    }
+
 
     public static <T> DecompositionMethod<T> method(Predicate<T> guard,
                                                     DecompositionStrategy<T> strategy) {

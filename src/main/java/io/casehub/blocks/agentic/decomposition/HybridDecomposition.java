@@ -21,9 +21,20 @@ public class HybridDecomposition<T> implements DecompositionStrategy<T> {
         this(new StaticDecomposition<>(), new LlmDecomposition<>(agentProvider));
     }
 
+    public HybridDecomposition(AgentProvider agentProvider, int maxDepth) {
+        this(new StaticDecomposition<>(), new LlmDecomposition<>(agentProvider, maxDepth));
+    }
+
+
     public HybridDecomposition(AgentProvider agentProvider, Function<T, String> stateRenderer) {
         this(new StaticDecomposition<>(), new LlmDecomposition<>(agentProvider, stateRenderer));
     }
+
+    public HybridDecomposition(AgentProvider agentProvider, Function<T, String> stateRenderer,
+                               int maxDepth) {
+        this(new StaticDecomposition<>(), new LlmDecomposition<>(agentProvider, stateRenderer, maxDepth));
+    }
+
 
     public HybridDecomposition(DecompositionStrategy<T> primaryStrategy,
                                 DecompositionStrategy<T> fallbackStrategy) {
@@ -58,7 +69,8 @@ public class HybridDecomposition<T> implements DecompositionStrategy<T> {
         var hint = failure.methodCount() + " static method(s) evaluated, none matched for '"
                    + failure.taskName() + "'";
         if (context instanceof AgenticDecompositionContext<T> ac) {
-            return new AgenticDecompositionContext<>(ac.state(), ac.agents(), ac.depth(), hint);
+            return new AgenticDecompositionContext<>(ac.state(), ac.agents(), ac.depth(), hint,
+                                                     ac.subtaskDescription(), ac.parentGoal(), ac.siblingNames());
         }
         return context;
     }
