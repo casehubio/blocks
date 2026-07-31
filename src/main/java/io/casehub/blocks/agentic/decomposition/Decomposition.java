@@ -56,8 +56,13 @@ public final class Decomposition {
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public static <T> DecompositionStrategy<T> sequence(TaskNode<T>... tasks) {
+        for (var task : tasks) {
+            if (!(task instanceof TaskNode.LeafTask<T>)) {
+                throw new IllegalArgumentException(
+                        "sequence() accepts only LeafTask nodes, got: " + task.getClass().getSimpleName());
+            }
+        }
         var leafTasks = java.util.Arrays.stream(tasks)
-                                        .filter(t -> t instanceof TaskNode.LeafTask<T>)
                                         .map(t -> (TaskNode.LeafTask<T>) t)
                                         .toList();
         return (compound, ctx) -> io.smallrye.mutiny.Uni.createFrom()
