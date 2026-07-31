@@ -41,7 +41,7 @@ class CbrAgentRoutingStrategyTest {
 
   private AgentRoutingContext context(String capability, List<RetrievedExperience> experiences) {
     return new AgentRoutingContext(
-        UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences);
+        UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences, null, null);
   }
 
   private AgentCandidate candidate(String id) {
@@ -461,7 +461,7 @@ class CbrAgentRoutingStrategyTest {
     private RoutingSignalProvider signalProvider(String id, RoutingSignal signal) {
       return new RoutingSignalProvider() {
         @Override public String id() { return id; }
-        @Override public RoutingSignal signal(AgentRoutingContext ctx, List<AgentCandidate> e) {
+        @Override public RoutingSignal evaluate(AgentRoutingContext ctx, List<AgentCandidate> e) {
           return signal;
         }
       };
@@ -474,7 +474,7 @@ class CbrAgentRoutingStrategyTest {
           experience("analysis", "agent-b", "FAILURE"));
 
       var signal = new RoutingSignal(Map.of(
-          "agent-b", new RoutingSignal.CandidateSignal(0.9, "plan-fit")));
+          "agent-b", new RoutingSignal.CandidateSignal.Score(0.9, "plan-fit")));
       var assembler = new RoutingSignalAssembler(
           List.of(signalProvider("test", signal)));
 
@@ -493,7 +493,7 @@ class CbrAgentRoutingStrategyTest {
     @Test
     void signalOnlyNoExperiences() {
       var signal = new RoutingSignal(Map.of(
-          "agent-a", new RoutingSignal.CandidateSignal(0.7, "signal-only")));
+          "agent-a", new RoutingSignal.CandidateSignal.Score(0.7, "signal-only")));
       var assembler = new RoutingSignalAssembler(
           List.of(signalProvider("test", signal)));
 
@@ -531,7 +531,7 @@ class CbrAgentRoutingStrategyTest {
           experience("analysis", "agent-b", "SUCCESS"));
 
       var signal = new RoutingSignal(Map.of(
-          "agent-a", new RoutingSignal.CandidateSignal(0.5, "boosted")));
+          "agent-a", new RoutingSignal.CandidateSignal.Score(0.5, "boosted")));
       var assembler = new RoutingSignalAssembler(
           List.of(signalProvider("test", signal)));
 

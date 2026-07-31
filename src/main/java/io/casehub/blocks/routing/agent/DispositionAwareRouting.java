@@ -27,8 +27,8 @@ public class DispositionAwareRouting implements RoutingSignalProvider {
   }
 
   @Override
-  public @Nullable RoutingSignal signal(AgentRoutingContext context,
-                                         List<AgentCandidate> eligible) {
+  public @Nullable RoutingSignal evaluate(AgentRoutingContext context,
+                                           List<AgentCandidate> eligible) {
     DispositionProfile profile = extractProfile(context.caseContext(), context.capabilityName());
     if (profile == null || profile.desired().isEmpty()) {
       return null;
@@ -42,7 +42,7 @@ public class DispositionAwareRouting implements RoutingSignalProvider {
 
       double score = score(profile, disposition);
       candidates.put(candidate.workerId(),
-          new RoutingSignal.CandidateSignal(score, "disposition match"));
+          new RoutingSignal.CandidateSignal.Score(score, "disposition match"));
     }
 
     return candidates.isEmpty() ? null : new RoutingSignal(candidates);

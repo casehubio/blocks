@@ -1,5 +1,6 @@
 package io.casehub.blocks.channel;
 
+import io.casehub.platform.api.identity.ActorType;
 import io.casehub.qhorus.api.gateway.MessageReceivedEvent;
 import io.casehub.qhorus.api.message.MessageType;
 
@@ -17,7 +18,7 @@ public final class TestMessages {
                                                 String content, String correlationId,
                                                 String sender, long epochMillis) {
         return new MessageReceivedEvent(ID_SEQ.getAndIncrement(), "test-channel",
-            channelId, "tenant-1", type, sender, correlationId,
+            channelId, "tenant-1", type, sender, null, ActorType.SYSTEM, correlationId,
             Instant.ofEpochMilli(epochMillis), content, "general");
     }
 

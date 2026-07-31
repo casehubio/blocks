@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
 import io.casehub.eidos.api.MatchDegree;
@@ -25,7 +26,7 @@ class PlanCompositionAnalyserTest {
 
   private AgentRoutingContext context(String capability, List<RetrievedExperience> experiences) {
     return new AgentRoutingContext(
-        UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences);
+        UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences, null, null);
   }
 
   private AgentCandidate candidate(String id) {
@@ -50,7 +51,7 @@ class PlanCompositionAnalyserTest {
 
     @Test
     void whenNoExperiences() {
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of()),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -61,7 +62,7 @@ class PlanCompositionAnalyserTest {
       var exp = multiStepExperience("COMPLETED", 0.8, List.of(
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -73,7 +74,7 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "not-eligible", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "other", "SUCCESS", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -85,7 +86,7 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -97,7 +98,7 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -113,13 +114,13 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
       assertThat(result.candidates()).containsKey("agent-a");
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(1.0, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(1.0, within(0.01));
     }
 
     @Test
@@ -128,12 +129,12 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "FAILURE", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(0.2, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.2, within(0.01));
     }
 
     @Test
@@ -145,13 +146,13 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp1, exp2)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
       // agent-a: (1.0*0.9 + 0.2*0.9) / (0.9+0.9) = 1.08/1.8 = 0.6
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(0.6, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.6, within(0.01));
     }
 
     @Test
@@ -163,13 +164,13 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(expHigh, expLow)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
       // agent-a: (1.0*0.95 + 0.2*0.1) / (0.95+0.1) = 0.97/1.05 ≈ 0.924
-      assertThat(result.candidates().get("agent-a").score()).isGreaterThan(0.9);
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isGreaterThan(0.9);
     }
 
     @Test
@@ -178,7 +179,7 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "other-cap", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "analysis", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a"), candidate("agent-b")));
 
@@ -193,7 +194,7 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = analyser.signal(
+      var result = analyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
 
@@ -218,12 +219,12 @@ class PlanCompositionAnalyserTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = customAnalyser.signal(
+      var result = customAnalyser.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(0.8, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.8, within(0.01));
     }
   }
 }

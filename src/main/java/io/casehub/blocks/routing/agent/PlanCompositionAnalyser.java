@@ -61,7 +61,7 @@ public class PlanCompositionAnalyser implements RoutingSignalProvider {
   }
 
   @Override
-  public @Nullable RoutingSignal signal(
+  public @Nullable RoutingSignal evaluate(
       AgentRoutingContext context, List<AgentCandidate> eligible) {
     List<RetrievedExperience> experiences = context.experiences();
     if (experiences == null || experiences.isEmpty()) {
@@ -109,7 +109,7 @@ public class PlanCompositionAnalyser implements RoutingSignalProvider {
         double score = entry.getValue()[0] / evidenceMass;
         candidates.put(
             entry.getKey(),
-            new RoutingSignal.CandidateSignal(score, "plan-composition analysis"));
+            new RoutingSignal.CandidateSignal.Score(score, "plan-composition analysis"));
       }
     }
 

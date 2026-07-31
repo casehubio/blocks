@@ -50,7 +50,7 @@ class LlmAgentRoutingStrategyTest {
     @Mock TrustRoutingPolicyProvider policyProvider;
 
     private AgentRoutingContext context(String capability) {
-        return new AgentRoutingContext(UUID.randomUUID(), capability, NullNode.instance, "test-tenant", List.of());
+        return new AgentRoutingContext(UUID.randomUUID(), capability, NullNode.instance, "test-tenant", List.of(), null, null);
     }
 
     private AgentCandidate candidate(String id) {
@@ -156,7 +156,7 @@ class LlmAgentRoutingStrategyTest {
         void nullNodeCaseContextNotSentAsStringNull() {
             agentReturns("{\"agent\": \"agent-a\", \"reason\": \"ok\"}");
             var nullContext = new AgentRoutingContext(
-                    UUID.randomUUID(), "analysis", NullNode.instance, "test-tenant", List.of());
+                    UUID.randomUUID(), "analysis", NullNode.instance, "test-tenant", List.of(), null, null);
             var result = strategy.select(nullContext,
                     List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Selected.class);

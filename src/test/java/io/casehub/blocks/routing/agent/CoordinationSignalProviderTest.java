@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
 import io.casehub.eidos.api.MatchDegree;
@@ -25,7 +26,7 @@ class CoordinationSignalProviderTest {
 
   private AgentRoutingContext context(String capability, List<RetrievedExperience> experiences) {
     return new AgentRoutingContext(
-        UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences);
+        UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences, null, null);
   }
 
   private AgentCandidate candidate(String id) {
@@ -50,7 +51,7 @@ class CoordinationSignalProviderTest {
 
     @Test
     void whenNoExperiences() {
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of()),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -61,7 +62,7 @@ class CoordinationSignalProviderTest {
       var exp = teamExperience("COMPLETED", 0.8, List.of(
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -73,7 +74,7 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "not-eligible", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "also-not-eligible", "SUCCESS", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -85,7 +86,7 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -97,7 +98,7 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
       assertThat(result).isNull();
@@ -113,13 +114,13 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a"), candidate("agent-b")));
 
       assertThat(result).isNotNull();
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(1.0, within(0.01));
-      assertThat(result.candidates().get("agent-b").score()).isCloseTo(1.0, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(1.0, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-b")).value()).isCloseTo(1.0, within(0.01));
     }
 
     @Test
@@ -128,12 +129,12 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-b", "FAILURE", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(0.2, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.2, within(0.01));
     }
 
     @Test
@@ -145,14 +146,14 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp1, exp2)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
       // agent-a in exp1 (COMPLETED, w=1.0) and exp2 (FAULTED, w=0.2), equal similarity
       // score = (1.0*0.9 + 0.2*0.9) / (0.9+0.9) = 1.08/1.8 = 0.6
-      assertThat(result.candidates().get("agent-a").score()).isCloseTo(0.6, within(0.01));
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.6, within(0.01));
     }
 
     @Test
@@ -164,13 +165,13 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
           new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(expHigh, expLow)),
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
       // (1.0*0.95 + 0.2*0.1) / (0.95+0.1) = 0.97/1.05 ≈ 0.924
-      assertThat(result.candidates().get("agent-a").score()).isGreaterThan(0.9);
+      assertThat(((Score) result.candidates().get("agent-a")).value()).isGreaterThan(0.9);
     }
 
     @Test
@@ -180,7 +181,7 @@ class CoordinationSignalProviderTest {
           new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of()),
           new ExperiencePlanStep("b3", "approval", "agent-c", "SUCCESS", 2, Map.of())));
 
-      var result = provider.signal(
+      var result = provider.evaluate(
           context("analysis", List.of(exp)),
           List.of(candidate("agent-a"), candidate("agent-b"), candidate("agent-c")));
 
@@ -215,13 +216,13 @@ class CoordinationSignalProviderTest {
                     new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
                     new ExperiencePlanStep("b2", "review", "agent-x", "SUCCESS", 1, Map.of())));
 
-            var result = provider.signal(
+            var result = provider.evaluate(
                     context("analysis", List.of(exp1, exp2)),
                     List.of(candidate("agent-a"), candidate("agent-b")));
 
             assertThat(result).isNotNull();
-            double agentAScore = result.candidates().get("agent-a").score();
-            double agentBScore = result.candidates().get("agent-b").score();
+            double agentAScore = ((Score) result.candidates().get("agent-a")).value();
+            double agentBScore = ((Score) result.candidates().get("agent-b")).value();
             assertThat(agentAScore).isGreaterThan(0.5);
             assertThat(agentBScore).isCloseTo(1.0, within(0.01));
         }
@@ -232,7 +233,7 @@ class CoordinationSignalProviderTest {
                     new ExperiencePlanStep("b1", "analysis", "agent-x", "SUCCESS", 0, Map.of()),
                     new ExperiencePlanStep("b2", "review", "agent-y", "SUCCESS", 1, Map.of())));
 
-            var result = provider.signal(
+            var result = provider.evaluate(
                     context("analysis", List.of(exp)),
                     List.of(candidate("agent-a")));
 
@@ -253,14 +254,14 @@ class CoordinationSignalProviderTest {
 
             // With AGR: goodExp overlap=1.0 (adj=0.8), badExp overlap=0.5 (adj=0.4)
             // score = (1.0*0.8 + 0.2*0.4) / (0.8+0.4) = 0.88/1.2 ≈ 0.733
-            var agrResult = provider.signal(
+            var agrResult = provider.evaluate(
                     context("analysis", List.of(goodExp, badExp)),
                     List.of(candidate("agent-a"), candidate("agent-b")));
 
             assertThat(agrResult).isNotNull();
             // Without AGR both experiences would have equal weight → score = 0.6
             // With AGR the full-overlap COMPLETED experience dominates → score > 0.6
-            assertThat(agrResult.candidates().get("agent-a").score()).isGreaterThan(0.7);
+            assertThat(((Score) agrResult.candidates().get("agent-a")).value()).isGreaterThan(0.7);
         }
     }
 }

@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RoutingSignalAssemblerTest {
 
   private static final AgentRoutingContext CONTEXT =
-      new AgentRoutingContext(UUID.randomUUID(), "cap", NullNode.instance, "t", List.of());
+      new AgentRoutingContext(UUID.randomUUID(), "cap", NullNode.instance, "t", List.of(), null, null);
   private static final List<AgentCandidate> EMPTY_ELIGIBLE = List.of();
 
   @Nested
@@ -28,23 +28,23 @@ class RoutingSignalAssemblerTest {
     @Test
     void collectsNonNullSignalsKeyedById() {
       var p1 = provider("sig-a", new RoutingSignal(Map.of("w1",
-          new RoutingSignal.CandidateSignal(0.8, "good"))));
+          new RoutingSignal.CandidateSignal.Score(0.8, "good"))));
       var p2 = provider("sig-b", new RoutingSignal(Map.of("w2",
-          new RoutingSignal.CandidateSignal(0.6, "ok"))));
+          new RoutingSignal.CandidateSignal.Score(0.6, "ok"))));
 
       var assembler = new RoutingSignalAssembler(List.of(p1, p2));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
       assertThat(result).containsOnlyKeys("sig-a", "sig-b");
-      assertThat(result.get("sig-a").candidates().get("w1").score()).isEqualTo(0.8);
-      assertThat(result.get("sig-b").candidates().get("w2").score()).isEqualTo(0.6);
+      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("sig-a").candidates().get("w1")).value()).isEqualTo(0.8);
+      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("sig-b").candidates().get("w2")).value()).isEqualTo(0.6);
     }
 
     @Test
     void skipsNullSignals() {
       var p1 = provider("sig-a", null);
       var p2 = provider("sig-b", new RoutingSignal(Map.of("w1",
-          new RoutingSignal.CandidateSignal(0.5, null))));
+          new RoutingSignal.CandidateSignal.Score(0.5, null))));
 
       var assembler = new RoutingSignalAssembler(List.of(p1, p2));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
@@ -59,10 +59,10 @@ class RoutingSignalAssemblerTest {
     @Test
     void throwingProviderIsSkipped() {
       var good = provider("good", new RoutingSignal(Map.of("w1",
-          new RoutingSignal.CandidateSignal(0.9, null))));
+          new RoutingSignal.CandidateSignal.Score(0.9, null))));
       var bad = new RoutingSignalProvider() {
         @Override public String id() { return "bad"; }
-        @Override public RoutingSignal signal(AgentRoutingContext ctx, List<AgentCandidate> e) {
+        @Override public RoutingSignal evaluate(AgentRoutingContext ctx, List<AgentCandidate> e) {
           throw new RuntimeException("boom");
         }
       };
@@ -80,41 +80,41 @@ class RoutingSignalAssemblerTest {
     @Test
     void scoresAboveOneAreClampedToOne() {
       var p = provider("over", new RoutingSignal(Map.of("w1",
-          new RoutingSignal.CandidateSignal(1.5, "over"))));
+          new RoutingSignal.CandidateSignal.Score(1.5, "over"))));
 
       var assembler = new RoutingSignalAssembler(List.of(p));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
-      assertThat(result.get("over").candidates().get("w1").score()).isEqualTo(1.0);
+      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("over").candidates().get("w1")).value()).isEqualTo(1.0);
     }
 
     @Test
     void scoresBelowZeroAreClampedToZero() {
       var p = provider("under", new RoutingSignal(Map.of("w1",
-          new RoutingSignal.CandidateSignal(-0.3, "under"))));
+          new RoutingSignal.CandidateSignal.Score(-0.3, "under"))));
 
       var assembler = new RoutingSignalAssembler(List.of(p));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
-      assertThat(result.get("under").candidates().get("w1").score()).isEqualTo(0.0);
+      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("under").candidates().get("w1")).value()).isEqualTo(0.0);
     }
 
     @Test
     void scoresInRangeAreUnchanged() {
       var p = provider("ok", new RoutingSignal(Map.of("w1",
-          new RoutingSignal.CandidateSignal(0.75, null))));
+          new RoutingSignal.CandidateSignal.Score(0.75, null))));
 
       var assembler = new RoutingSignalAssembler(List.of(p));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
-      assertThat(result.get("ok").candidates().get("w1").score()).isEqualTo(0.75);
+      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("ok").candidates().get("w1")).value()).isEqualTo(0.75);
     }
   }
 
   private static RoutingSignalProvider provider(String id, RoutingSignal signal) {
     return new RoutingSignalProvider() {
       @Override public String id() { return id; }
-      @Override public RoutingSignal signal(AgentRoutingContext ctx, List<AgentCandidate> e) {
+      @Override public RoutingSignal evaluate(AgentRoutingContext ctx, List<AgentCandidate> e) {
         return signal;
       }
     };

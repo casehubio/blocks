@@ -47,7 +47,7 @@ public class PredecessorAnalyser implements RoutingSignalProvider {
     }
 
     @Override
-    public @Nullable RoutingSignal signal(AgentRoutingContext context, List<AgentCandidate> eligible) {
+    public @Nullable RoutingSignal evaluate(AgentRoutingContext context, List<AgentCandidate> eligible) {
         List<RetrievedExperience> experiences = context.experiences();
         if (experiences == null || experiences.isEmpty()) {
             return null;
@@ -105,7 +105,7 @@ public class PredecessorAnalyser implements RoutingSignalProvider {
                 double score = entry.getValue()[0] / evidenceMass;
                 String pred = workerPredecessors.getOrDefault(entry.getKey(), "unknown");
                 candidates.put(entry.getKey(),
-                        new RoutingSignal.CandidateSignal(score,
+                        new RoutingSignal.CandidateSignal.Score(score,
                                 "predecessor analysis (after " + pred + ")"));
             }
         }

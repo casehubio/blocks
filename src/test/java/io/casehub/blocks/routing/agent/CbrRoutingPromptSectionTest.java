@@ -22,7 +22,7 @@ class CbrRoutingPromptSectionTest {
 
   private AgentRoutingContext context(String cap, List<RetrievedExperience> experiences) {
     return new AgentRoutingContext(
-        UUID.randomUUID(), cap, NullNode.instance, "test-tenant", experiences);
+        UUID.randomUUID(), cap, NullNode.instance, "test-tenant", experiences, null, null);
   }
 
   private AgentCandidate candidate(String id) {

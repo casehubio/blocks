@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
+import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
 import io.casehub.eidos.api.MatchDegree;
@@ -25,7 +26,7 @@ class PredecessorAnalyserTest {
 
     private AgentRoutingContext context(String capability, List<RetrievedExperience> experiences) {
         return new AgentRoutingContext(
-                UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences);
+                UUID.randomUUID(), capability, NullNode.instance, "test-tenant", experiences, null, null);
     }
 
     private AgentCandidate candidate(String id) {
@@ -50,14 +51,14 @@ class PredecessorAnalyserTest {
     class ReturnsNull {
         @Test
         void whenNoExperiences() {
-            var result = analyser.signal(context("review", List.of()), List.of(candidate("a")));
+            var result = analyser.evaluate(context("review", List.of()), List.of(candidate("a")));
             assertThat(result).isNull();
         }
 
         @Test
         void whenAllSingleStep() {
             var exp = experience("COMPLETED", 0.8, List.of(step("review", "a", 0)));
-            var result = analyser.signal(context("review", List.of(exp)), List.of(candidate("a")));
+            var result = analyser.evaluate(context("review", List.of(exp)), List.of(candidate("a")));
             assertThat(result).isNull();
         }
 
@@ -66,7 +67,7 @@ class PredecessorAnalyserTest {
             var exp = experience("COMPLETED", 0.8, List.of(
                     step("review", "a", 0),
                     step("analysis", "b", 1)));
-            var result = analyser.signal(context("review", List.of(exp)), List.of(candidate("a")));
+            var result = analyser.evaluate(context("review", List.of(exp)), List.of(candidate("a")));
             assertThat(result).isNull();
         }
 
@@ -75,7 +76,7 @@ class PredecessorAnalyserTest {
             var exp = experience("COMPLETED", 0.8, List.of(
                     step("analysis", "x", 0),
                     step("review", "not-eligible", 1)));
-            var result = analyser.signal(context("review", List.of(exp)), List.of(candidate("a")));
+            var result = analyser.evaluate(context("review", List.of(exp)), List.of(candidate("a")));
             assertThat(result).isNull();
         }
     }
@@ -88,13 +89,13 @@ class PredecessorAnalyserTest {
                     step("analysis", "analyst-1", 0),
                     step("review", "reviewer-a", 1)));
 
-            var result = analyser.signal(
+            var result = analyser.evaluate(
                     context("review", List.of(exp)),
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
             assertThat(result.candidates()).containsKey("reviewer-a");
-            assertThat(result.candidates().get("reviewer-a").score()).isCloseTo(1.0, within(0.01));
+            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(1.0, within(0.01));
         }
 
         @Test
@@ -103,12 +104,12 @@ class PredecessorAnalyserTest {
                     step("analysis", "analyst-1", 0),
                     step("review", "reviewer-a", 1)));
 
-            var result = analyser.signal(
+            var result = analyser.evaluate(
                     context("review", List.of(exp)),
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
-            assertThat(result.candidates().get("reviewer-a").score()).isCloseTo(0.2, within(0.01));
+            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(0.2, within(0.01));
         }
 
         @Test
@@ -117,11 +118,11 @@ class PredecessorAnalyserTest {
                     step("analysis", "analyst-1", 0),
                     step("review", "reviewer-a", 1)));
 
-            var result = analyser.signal(
+            var result = analyser.evaluate(
                     context("review", List.of(exp)),
                     List.of(candidate("reviewer-a")));
 
-            assertThat(result.candidates().get("reviewer-a").reason()).contains("predecessor");
+            assertThat(((Score) result.candidates().get("reviewer-a")).rationale()).contains("predecessor");
         }
 
         @Test
@@ -133,13 +134,13 @@ class PredecessorAnalyserTest {
                     step("analysis", "analyst-1", 0),
                     step("review", "reviewer-a", 1)));
 
-            var result = analyser.signal(
+            var result = analyser.evaluate(
                     context("review", List.of(exp1, exp2)),
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
             // (1.0*0.9 + 0.2*0.9) / (0.9+0.9) = 0.6
-            assertThat(result.candidates().get("reviewer-a").score()).isCloseTo(0.6, within(0.01));
+            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(0.6, within(0.01));
         }
 
         @Test
@@ -149,13 +150,13 @@ class PredecessorAnalyserTest {
                     step("analysis", "analyst-1", 1),
                     step("review", "reviewer-a", 2)));
 
-            var result = analyser.signal(
+            var result = analyser.evaluate(
                     context("review", List.of(exp)),
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
-            assertThat(result.candidates().get("reviewer-a").score()).isCloseTo(1.0, within(0.01));
-            assertThat(result.candidates().get("reviewer-a").reason()).contains("analysis:analyst-1");
+            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(1.0, within(0.01));
+            assertThat(((Score) result.candidates().get("reviewer-a")).rationale()).contains("analysis:analyst-1");
         }
 
         @Test
@@ -165,12 +166,12 @@ class PredecessorAnalyserTest {
                     step("triage", "triage-bot", 0),
                     step("analysis", "analyst-1", 1)));
 
-            var result = analyser.signal(
+            var result = analyser.evaluate(
                     context("review", List.of(exp)),
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
-            assertThat(result.candidates().get("reviewer-a").reason()).contains("analysis:analyst-1");
+            assertThat(((Score) result.candidates().get("reviewer-a")).rationale()).contains("analysis:analyst-1");
         }
     }
 }

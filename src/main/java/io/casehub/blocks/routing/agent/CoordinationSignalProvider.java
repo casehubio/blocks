@@ -32,7 +32,7 @@ public class CoordinationSignalProvider implements RoutingSignalProvider {
   }
 
   @Override
-  public @Nullable RoutingSignal signal(
+  public @Nullable RoutingSignal evaluate(
       AgentRoutingContext context, List<AgentCandidate> eligible) {
     List<RetrievedExperience> experiences = context.experiences();
     if (experiences == null || experiences.isEmpty()) {
@@ -86,7 +86,7 @@ public class CoordinationSignalProvider implements RoutingSignalProvider {
         double score = entry.getValue()[0] / evidenceMass;
         candidates.put(
             entry.getKey(),
-            new RoutingSignal.CandidateSignal(score, "coordination team affinity"));
+            new RoutingSignal.CandidateSignal.Score(score, "coordination team affinity"));
       }
     }
 

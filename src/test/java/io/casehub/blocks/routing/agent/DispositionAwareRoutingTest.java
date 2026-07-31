@@ -8,6 +8,7 @@ import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.RoutingSignal;
+import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentDisposition;
 import io.casehub.eidos.api.DispositionAxis;
@@ -29,14 +30,14 @@ class DispositionAwareRoutingTest {
   @Test
   void returnsNullWhenNoProfileInContext() {
     var ctx = routingContext(MAPPER.createObjectNode());
-    var result = routing.signal(ctx, List.of(candidateWith("a1", disposition("collaborative"))));
+    var result = routing.evaluate(ctx, List.of(candidateWith("a1", disposition("collaborative"))));
     assertThat(result).isNull();
   }
 
   @Test
   void returnsNullWhenNullContext() {
     var ctx = routingContext(NullNode.getInstance());
-    var result = routing.signal(ctx, List.of(candidateWith("a1", disposition("collaborative"))));
+    var result = routing.evaluate(ctx, List.of(candidateWith("a1", disposition("collaborative"))));
     assertThat(result).isNull();
   }
 
@@ -45,11 +46,11 @@ class DispositionAwareRoutingTest {
     var ctx = routingContext(profileContext("socialOrient", "collaborative"));
     var candidate = candidateWith("agent-1", disposition("collaborative"));
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
     assertThat(result.candidates()).containsKey("agent-1");
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(1.0, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(1.0, within(0.001));
   }
 
   @Test
@@ -57,10 +58,10 @@ class DispositionAwareRoutingTest {
     var ctx = routingContext(profileContext("socialOrient", "collaborative"));
     var candidate = candidateWith("agent-1", disposition("independent"));
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(0.0, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.0, within(0.001));
   }
 
   @Test
@@ -69,10 +70,10 @@ class DispositionAwareRoutingTest {
     var disp = AgentDisposition.builder().socialOrient("collaborative").build();
     var candidate = candidateWith("agent-1", disp);
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(0.5, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.5, within(0.001));
   }
 
   @Test
@@ -87,10 +88,10 @@ class DispositionAwareRoutingTest {
         .build();
     var candidate = candidateWith("agent-1", disp);
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(0.5, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.5, within(0.001));
   }
 
   @Test
@@ -99,12 +100,12 @@ class DispositionAwareRoutingTest {
     var match = candidateWith("matcher", disposition("collaborative"));
     var noMatch = candidateWith("other", disposition("independent"));
 
-    var result = routing.signal(ctx, List.of(match, noMatch));
+    var result = routing.evaluate(ctx, List.of(match, noMatch));
 
     assertThat(result).isNotNull();
     assertThat(result.candidates()).hasSize(2);
-    assertThat(result.candidates().get("matcher").score()).isCloseTo(1.0, within(0.001));
-    assertThat(result.candidates().get("other").score()).isCloseTo(0.0, within(0.001));
+    assertThat(((Score) result.candidates().get("matcher")).value()).isCloseTo(1.0, within(0.001));
+    assertThat(((Score) result.candidates().get("other")).value()).isCloseTo(0.0, within(0.001));
   }
 
   @Test
@@ -113,7 +114,7 @@ class DispositionAwareRoutingTest {
     var noDescriptor = new AgentCandidate("bare", Set.of(), 0, AgentHealth.READY, null, null);
     var withDescriptor = candidateWith("real", disposition("collaborative"));
 
-    var result = routing.signal(ctx, List.of(noDescriptor, withDescriptor));
+    var result = routing.evaluate(ctx, List.of(noDescriptor, withDescriptor));
 
     assertThat(result).isNotNull();
     assertThat(result.candidates()).hasSize(1);
@@ -125,7 +126,7 @@ class DispositionAwareRoutingTest {
     var ctx = routingContext(profileContext("socialOrient", "collaborative"));
     var noDisposition = candidateWith("no-disp", null);
 
-    var result = routing.signal(ctx, List.of(noDisposition));
+    var result = routing.evaluate(ctx, List.of(noDisposition));
 
     assertThat(result).isNull();
   }
@@ -138,13 +139,13 @@ class DispositionAwareRoutingTest {
     routingNode.putObject("analysis").put("socialOrient", "collaborative");
 
     var ctx = new AgentRoutingContext(
-        UUID.randomUUID(), "analysis", root, "t1", List.of());
+        UUID.randomUUID(), "analysis", root, "t1", List.of(), null, null);
     var candidate = candidateWith("agent-1", disposition("collaborative"));
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(1.0, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(1.0, within(0.001));
   }
 
   @Test
@@ -154,13 +155,13 @@ class DispositionAwareRoutingTest {
         .putObject("default").put("socialOrient", "collaborative");
 
     var ctx = new AgentRoutingContext(
-        UUID.randomUUID(), "unknown-cap", root, "t1", List.of());
+        UUID.randomUUID(), "unknown-cap", root, "t1", List.of(), null, null);
     var candidate = candidateWith("agent-1", disposition("collaborative"));
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(1.0, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(1.0, within(0.001));
   }
 
   @Test
@@ -181,10 +182,10 @@ class DispositionAwareRoutingTest {
         .build();
     var candidate = candidateWith("agent-1", disp);
 
-    var result = routing.signal(ctx, List.of(candidate));
+    var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(result.candidates().get("agent-1").score()).isCloseTo(0.75, within(0.001));
+    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.75, within(0.001));
   }
 
   @Test
@@ -223,7 +224,7 @@ class DispositionAwareRoutingTest {
   // --- helpers ---
 
   private static AgentRoutingContext routingContext(JsonNode caseContext) {
-    return new AgentRoutingContext(UUID.randomUUID(), "cap", caseContext, "t1", List.of());
+    return new AgentRoutingContext(UUID.randomUUID(), "cap", caseContext, "t1", List.of(), null, null);
   }
 
   private static ObjectNode profileContext(String axisKey, String value) {
