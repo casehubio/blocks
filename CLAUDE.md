@@ -122,6 +122,12 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/routing/` | Tests for routing utilities |
 | `src/main/java/io/casehub/blocks/routing/agent/` | AI-powered AgentRoutingStrategy implementations — LLM-reasoned and CBR-evidence agent selection, composable prompt enrichment pipeline, feature extraction SPI, outcome recording |
 | `src/test/java/io/casehub/blocks/routing/agent/` | Tests for AI routing strategies |
+| `src/main/java/io/casehub/blocks/prompt/` | DSPy-inspired prompt optimisation — core model, SPIs (`PromptOptimiser`, `PromptQualityMetric`, `PromptVariantStore`, `SystemPromptCustomiser`), batch orchestration, A/B variant selection |
+| `src/test/java/io/casehub/blocks/prompt/` | Tests for prompt optimisation framework |
+| `src/main/java/io/casehub/blocks/prompt/optimiser/` | `PromptOptimiser` implementations — `FewShotOptimiser` (data-driven), `InstructionOptimiser` (LLM meta-prompting) |
+| `src/test/java/io/casehub/blocks/prompt/optimiser/` | Tests for prompt optimisers |
+| `src/main/java/io/casehub/blocks/prompt/runtime/` | CDI runtime beans — `OptimisedFewShotSection`, `VariantAwareSystemPromptCustomiser`, `WeightedOutcomeMetric`, `InMemoryPromptVariantStore` |
+| `src/test/java/io/casehub/blocks/prompt/runtime/` | Tests for prompt runtime beans |
 | `src/main/java/io/casehub/blocks/summarisation/` | Temporal abstraction framework + reusable content summarisation SPI — event levels, windowed accumulation, pluggable summarisation, `ContentSummariser<T>` with tiered dispatch |
 | `src/test/java/io/casehub/blocks/summarisation/` | Tests for summarisation framework |
 | `src/main/java/io/casehub/blocks/summarisation/llm/` | LLM-backed `ContentSummariser<T>` — generic synthesis via `AgentProvider` |
@@ -259,6 +265,45 @@ AI-powered `AgentRoutingStrategy` implementations for the engine's routing pipel
 | `PredecessorAnalyser` | `RoutingSignalProvider` (id: `"predecessor"`). Scores candidates based on immediate predecessor context in historical plan traces — sorts steps by priority, finds steps matching target capability, scores by case outcome weighted by similarity with predecessor (capability:worker) pair in reason. |
 | `DispositionAwareRouting` | `RoutingSignalProvider` (id: `"disposition"`). Scores candidates by personality/disposition match against a desired `DispositionProfile` extracted from case context (`_routing.disposition.<capabilityName>` or `default`). Exact-match scoring per `DispositionAxis` with optional per-axis weights. No-op when profile absent or no candidates have dispositions. |
 | `DispositionProfile` | Record: `Map<DispositionAxis, String> desired` + `Map<DispositionAxis, Double> weights`. Compact value type for desired agent personality traits. |
+
+## Package: `io.casehub.blocks.prompt`
+
+DSPy-inspired prompt optimisation framework — offline batch cycle that auto-improves LLM routing and decomposition prompts based on CBR outcome feedback. Few-shot example curation, instruction refinement, deterministic A/B testing with circuit breaker safety rails. Pure Java core; CDI runtime beans in sub-packages.
+
+| Class | What it does |
+|-------|-------------|
+| `PromptSignature` | Record: declares an optimisation target — id, description, base system prompt, I/O types. Passed to batch by consumers. |
+| `PromptVariant` | Record: versioned optimisation bundle — examples, instruction delta, quality score, lineage pointer, consecutive wins. |
+| `FewShotExample` | Record: curated example for prompt enrichment — input, output, outcome, quality score, annotation. |
+| `VariantOutcome` | Record: outcome correlated with its variant — generic string outcome (not routing-specific). |
+| `ExampleCandidate` | Record: pre-rendered case for example selection — batch constructs from `PlanCbrCase` data. |
+| `OptimisationDataset` | Record: outcome summaries + full case data for example selection. |
+| `OptimiserResult` | Record: output from a `PromptOptimiser` — examples + instruction delta. |
+| `OptimiserConfig` | Record: batch configuration — maxExamples (5), minQualityThreshold (0.7), minOutcomeCount (50), minVariantOutcomes (20). |
+| `SafetyConfig` | Record: safety rails — quality floor (0.3), max experiment cycles (5), max experiment age (30 days), circuit breaker threshold (5), master switch. |
+| `BatchResult` | Sealed interface: AlreadyRunning, InsufficientData, NoImprovement, VariantCreated, VariantPromoted. |
+| `PromptOptimiser` | SPI: teleprompter equivalent — `optimise(signature, currentVariant, dataset, config)`. Two implementations in `.optimiser` sub-package. |
+| `PromptQualityMetric` | `@FunctionalInterface` SPI: scores variant performance from a list of `VariantOutcome`. |
+| `PromptVariantStore` | SPI: holds active variants — store, getActive (by slot), getHistory, activate. |
+| `SystemPromptCustomiser` | `@FunctionalInterface` SPI: customises base system prompts with instruction deltas from active variants. |
+| `VariantSelector` | Deterministic A/B split via `(hash & 0x7FFFFFFF) % 100`. Per-capability circuit breaker trips after consecutive experiment failures. |
+| `PromptOptimisationBatch` | Batch orchestrator — gate check, score variants, run optimisers, build candidate, promotion decision (consecutive wins required), concurrency guard (per-signature lock). |
+
+### Sub-package: `io.casehub.blocks.prompt.optimiser`
+
+| Class | What it does |
+|-------|-------------|
+| `FewShotOptimiser` | `PromptOptimiser` (id: `"few-shot"`). Pure data-driven — filters `ExampleCandidate` by quality threshold, ranks by `qualityScore × similarityScore`, selects top N. No LLM cost. |
+| `InstructionOptimiser` | `PromptOptimiser` (id: `"instruction"`). LLM meta-prompting — analyses outcome patterns, asks LLM to generate instruction refinements. Requires `AgentProvider`. Graceful degradation on LLM failure. |
+
+### Sub-package: `io.casehub.blocks.prompt.runtime`
+
+| Class | What it does |
+|-------|-------------|
+| `OptimisedFewShotSection` | `RoutingPromptSection` — injects curated few-shot examples from active variant into LLM routing prompts. Discovered via CDI alongside `CbrRoutingPromptSection`. |
+| `VariantAwareSystemPromptCustomiser` | `SystemPromptCustomiser` `@DefaultBean` — reads instruction delta from active variant, appends to base system prompt. |
+| `WeightedOutcomeMetric` | `PromptQualityMetric` `@DefaultBean` — maps outcome strings to weights (SUCCESS=1.0, GATE_EXPIRED=0.5, GATE_REJECTED=0.25, DECLINED=0.0, FAILURE=0.0). Unknown outcomes default to 0.0. |
+| `InMemoryPromptVariantStore` | `PromptVariantStore` `@DefaultBean` — in-memory with atomic write semantics (write-fsync-rename). |
 
 ## Package: `io.casehub.blocks.summarisation`
 

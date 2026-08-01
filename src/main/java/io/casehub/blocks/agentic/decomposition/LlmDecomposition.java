@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.casehub.blocks.agentic.AgentCardSupport;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.RoutingCandidate;
+import io.casehub.blocks.prompt.PromptVariantStore;
+import io.casehub.blocks.prompt.SystemPromptCustomiser;
+import io.casehub.blocks.prompt.VariantSelector;
 import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
@@ -53,15 +56,29 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
     private final AgentProvider       agentProvider;
     private final Function<T, String> stateRenderer;
     private final int                 maxDepth;
+    private final @Nullable SystemPromptCustomiser systemPromptCustomiser;
+    private final @Nullable VariantSelector variantSelector;
+    private final @Nullable PromptVariantStore variantStore;
+
 
     public LlmDecomposition(AgentProvider agentProvider, Function<T, String> stateRenderer,
-                            int maxDepth) {
+                            int maxDepth, @Nullable SystemPromptCustomiser systemPromptCustomiser,
+                            @Nullable VariantSelector variantSelector,
+                            @Nullable PromptVariantStore variantStore) {
         if (maxDepth < 1) {
             throw new IllegalArgumentException("maxDepth must be >= 1, got " + maxDepth);
         }
-        this.agentProvider = agentProvider;
-        this.stateRenderer = stateRenderer;
-        this.maxDepth      = maxDepth;
+        this.agentProvider          = agentProvider;
+        this.stateRenderer          = stateRenderer;
+        this.maxDepth               = maxDepth;
+        this.systemPromptCustomiser = systemPromptCustomiser;
+        this.variantSelector        = variantSelector;
+        this.variantStore           = variantStore;
+    }
+
+    public LlmDecomposition(AgentProvider agentProvider, Function<T, String> stateRenderer,
+                            int maxDepth) {
+        this(agentProvider, stateRenderer, maxDepth, null, null, null);
     }
 
     public LlmDecomposition(AgentProvider agentProvider, Function<T, String> stateRenderer) {
@@ -128,8 +145,11 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
     }
 
     private String selectSystemPrompt(int currentDepth) {
-        return currentDepth < maxDepth - 1 ? RECURSIVE_SYSTEM_PROMPT : FLAT_SYSTEM_PROMPT;
-    }
+        var base = currentDepth < maxDepth - 1 ? RECURSIVE_SYSTEM_PROMPT : FLAT_SYSTEM_PROMPT;
+        if (systemPromptCustomiser != null) {
+            return systemPromptCustomiser.customise(base, "llm-decomposition", "control");
+        }
+        return base;}
 
     private String buildUserPrompt(TaskNode.CompoundTask<T> goal,
                                    AgenticDecompositionContext<T> context) {
@@ -165,8 +185,26 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
         for (int i = 0; i < context.agents().size(); i++) {
             sb.append(AgentCardSupport.buildCard(context.agents().get(i), i)).append("\n");
         }
-        return sb.toString();
+
+        appendFewShotExamples(sb);
+
+        return sb.toString();}
+
+    private void appendFewShotExamples(StringBuilder sb) {
+        if (variantStore == null || variantSelector == null) {return;}
+        var slot    = "control";
+        var variant = variantStore.getActive("llm-decomposition", slot);
+        if (variant == null || variant.examples().isEmpty()) {return;}
+        sb.append("\nSuccessful decomposition examples from similar past cases:\n");
+        for (int i = 0; i < variant.examples().size(); i++) {
+            var ex = variant.examples().get(i);
+            sb.append("\n").append(i + 1).append(". ").append(ex.input())
+              .append("\n   Plan: ").append(ex.output())
+              .append("\n   Outcome: ").append(ex.outcome());
+        }
+        sb.append("\n");
     }
+
 
     private DagPlan<TaskNode.LeafTask<T>> resolveEntries(@Nullable String text, String taskName,
                                                          AgenticDecompositionContext<T> ctx) {

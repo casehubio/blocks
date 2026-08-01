@@ -89,7 +89,7 @@ class LlmAgentRoutingStrategyTest {
     void idIsLlm() {
         var strategy = new LlmAgentRoutingStrategy(
                 presentInstance(agentProvider), absentInstance(), absentInstance(), absentInstance(),
-                new RoutingPromptAssembler(List.of()));
+                new RoutingPromptAssembler(List.of()), absentInstance());
         assertThat(strategy.id()).isEqualTo("llm");
     }
 
@@ -101,7 +101,7 @@ class LlmAgentRoutingStrategyTest {
         void setUp() {
             strategy = new LlmAgentRoutingStrategy(
                     presentInstance(agentProvider), absentInstance(), absentInstance(), absentInstance(),
-                    new RoutingPromptAssembler(List.of()));
+                    new RoutingPromptAssembler(List.of()), absentInstance());
         }
 
         @Test
@@ -184,7 +184,7 @@ class LlmAgentRoutingStrategyTest {
             strategy = new LlmAgentRoutingStrategy(
                     presentInstance(agentProvider), presentInstance(classifier),
                     presentInstance(scoreSource), presentInstance(policyProvider),
-                    new RoutingPromptAssembler(List.of()));
+                    new RoutingPromptAssembler(List.of()), absentInstance());
         }
 
         @Test
@@ -355,7 +355,7 @@ class LlmAgentRoutingStrategyTest {
         void returnsUnresolvableWhenAgentProviderAbsent() {
             var strategy = new LlmAgentRoutingStrategy(
                     absentInstance(), absentInstance(), absentInstance(), absentInstance(),
-                    new RoutingPromptAssembler(List.of()));
+                    new RoutingPromptAssembler(List.of()), absentInstance());
             var result = strategy.select(context("analysis"),
                     List.of(candidate("agent-a")));
             assertThat(result).isInstanceOf(RoutingResult.Unresolvable.class);
@@ -372,7 +372,7 @@ class LlmAgentRoutingStrategyTest {
 
             var strategy = new LlmAgentRoutingStrategy(
                     presentInstance(agentProvider), absentInstance(),
-                    absentInstance(), absentInstance(), assembler);
+                    absentInstance(), absentInstance(), assembler, absentInstance());
 
             var result = strategy.select(context("analysis"),
                     List.of(candidate("agent-a")));
@@ -393,7 +393,7 @@ class LlmAgentRoutingStrategyTest {
 
             var strategy = new LlmAgentRoutingStrategy(
                     presentInstance(agentProvider), absentInstance(),
-                    absentInstance(), absentInstance(), assembler);
+                    absentInstance(), absentInstance(), assembler, absentInstance());
 
             var result = strategy.select(context("analysis"),
                     List.of(candidate("agent-a")));

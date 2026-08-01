@@ -21,6 +21,7 @@ import io.casehub.api.spi.routing.AgentRoutingStrategy;
 import io.casehub.api.spi.routing.EscalationReason;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingResult;
+import io.casehub.blocks.prompt.SystemPromptCustomiser;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
@@ -82,6 +83,7 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
   private final @Nullable TrustScoreSource scoreSource;
   private final @Nullable TrustRoutingPolicyProvider policyProvider;
   private final RoutingPromptAssembler promptAssembler;
+  private final @Nullable SystemPromptCustomiser systemPromptCustomiser;
 
   @Inject
   public LlmAgentRoutingStrategy(
@@ -89,12 +91,29 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
       final Instance<TrustCandidateClassifier> classifier,
       final Instance<TrustScoreSource> scoreSource,
       final Instance<TrustRoutingPolicyProvider> policyProvider,
-      final RoutingPromptAssembler promptAssembler) {
+      final RoutingPromptAssembler promptAssembler,
+      final Instance<SystemPromptCustomiser> systemPromptCustomiser) {
     this.agentProvider = agentProvider.isUnsatisfied() ? null : agentProvider.get();
     this.classifier = classifier.isUnsatisfied() ? null : classifier.get();
     this.scoreSource = scoreSource.isUnsatisfied() ? null : scoreSource.get();
     this.policyProvider = policyProvider.isUnsatisfied() ? null : policyProvider.get();
     this.promptAssembler = promptAssembler;
+    this.systemPromptCustomiser = systemPromptCustomiser.isUnsatisfied() ? null : systemPromptCustomiser.get();
+  }
+
+  public LlmAgentRoutingStrategy(
+      final @Nullable AgentProvider agentProvider,
+      final @Nullable TrustCandidateClassifier classifier,
+      final @Nullable TrustScoreSource scoreSource,
+      final @Nullable TrustRoutingPolicyProvider policyProvider,
+      final RoutingPromptAssembler promptAssembler,
+      final @Nullable SystemPromptCustomiser systemPromptCustomiser) {
+    this.agentProvider = agentProvider;
+    this.classifier = classifier;
+    this.scoreSource = scoreSource;
+    this.policyProvider = policyProvider;
+    this.promptAssembler = promptAssembler;
+    this.systemPromptCustomiser = systemPromptCustomiser;
   }
 
   @Override
@@ -140,8 +159,11 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
       prompt = prompt + "\n\n" + enrichment;
     }
 
+    final String systemPrompt = systemPromptCustomiser != null
+            ? systemPromptCustomiser.customise(RoutingSupport.SYSTEM_PROMPT, "llm-routing", "control")
+            : RoutingSupport.SYSTEM_PROMPT;
     final String response =
-            RoutingSupport.invokeAndCollect(agentProvider, RoutingSupport.SYSTEM_PROMPT, prompt);
+            RoutingSupport.invokeAndCollect(agentProvider, systemPrompt, prompt);
 
     if (response == null) {
       if (proceed.classified() != null) {
