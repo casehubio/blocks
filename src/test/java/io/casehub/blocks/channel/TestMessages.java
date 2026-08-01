@@ -18,8 +18,9 @@ public final class TestMessages {
                                                 String content, String correlationId,
                                                 String sender, long epochMillis) {
         return new MessageReceivedEvent(ID_SEQ.getAndIncrement(), "test-channel",
-            channelId, "tenant-1", type, sender, null, ActorType.SYSTEM, correlationId,
-            Instant.ofEpochMilli(epochMillis), content, "general");
+                                        channelId, "tenant-1", type, sender, null,
+                                        io.casehub.platform.api.identity.ActorType.AGENT,
+                                        correlationId, Instant.ofEpochMilli(epochMillis), content, "general");
     }
 
     public static MessageReceivedEvent received(UUID channelId, MessageType type,

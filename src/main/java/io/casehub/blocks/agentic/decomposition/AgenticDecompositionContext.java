@@ -2,6 +2,7 @@ package io.casehub.blocks.agentic.decomposition;
 
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.engine.plan.DecompositionContext;
+import io.casehub.engine.plan.DecompositionStrategy;
 
 import org.jspecify.annotations.Nullable;
 
@@ -11,7 +12,8 @@ public record AgenticDecompositionContext<T>(T state, List<RoutingCandidate> age
                                              @Nullable String staticFailureHint,
                                              @Nullable String subtaskDescription,
                                              @Nullable String parentGoal,
-                                             @Nullable List<String> siblingNames)
+                                             @Nullable List<String> siblingNames,
+                                             @Nullable DecompositionStrategy<T> decomposer)
         implements DecompositionContext<T> {
     public AgenticDecompositionContext {
         agents = List.copyOf(agents);
@@ -22,10 +24,10 @@ public record AgenticDecompositionContext<T>(T state, List<RoutingCandidate> age
 
     public AgenticDecompositionContext(T state, List<RoutingCandidate> agents, int depth,
                                        @Nullable String staticFailureHint) {
-        this(state, agents, depth, staticFailureHint, null, null, null);
+        this(state, agents, depth, staticFailureHint, null, null, null, null);
     }
 
     public AgenticDecompositionContext(T state, List<RoutingCandidate> agents, int depth) {
-        this(state, agents, depth, null, null, null, null);
+        this(state, agents, depth, null, null, null, null, null);
     }
 }

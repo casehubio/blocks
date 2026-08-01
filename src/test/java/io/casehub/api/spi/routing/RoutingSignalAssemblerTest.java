@@ -36,8 +36,8 @@ class RoutingSignalAssemblerTest {
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
       assertThat(result).containsOnlyKeys("sig-a", "sig-b");
-      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("sig-a").candidates().get("w1")).value()).isEqualTo(0.8);
-      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("sig-b").candidates().get("w2")).value()).isEqualTo(0.6);
+      assertThat(result.get("sig-a").candidates().get("w1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).isEqualTo(0.8);
+      assertThat(result.get("sig-b").candidates().get("w2")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).isEqualTo(0.6);
     }
 
     @Test
@@ -85,7 +85,7 @@ class RoutingSignalAssemblerTest {
       var assembler = new RoutingSignalAssembler(List.of(p));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
-      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("over").candidates().get("w1")).value()).isEqualTo(1.0);
+      assertThat(result.get("over").candidates().get("w1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).isEqualTo(1.0);
     }
 
     @Test
@@ -96,7 +96,7 @@ class RoutingSignalAssemblerTest {
       var assembler = new RoutingSignalAssembler(List.of(p));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
-      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("under").candidates().get("w1")).value()).isEqualTo(0.0);
+      assertThat(result.get("under").candidates().get("w1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).isEqualTo(0.0);
     }
 
     @Test
@@ -107,7 +107,7 @@ class RoutingSignalAssemblerTest {
       var assembler = new RoutingSignalAssembler(List.of(p));
       var result = assembler.assemble(CONTEXT, EMPTY_ELIGIBLE);
 
-      assertThat(((RoutingSignal.CandidateSignal.Score) result.get("ok").candidates().get("w1")).value()).isEqualTo(0.75);
+      assertThat(result.get("ok").candidates().get("w1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).isEqualTo(0.75);
     }
   }
 

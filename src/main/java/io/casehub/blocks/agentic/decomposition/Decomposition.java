@@ -47,6 +47,10 @@ public final class Decomposition {
         return new HybridDecomposition<>(agentProvider, stateRenderer, maxDepth);
     }
 
+    public static <T> HeuristicDecomposition<T> heuristic(DecompositionHeuristic<T> heuristic) {
+        return new HeuristicDecomposition<>(heuristic);
+    }
+
 
     public static <T> DecompositionMethod<T> method(Predicate<T> guard,
                                                     DecompositionStrategy<T> strategy) {

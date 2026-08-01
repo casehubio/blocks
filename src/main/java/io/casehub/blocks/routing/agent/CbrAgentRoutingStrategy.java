@@ -132,10 +132,9 @@ public class CbrAgentRoutingStrategy implements AgentRoutingStrategy {
       final Map<String, RoutingSignal> signals = signalAssembler.assemble(context, eligible);
       for (final var signalEntry : signals.values()) {
         for (final var candidateEntry : signalEntry.candidates().entrySet()) {
-          if (eligibleIds.contains(candidateEntry.getKey())
-              && candidateEntry.getValue()
-                  instanceof RoutingSignal.CandidateSignal.Score s) {
-            finalScores.merge(candidateEntry.getKey(), s.value(), Double::sum);
+          if (eligibleIds.contains(candidateEntry.getKey())) {
+            finalScores.merge(
+                candidateEntry.getKey(), candidateEntry.getValue() instanceof RoutingSignal.CandidateSignal.Score s ? s.value() : 0.0, Double::sum);
           }
         }
       }

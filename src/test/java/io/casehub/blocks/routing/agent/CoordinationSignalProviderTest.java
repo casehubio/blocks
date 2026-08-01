@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
-import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,8 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 class CoordinationSignalProviderTest {
+    private static double scoreOf(RoutingSignal.CandidateSignal signal) {
+        return ((RoutingSignal.CandidateSignal.Score) signal).value();
+    }
 
-  private final CoordinationSignalProvider provider =
+
+    private final CoordinationSignalProvider provider =
       new CoordinationSignalProvider(new DefaultCoordinationOutcomeWeights());
 
   private AgentRoutingContext context(String capability, List<RetrievedExperience> experiences) {
@@ -119,8 +123,8 @@ class CoordinationSignalProviderTest {
           List.of(candidate("agent-a"), candidate("agent-b")));
 
       assertThat(result).isNotNull();
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(1.0, within(0.01));
-      assertThat(((Score) result.candidates().get("agent-b")).value()).isCloseTo(1.0, within(0.01));
+      assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(1.0, within(0.01));
+      assertThat(scoreOf(result.candidates().get("agent-b"))).isCloseTo(1.0, within(0.01));
     }
 
     @Test
@@ -134,7 +138,7 @@ class CoordinationSignalProviderTest {
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.2, within(0.01));
+      assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(0.2, within(0.01));
     }
 
     @Test
@@ -153,7 +157,7 @@ class CoordinationSignalProviderTest {
       assertThat(result).isNotNull();
       // agent-a in exp1 (COMPLETED, w=1.0) and exp2 (FAULTED, w=0.2), equal similarity
       // score = (1.0*0.9 + 0.2*0.9) / (0.9+0.9) = 1.08/1.8 = 0.6
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.6, within(0.01));
+      assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(0.6, within(0.01));
     }
 
     @Test
@@ -171,7 +175,7 @@ class CoordinationSignalProviderTest {
 
       assertThat(result).isNotNull();
       // (1.0*0.95 + 0.2*0.1) / (0.95+0.1) = 0.97/1.05 ≈ 0.924
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isGreaterThan(0.9);
+      assertThat(scoreOf(result.candidates().get("agent-a"))).isGreaterThan(0.9);
     }
 
     @Test
@@ -221,8 +225,8 @@ class CoordinationSignalProviderTest {
                     List.of(candidate("agent-a"), candidate("agent-b")));
 
             assertThat(result).isNotNull();
-            double agentAScore = ((Score) result.candidates().get("agent-a")).value();
-            double agentBScore = ((Score) result.candidates().get("agent-b")).value();
+            double agentAScore = scoreOf(result.candidates().get("agent-a"));
+            double agentBScore = scoreOf(result.candidates().get("agent-b"));
             assertThat(agentAScore).isGreaterThan(0.5);
             assertThat(agentBScore).isCloseTo(1.0, within(0.01));
         }
@@ -261,7 +265,7 @@ class CoordinationSignalProviderTest {
             assertThat(agrResult).isNotNull();
             // Without AGR both experiences would have equal weight → score = 0.6
             // With AGR the full-overlap COMPLETED experience dominates → score > 0.6
-            assertThat(((Score) agrResult.candidates().get("agent-a")).value()).isGreaterThan(0.7);
+            assertThat(scoreOf(agrResult.candidates().get("agent-a"))).isGreaterThan(0.7);
         }
     }
 }

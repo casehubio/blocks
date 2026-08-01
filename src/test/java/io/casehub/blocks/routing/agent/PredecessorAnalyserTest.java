@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
-import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,6 +20,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 class PredecessorAnalyserTest {
+    private static double scoreOf(RoutingSignal.CandidateSignal signal) {
+        return ((RoutingSignal.CandidateSignal.Score) signal).value();
+    }
+
+    private static String rationaleOf(RoutingSignal.CandidateSignal signal) {
+        return ((RoutingSignal.CandidateSignal.Score) signal).rationale();
+    }
+
 
     private final PredecessorAnalyser analyser =
             new PredecessorAnalyser(new DefaultCbrCaseOutcomeWeights());
@@ -95,7 +103,7 @@ class PredecessorAnalyserTest {
 
             assertThat(result).isNotNull();
             assertThat(result.candidates()).containsKey("reviewer-a");
-            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(1.0, within(0.01));
+            assertThat(result.candidates().get("reviewer-a")); assertThat(scoreOf(result.candidates().get("reviewer-a"))).isCloseTo(1.0, within(0.01));
         }
 
         @Test
@@ -109,7 +117,7 @@ class PredecessorAnalyserTest {
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
-            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(0.2, within(0.01));
+            assertThat(result.candidates().get("reviewer-a")); assertThat(scoreOf(result.candidates().get("reviewer-a"))).isCloseTo(0.2, within(0.01));
         }
 
         @Test
@@ -122,7 +130,7 @@ class PredecessorAnalyserTest {
                     context("review", List.of(exp)),
                     List.of(candidate("reviewer-a")));
 
-            assertThat(((Score) result.candidates().get("reviewer-a")).rationale()).contains("predecessor");
+            assertThat(result.candidates().get("reviewer-a")); assertThat(rationaleOf(result.candidates().get("reviewer-a"))).contains("predecessor");
         }
 
         @Test
@@ -140,7 +148,7 @@ class PredecessorAnalyserTest {
 
             assertThat(result).isNotNull();
             // (1.0*0.9 + 0.2*0.9) / (0.9+0.9) = 0.6
-            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(0.6, within(0.01));
+            assertThat(result.candidates().get("reviewer-a")); assertThat(scoreOf(result.candidates().get("reviewer-a"))).isCloseTo(0.6, within(0.01));
         }
 
         @Test
@@ -155,8 +163,8 @@ class PredecessorAnalyserTest {
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
-            assertThat(((Score) result.candidates().get("reviewer-a")).value()).isCloseTo(1.0, within(0.01));
-            assertThat(((Score) result.candidates().get("reviewer-a")).rationale()).contains("analysis:analyst-1");
+            assertThat(result.candidates().get("reviewer-a")); assertThat(scoreOf(result.candidates().get("reviewer-a"))).isCloseTo(1.0, within(0.01));
+            assertThat(result.candidates().get("reviewer-a")); assertThat(rationaleOf(result.candidates().get("reviewer-a"))).contains("analysis:analyst-1");
         }
 
         @Test
@@ -171,7 +179,7 @@ class PredecessorAnalyserTest {
                     List.of(candidate("reviewer-a")));
 
             assertThat(result).isNotNull();
-            assertThat(((Score) result.candidates().get("reviewer-a")).rationale()).contains("analysis:analyst-1");
+            assertThat(result.candidates().get("reviewer-a")); assertThat(rationaleOf(result.candidates().get("reviewer-a"))).contains("analysis:analyst-1");
         }
     }
 }

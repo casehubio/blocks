@@ -8,7 +8,6 @@ import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.RoutingSignal;
-import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentDisposition;
 import io.casehub.eidos.api.DispositionAxis;
@@ -50,7 +49,7 @@ class DispositionAwareRoutingTest {
 
     assertThat(result).isNotNull();
     assertThat(result.candidates()).containsKey("agent-1");
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(1.0, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(1.0, within(0.001));
   }
 
   @Test
@@ -61,7 +60,7 @@ class DispositionAwareRoutingTest {
     var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.0, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(0.0, within(0.001));
   }
 
   @Test
@@ -73,7 +72,7 @@ class DispositionAwareRoutingTest {
     var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.5, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(0.5, within(0.001));
   }
 
   @Test
@@ -91,7 +90,7 @@ class DispositionAwareRoutingTest {
     var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.5, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(0.5, within(0.001));
   }
 
   @Test
@@ -104,8 +103,8 @@ class DispositionAwareRoutingTest {
 
     assertThat(result).isNotNull();
     assertThat(result.candidates()).hasSize(2);
-    assertThat(((Score) result.candidates().get("matcher")).value()).isCloseTo(1.0, within(0.001));
-    assertThat(((Score) result.candidates().get("other")).value()).isCloseTo(0.0, within(0.001));
+    assertThat(result.candidates().get("matcher")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(1.0, within(0.001));
+    assertThat(result.candidates().get("other")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(0.0, within(0.001));
   }
 
   @Test
@@ -145,7 +144,7 @@ class DispositionAwareRoutingTest {
     var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(1.0, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(1.0, within(0.001));
   }
 
   @Test
@@ -161,7 +160,7 @@ class DispositionAwareRoutingTest {
     var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(1.0, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(1.0, within(0.001));
   }
 
   @Test
@@ -185,7 +184,7 @@ class DispositionAwareRoutingTest {
     var result = routing.evaluate(ctx, List.of(candidate));
 
     assertThat(result).isNotNull();
-    assertThat(((Score) result.candidates().get("agent-1")).value()).isCloseTo(0.75, within(0.001));
+    assertThat(result.candidates().get("agent-1")).isInstanceOf(RoutingSignal.CandidateSignal.Score.class).extracting(s -> ((RoutingSignal.CandidateSignal.Score) s).value()).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.DOUBLE).isCloseTo(0.75, within(0.001));
   }
 
   @Test

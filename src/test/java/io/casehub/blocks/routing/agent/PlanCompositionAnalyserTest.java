@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import io.casehub.api.spi.routing.AgentCandidate;
 import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
-import io.casehub.api.spi.routing.RoutingSignal.CandidateSignal.Score;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,8 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 class PlanCompositionAnalyserTest {
+    private static double scoreOf(RoutingSignal.CandidateSignal signal) {
+        return ((RoutingSignal.CandidateSignal.Score) signal).value();
+    }
 
-  private final PlanCompositionAnalyser analyser =
+
+    private final PlanCompositionAnalyser analyser =
       new PlanCompositionAnalyser(new DefaultCbrCaseOutcomeWeights());
 
   private AgentRoutingContext context(String capability, List<RetrievedExperience> experiences) {
@@ -120,7 +124,7 @@ class PlanCompositionAnalyserTest {
 
       assertThat(result).isNotNull();
       assertThat(result.candidates()).containsKey("agent-a");
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(1.0, within(0.01));
+      assertThat(result.candidates().get("agent-a")); assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(1.0, within(0.01));
     }
 
     @Test
@@ -134,7 +138,7 @@ class PlanCompositionAnalyserTest {
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.2, within(0.01));
+      assertThat(result.candidates().get("agent-a")); assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(0.2, within(0.01));
     }
 
     @Test
@@ -152,7 +156,7 @@ class PlanCompositionAnalyserTest {
 
       assertThat(result).isNotNull();
       // agent-a: (1.0*0.9 + 0.2*0.9) / (0.9+0.9) = 1.08/1.8 = 0.6
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.6, within(0.01));
+      assertThat(result.candidates().get("agent-a")); assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(0.6, within(0.01));
     }
 
     @Test
@@ -170,7 +174,7 @@ class PlanCompositionAnalyserTest {
 
       assertThat(result).isNotNull();
       // agent-a: (1.0*0.95 + 0.2*0.1) / (0.95+0.1) = 0.97/1.05 ≈ 0.924
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isGreaterThan(0.9);
+      assertThat(result.candidates().get("agent-a")); assertThat(scoreOf(result.candidates().get("agent-a"))).isGreaterThan(0.9);
     }
 
     @Test
@@ -224,7 +228,7 @@ class PlanCompositionAnalyserTest {
           List.of(candidate("agent-a")));
 
       assertThat(result).isNotNull();
-      assertThat(((Score) result.candidates().get("agent-a")).value()).isCloseTo(0.8, within(0.01));
+      assertThat(result.candidates().get("agent-a")); assertThat(scoreOf(result.candidates().get("agent-a"))).isCloseTo(0.8, within(0.01));
     }
   }
 }
