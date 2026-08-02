@@ -210,4 +210,35 @@ class EventAccumulatorTest {
             executor.shutdownNow();
         }
     }
+
+    @Test
+    void drainIfReady_returnsEventsWhenReady() {
+        var acc = new EventAccumulator<String>(new WindowPolicy(0, 2));
+        acc.collect(new LevelEvent<>("a", 1, new EventLevel("L1", 0)));
+        acc.collect(new LevelEvent<>("b", 2, new EventLevel("L1", 0)));
+
+        var result = acc.drainIfReady(5);
+        assertThat(result).hasSize(2);
+        assertThat(acc.size()).isZero();
+    }
+
+    @Test
+    void drainIfReady_returnsEmptyWhenNotReady() {
+        var acc = new EventAccumulator<String>(new WindowPolicy(0, 5));
+        acc.collect(new LevelEvent<>("a", 1, new EventLevel("L1", 0)));
+
+        var result = acc.drainIfReady(2);
+        assertThat(result).isEmpty();
+        assertThat(acc.size()).as("buffer untouched").isEqualTo(1);
+    }
+
+    @Test
+    void drainIfReady_emptyBuffer_returnsEmpty() {
+        var acc = new EventAccumulator<String>(new WindowPolicy(0, 1));
+
+        var result = acc.drainIfReady(100);
+        assertThat(result).isEmpty();
+    }
+
+
 }

@@ -39,11 +39,11 @@ class EventStreamBusTest {
     }
 
     @Test
-    void clear_removesAllSubscribers() {
-        var bus = new EventStreamBus<String>();
+    void clearSubscriptions_removesAllSubscribers() {
+        var          bus      = new EventStreamBus<String>();
         List<String> received = new ArrayList<>();
         bus.subscribe(s -> true, e -> received.add(e.payload()));
-        bus.clear();
+        bus.clearSubscriptions();
         bus.publish(new LevelEvent<>("X", 1, LEVEL));
         assertThat(received).isEmpty();
     }

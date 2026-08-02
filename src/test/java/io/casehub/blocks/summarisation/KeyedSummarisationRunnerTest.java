@@ -1,13 +1,14 @@
 package io.casehub.blocks.summarisation;
 
 import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KeyedSummarisationRunnerTest {
 
@@ -94,7 +95,7 @@ class KeyedSummarisationRunnerTest {
     }
 
     @Test
-    void tick_asyncFailure_propagatesThroughReturnedStage() {
+    void tick_asyncFailure_logsAndDropsByDefault() {
         AtomicInteger callCount = new AtomicInteger();
         Summariser<String, Integer> failingSummariser = batch -> {
             callCount.incrementAndGet();
@@ -102,15 +103,14 @@ class KeyedSummarisationRunnerTest {
         };
         var outputBus = new EventStreamBus<Integer>();
         var runner = new KeyedSummarisationRunner<>(
-            s -> s, group -> group.size() >= 1, 0,
-            failingSummariser, outputBus, OUTPUT_LEVEL);
+                s -> s, group -> group.size() >= 1, 0,
+                failingSummariser, outputBus, OUTPUT_LEVEL);
 
         runner.collect(new LevelEvent<>("k1", 1, INPUT_LEVEL));
         CompletionStage<Void> result = runner.tick(10);
 
-        assertThatThrownBy(() -> result.toCompletableFuture().join())
-            .hasCauseInstanceOf(RuntimeException.class)
-            .hasMessageContaining("LLM timeout");
+        assertThat(result.toCompletableFuture().isCompletedExceptionally())
+                .as("exception swallowed — log and drop by default").isFalse();
     }
 
     @Test
@@ -176,4 +176,94 @@ class KeyedSummarisationRunnerTest {
         assertThat(runner.groupCount()).isEqualTo(2);
         assertThat(runner.eventCount()).isEqualTo(3);
     }
+
+    @Test
+    void tick_withCompactor_appliesCompactionPerGroupBeforeSummariser() {
+        Compactor<String> dedup = events -> events.stream()
+                                                  .distinct().toList();
+        Summariser<String, Integer> summariser = Summariser.ofSync(batch -> List.of(batch.size()));
+        var                         outputBus  = new EventStreamBus<Integer>();
+        var runner = new KeyedSummarisationRunner<>(
+                s -> s.substring(0, 1), group -> group.size() >= 2, 0,
+                dedup, summariser, outputBus, OUTPUT_LEVEL);
+
+        List<Integer> received = new ArrayList<>();
+        outputBus.subscribe(i -> true, e -> received.add(e.payload()));
+
+        var event = new LevelEvent<>("a1", 1, INPUT_LEVEL);
+        runner.collect(event);
+        runner.collect(event);
+        runner.tick(10);
+
+        assertThat(received).as("compactor deduped two identical events to one").containsExactly(1);
+    }
+
+    @Test
+    void tick_withCompactor_multipleGroups_eachCompactedIndependently() {
+        Compactor<String> filterShort = events -> events.stream()
+                                                        .filter(e -> e.payload().length() > 2).toList();
+        Summariser<String, Integer> summariser = Summariser.ofSync(batch -> List.of(batch.size()));
+        var                         outputBus  = new EventStreamBus<Integer>();
+        var runner = new KeyedSummarisationRunner<>(
+                s -> s.substring(0, 1), group -> group.size() >= 2, 0,
+                filterShort, summariser, outputBus, OUTPUT_LEVEL);
+
+        List<Integer> received = new ArrayList<>();
+        outputBus.subscribe(i -> true, e -> received.add(e.payload()));
+
+        runner.collect(new LevelEvent<>("a1", 1, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("abc", 2, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("b1", 3, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("bcd", 4, INPUT_LEVEL));
+        runner.tick(10);
+
+        assertThat(received).as("each group compacted: 1 long item per group").containsExactlyInAnyOrder(1, 1);
+    }
+
+    @Test
+    void tick_failure_withHandler_callsHandlerPerFailedGroup() {
+        AtomicInteger callCount = new AtomicInteger();
+        Summariser<String, Integer> failingSummariser = batch -> {
+            callCount.incrementAndGet();
+            return CompletableFuture.failedFuture(new RuntimeException("boom"));
+        };
+        var                            outputBus = new EventStreamBus<Integer>();
+        List<List<LevelEvent<String>>> recovered = new ArrayList<>();
+        var runner = new KeyedSummarisationRunner<>(
+                s -> s, group -> group.size() >= 1, 0,
+                failingSummariser, outputBus, OUTPUT_LEVEL, recovered::add);
+
+        runner.collect(new LevelEvent<>("k1", 1, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("k2", 2, INPUT_LEVEL));
+        runner.tick(10).toCompletableFuture().join();
+
+        assertThat(recovered).as("handler called for each failed group").hasSize(2);
+    }
+
+    @Test
+    void tick_failure_withHandler_oneGroupFails_otherSucceeds_handlerCalledForFailedOnly() {
+        Summariser<String, Integer> summariser = batch -> {
+            if (batch.get(0).payload().startsWith("fail")) {
+                return CompletableFuture.failedFuture(new RuntimeException("boom"));
+            }
+            return CompletableFuture.completedFuture(List.of(batch.size()));
+        };
+        var           outputBus = new EventStreamBus<Integer>();
+        List<Integer> published = new ArrayList<>();
+        outputBus.subscribe(i -> true, e -> published.add(e.payload()));
+        List<List<LevelEvent<String>>> recovered = new ArrayList<>();
+        var runner = new KeyedSummarisationRunner<>(
+                s -> s.substring(0, 4), group -> group.size() >= 1, 0,
+                summariser, outputBus, OUTPUT_LEVEL, recovered::add);
+
+        runner.collect(new LevelEvent<>("good", 1, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("fail", 2, INPUT_LEVEL));
+        runner.tick(10).toCompletableFuture().join();
+
+        assertThat(published).as("successful group still published").containsExactly(1);
+        assertThat(recovered).as("handler called for failed group only").hasSize(1);
+        assertThat(recovered.get(0).get(0).payload()).isEqualTo("fail");
+    }
+
+
 }

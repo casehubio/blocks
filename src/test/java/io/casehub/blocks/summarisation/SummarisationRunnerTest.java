@@ -1,12 +1,13 @@
 package io.casehub.blocks.summarisation;
 
 import org.junit.jupiter.api.Test;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SummarisationRunnerTest {
 
@@ -74,11 +75,11 @@ class SummarisationRunnerTest {
     }
 
     @Test
-    void tick_asyncFailure_propagatesThroughReturnedStage() {
+    void tick_asyncFailure_logsAndDropsByDefault() {
         Summariser<String, Integer> failingSummariser = batch ->
-            CompletableFuture.failedFuture(new RuntimeException("LLM timeout"));
+                                                                CompletableFuture.failedFuture(new RuntimeException("LLM timeout"));
         var outputBus = new EventStreamBus<Integer>();
-        var runner = new SummarisationRunner<>(new WindowPolicy(0, 1), failingSummariser, outputBus, OUTPUT_LEVEL);
+        var runner    = new SummarisationRunner<>(new WindowPolicy(0, 1), failingSummariser, outputBus, OUTPUT_LEVEL);
 
         List<Integer> received = new ArrayList<>();
         outputBus.subscribe(i -> true, e -> received.add(e.payload()));
@@ -87,9 +88,8 @@ class SummarisationRunnerTest {
         CompletionStage<Void> result = runner.tick(5);
 
         assertThat(result).isNotNull();
-        assertThatThrownBy(() -> result.toCompletableFuture().join())
-            .hasCauseInstanceOf(RuntimeException.class)
-            .hasMessageContaining("LLM timeout");
+        assertThat(result.toCompletableFuture().isCompletedExceptionally())
+                .as("exception swallowed — log and drop by default").isFalse();
         assertThat(received).as("nothing published on failure").isEmpty();
     }
 
@@ -174,6 +174,124 @@ class SummarisationRunnerTest {
         runner.collect(new LevelEvent<>("c", 3, INPUT_LEVEL));
         assertThat(runner.size()).as("new event in fresh window").isEqualTo(1);
     }
+
+    @Test
+    void tick_withCompactor_appliesCompactionBeforeSummariser() {
+        Compactor<String> dedup = events -> events.stream()
+                                                  .distinct().toList();
+        Summariser<String, Integer> summariser = Summariser.ofSync(batch -> List.of(batch.size()));
+        var                         outputBus  = new EventStreamBus<Integer>();
+        var                         runner     = new SummarisationRunner<>(new WindowPolicy(0, 1), dedup, summariser, outputBus, OUTPUT_LEVEL);
+
+        List<Integer> received = new ArrayList<>();
+        outputBus.subscribe(i -> true, e -> received.add(e.payload()));
+
+        var event = new LevelEvent<>("a", 1, INPUT_LEVEL);
+        runner.collect(event);
+        runner.collect(event);
+        runner.tick(5);
+        assertThat(received).as("compactor deduped two identical events to one").containsExactly(1);
+    }
+
+    @Test
+    void tick_withCompactor_compactorReducesBatchSize() {
+        Compactor<String> filterShort = events -> events.stream()
+                                                        .filter(e -> e.payload().length() > 1).toList();
+        Summariser<String, Integer> summariser = Summariser.ofSync(batch -> List.of(batch.size()));
+        var                         outputBus  = new EventStreamBus<Integer>();
+        var                         runner     = new SummarisationRunner<>(new WindowPolicy(0, 1), filterShort, summariser, outputBus, OUTPUT_LEVEL);
+
+        List<Integer> received = new ArrayList<>();
+        outputBus.subscribe(i -> true, e -> received.add(e.payload()));
+
+        runner.collect(new LevelEvent<>("a", 1, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("ab", 2, INPUT_LEVEL));
+        runner.collect(new LevelEvent<>("abc", 3, INPUT_LEVEL));
+        runner.tick(5);
+        assertThat(received).as("compactor filtered single-char events").containsExactly(2);
+    }
+
+    @Test
+    void tick_withCompactor_emptyAfterCompaction_summariserStillCalled() {
+        Compactor<String>           dropAll    = events -> List.of();
+        Summariser<String, Integer> summariser = Summariser.ofSync(batch -> List.of(batch.size()));
+        var                         outputBus  = new EventStreamBus<Integer>();
+        var                         runner     = new SummarisationRunner<>(new WindowPolicy(0, 1), dropAll, summariser, outputBus, OUTPUT_LEVEL);
+
+        List<Integer> received = new ArrayList<>();
+        outputBus.subscribe(i -> true, e -> received.add(e.payload()));
+
+        runner.collect(new LevelEvent<>("a", 1, INPUT_LEVEL));
+        runner.tick(5);
+        assertThat(received).as("summariser called with empty list, publishes 0").containsExactly(0);
+    }
+
+    @Test
+    void tick_failure_withHandler_callsHandlerWithBatch() {
+        Summariser<String, Integer> failingSummariser = batch ->
+                                                                CompletableFuture.failedFuture(new RuntimeException("LLM timeout"));
+        var                            outputBus = new EventStreamBus<Integer>();
+        List<List<LevelEvent<String>>> recovered = new ArrayList<>();
+        var runner = new SummarisationRunner<>(new WindowPolicy(0, 1),
+                                               failingSummariser, outputBus, OUTPUT_LEVEL, recovered::add);
+
+        runner.collect(new LevelEvent<>("a", 1, INPUT_LEVEL));
+        runner.tick(5).toCompletableFuture().join();
+
+        assertThat(recovered).as("handler received the failed batch").hasSize(1);
+        assertThat(recovered.get(0)).hasSize(1);
+        assertThat(recovered.get(0).get(0).payload()).isEqualTo("a");
+    }
+
+    @Test
+    void tick_failure_withHandler_swallowsException() {
+        Summariser<String, Integer> failingSummariser = batch ->
+                                                                CompletableFuture.failedFuture(new RuntimeException("LLM timeout"));
+        var outputBus = new EventStreamBus<Integer>();
+        var runner = new SummarisationRunner<>(new WindowPolicy(0, 1),
+                                               failingSummariser, outputBus, OUTPUT_LEVEL, batch -> {});
+
+        runner.collect(new LevelEvent<>("a", 1, INPUT_LEVEL));
+        CompletionStage<Void> result = runner.tick(5);
+
+        assertThat(result.toCompletableFuture().isCompletedExceptionally())
+                .as("exception swallowed when handler set").isFalse();
+    }
+
+    @Test
+    void tick_failure_withoutHandler_logsAndDrops() {
+        Summariser<String, Integer> failingSummariser = batch ->
+                                                                CompletableFuture.failedFuture(new RuntimeException("LLM timeout"));
+        var outputBus = new EventStreamBus<Integer>();
+        var runner = new SummarisationRunner<>(new WindowPolicy(0, 1),
+                                               failingSummariser, outputBus, OUTPUT_LEVEL);
+
+        runner.collect(new LevelEvent<>("a", 1, INPUT_LEVEL));
+        CompletionStage<Void> result = runner.tick(5);
+
+        assertThat(result.toCompletableFuture().isCompletedExceptionally())
+                .as("exception swallowed — log and drop").isFalse();
+    }
+
+    @Test
+    void tick_failure_withCompactorAndHandler_handlerReceivesCompactedBatch() {
+        Compactor<String> dedup = events -> events.stream().distinct().toList();
+        Summariser<String, Integer> failingSummariser = batch ->
+                                                                CompletableFuture.failedFuture(new RuntimeException("boom"));
+        var                            outputBus = new EventStreamBus<Integer>();
+        List<List<LevelEvent<String>>> recovered = new ArrayList<>();
+        var runner = new SummarisationRunner<>(new WindowPolicy(0, 1), dedup,
+                                               failingSummariser, outputBus, OUTPUT_LEVEL, recovered::add);
+
+        var event = new LevelEvent<>("a", 1, INPUT_LEVEL);
+        runner.collect(event);
+        runner.collect(event);
+        runner.tick(5).toCompletableFuture().join();
+
+        assertThat(recovered).hasSize(1);
+        assertThat(recovered.get(0)).as("handler receives compacted batch").hasSize(1);
+    }
+
 
     @Test
     void tick_noCollect_emptyAccumulator_neverCalled() {

@@ -254,13 +254,14 @@ Temporal abstraction framework for summarising high-frequency event streams into
 |-------|-------------|
 | `EventLevel` | Record: `(String name, int ordinal)` — identifies a level in the hierarchy |
 | `LevelEvent<E>` | Record: `(E payload, long timestamp, EventLevel level)` — typed event at a specific level |
-| `WindowPolicy` | Record: `(long maxAge, int maxCount)` — dual-trigger windowing. Validates: both >= 0, at least one positive. |
-| `EventAccumulator<E>` | Thread-safe event buffer. `collect()`, `shouldEmit(now)`, `drain()`, `clear()`, `size()`. Synchronized on all public methods. |
-| `EventStreamBus<E>` | Predicate-based pub/sub. `subscribe(Predicate, Consumer)`, `publish(LevelEvent)`, `clear()`. CopyOnWriteArrayList-backed — concurrent publish+subscribe safe. |
+| `WindowPolicy` | Record: `(long maxAge, int maxCount)` — dual-trigger windowing. Validates: both >= 0, at least one positive. Factory methods: `ofCount(int)`, `ofAge(long)`, `of(long, int)`. |
+| `EventAccumulator<E>` | Thread-safe event buffer. `collect()`, `shouldEmit(now)`, `drain()`, `drainIfReady(now)` (atomic check+drain), `clear()`, `size()`. Synchronized on all public methods. |
+| `EventStreamBus<E>` | Predicate-based pub/sub. `subscribe(Predicate, Consumer)`, `publish(LevelEvent)` (synchronous dispatch on caller's thread), `clearSubscriptions()`. CopyOnWriteArrayList-backed — concurrent publish+subscribe safe. `clear()` deprecated. |
 | `Summariser<IN, OUT>` | `@FunctionalInterface`. `CompletionStage<List<OUT>> summarise(List<LevelEvent<IN>>)`. `ofSync()` factory for deterministic implementations. |
-| `SummarisationRunner<IN, OUT>` | Wires accumulator → summariser → output bus. `collect()`, `tick()` (returns `CompletionStage<Void>`), `clear()`, `size()`. |
+| `Compactor<E>` | `@FunctionalInterface`. `List<LevelEvent<E>> compact(List<LevelEvent<E>>)`. Optional pre-summarisation compaction (dedup, filtering, supersession). |
+| `SummarisationRunner<IN, OUT>` | Wires accumulator → optional compactor → summariser → output bus. `collect()`, `tick()` (synchronized, returns `CompletionStage<Void>`), `clear()`, `size()`. Optional `Compactor<IN>` for pre-summarisation compaction. Optional `Consumer<List<LevelEvent<IN>>> onFailure` for failure recovery (default: log and drop). |
 | `KeyedAccumulator<K, E>` | Groups events by key (via `Function<E, K>`), emits each group independently on completion predicate or stale timeout. Thread-safe. `collect()`, `drain(long now)`, `clear()`, `groupCount()`, `eventCount()`. Clock-from-last-event staleness semantics. |
-| `KeyedSummarisationRunner<K, IN, OUT>` | Wires `KeyedAccumulator` → `Summariser` → output bus. Per-group at-most-once error semantics. `collect()`, `tick(long now)`, `clear()`, `groupCount()`, `eventCount()`. |
+| `KeyedSummarisationRunner<K, IN, OUT>` | Wires `KeyedAccumulator` → optional compactor → `Summariser` → output bus. Per-group failure recovery. `collect()`, `tick(long now)` (synchronized), `clear()`, `groupCount()`, `eventCount()`. Optional `Compactor<IN>` and `Consumer<List<LevelEvent<IN>>> onFailure`. |
 | `SummaryMode` | Enum: `APPEND` (delta only) or `EDIT` (rewrite entire summary). Used by `LlmContentSummariser`. |
 | `ContentSummariser<T>` | `@FunctionalInterface` SPI: `CompletionStage<SummaryResult> summarise(List<T>, @Nullable SummaryResult)`. Reusable batch summarisation — decoupled from pipeline event model. Returns `SummaryResult` (text + annotations). |
 | `VerbatimContentSummariser<T>` | Renders each item as a bullet list via `Function<T, String>`. Preserves previous text and propagates annotations. |

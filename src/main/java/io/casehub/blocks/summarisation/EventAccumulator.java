@@ -37,6 +37,12 @@ public class EventAccumulator<E> {
         return result;
     }
 
+    public synchronized List<LevelEvent<E>> drainIfReady(long now) {
+        if (!shouldEmit(now)) {return List.of();}
+        return drain();
+    }
+
+
     public synchronized void clear() {
         buffer.clear();
     }

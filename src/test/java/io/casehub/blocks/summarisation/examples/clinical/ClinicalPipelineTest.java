@@ -1,6 +1,12 @@
 package io.casehub.blocks.summarisation.examples.clinical;
 
-import io.casehub.blocks.summarisation.*;
+import io.casehub.blocks.summarisation.EventAccumulator;
+import io.casehub.blocks.summarisation.EventLevel;
+import io.casehub.blocks.summarisation.EventStreamBus;
+import io.casehub.blocks.summarisation.LevelEvent;
+import io.casehub.blocks.summarisation.SummarisationRunner;
+import io.casehub.blocks.summarisation.Summariser;
+import io.casehub.blocks.summarisation.WindowPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +15,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ClinicalPipelineTest {
 
@@ -150,21 +156,20 @@ class ClinicalPipelineTest {
     }
 
     @Test
-    void asyncError_observableViaTick() {
+    void asyncError_loggedAndDroppedByDefault() {
         Summariser<CarePhase, ClinicalNarrative> failingSummariser = batch ->
-            CompletableFuture.failedFuture(new RuntimeException("LLM unavailable"));
+                                                                             CompletableFuture.failedFuture(new RuntimeException("LLM unavailable"));
 
         var failingRunner = new SummarisationRunner<>(
-            new WindowPolicy(0, 1), failingSummariser, narrativeBus, L4_NARRATIVE);
+                new WindowPolicy(0, 1), failingSummariser, narrativeBus, L4_NARRATIVE);
 
         failingRunner.collect(new LevelEvent<>(
-            new CarePhase("STABLE", 1000, "test"), 1, L3_PHASES));
+                new CarePhase("STABLE", 1000, "test"), 1, L3_PHASES));
 
         CompletionStage<Void> result = failingRunner.tick(2);
 
-        assertThatThrownBy(() -> result.toCompletableFuture().join())
-            .hasCauseInstanceOf(RuntimeException.class)
-            .hasMessageContaining("LLM unavailable");
+        assertThat(result.toCompletableFuture().isCompletedExceptionally())
+                .as("failure swallowed — logged and dropped").isFalse();
     }
 
     @Test

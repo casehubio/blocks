@@ -18,10 +18,21 @@ public class EventStreamBus<E> {
 
     private final List<Subscription<E>> subscriptions = new CopyOnWriteArrayList<>();
 
+    /**
+     * Registers a subscription. The callback runs synchronously on the
+     * thread that calls {@link #publish} — blocking callbacks block
+     * the entire publish loop. Wrap in {@code CompletableFuture.runAsync()}
+     * if the callback may block.
+     */
     public void subscribe(Predicate<E> filter, Consumer<LevelEvent<E>> callback) {
         subscriptions.add(new Subscription<>(filter, callback));
     }
 
+    /**
+     * Dispatches the event to all matching subscribers synchronously on
+     * the calling thread. A slow or blocking callback delays all
+     * subsequent subscribers in this publish call.
+     */
     public void publish(LevelEvent<E> event) {
         for (var sub : subscriptions) {
             if (sub.filter().test(event.payload())) {
@@ -30,7 +41,12 @@ public class EventStreamBus<E> {
         }
     }
 
-    public void clear() {
+    public void clearSubscriptions() {
         subscriptions.clear();
+    }
+
+    @Deprecated(forRemoval = true)
+    public void clear() {
+        clearSubscriptions();
     }
 }

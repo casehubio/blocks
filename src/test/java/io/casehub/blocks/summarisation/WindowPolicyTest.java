@@ -47,4 +47,25 @@ class WindowPolicyTest {
         assertThat(policy.maxAge()).isEqualTo(100);
         assertThat(policy.maxCount()).isEqualTo(5);
     }
+
+    @Test
+    void ofCount_setsCountOnly() {
+        var policy = WindowPolicy.ofCount(10);
+        assertThat(policy.maxAge()).isZero();
+        assertThat(policy.maxCount()).isEqualTo(10);
+    }
+
+    @Test
+    void ofAge_setsAgeOnly() {
+        var policy = WindowPolicy.ofAge(5000);
+        assertThat(policy.maxAge()).isEqualTo(5000);
+        assertThat(policy.maxCount()).isZero();
+    }
+
+    @Test
+    void of_setsBoth() {
+        var policy = WindowPolicy.of(3000, 8);
+        assertThat(policy.maxAge()).isEqualTo(3000);
+        assertThat(policy.maxCount()).isEqualTo(8);
+    }
 }
