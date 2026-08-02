@@ -85,6 +85,35 @@ public class SummarisationRunner<IN, OUT> {
         });
     }
 
+
+    /**
+     * Unconditional drain — bypasses WindowPolicy. Use at shutdown to
+     * capture all remaining buffered events regardless of count or age.
+     */
+    public synchronized CompletionStage<Void> flush() {
+        var batch = accumulator.drain();
+        if (batch.isEmpty()) {return CompletableFuture.completedFuture(null);}
+        if (compactor != null) {
+            batch = compactor.compact(batch);
+        }
+        var  finalBatch = batch;
+        long now        = System.currentTimeMillis();
+        return summariser.summarise(batch).thenAccept(results -> {
+            for (var payload : results) {
+                outputBus.publish(new LevelEvent<>(payload, now, outputLevel));
+            }
+        }).handle((v, ex) -> {
+            if (ex != null) {
+                LOG.log(System.Logger.Level.WARNING,
+                        "Flush failed, batch size=" + finalBatch.size(), ex);
+                if (onFailure != null) {
+                    onFailure.accept(finalBatch);
+                }
+            }
+            return null;
+        });
+    }
+
     public void clear() {
         accumulator.clear();
     }

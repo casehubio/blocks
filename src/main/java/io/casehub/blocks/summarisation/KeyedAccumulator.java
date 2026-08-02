@@ -51,6 +51,18 @@ public class KeyedAccumulator<K, E> {
         return result;
     }
 
+
+    public synchronized List<List<LevelEvent<E>>> drainAll() {
+        if (groups.isEmpty()) {return List.of();}
+        List<List<LevelEvent<E>>> result = new ArrayList<>();
+        for (var group : groups.values()) {
+            result.add(List.copyOf(group));
+        }
+        groups.clear();
+        lastEventTime.clear();
+        return result;
+    }
+
     public synchronized void clear() {
         groups.clear();
         lastEventTime.clear();

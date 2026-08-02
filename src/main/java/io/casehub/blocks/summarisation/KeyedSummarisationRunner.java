@@ -98,6 +98,38 @@ public class KeyedSummarisationRunner<K, IN, OUT> {
         return CompletableFuture.allOf(futures);
     }
 
+
+    /**
+     * Unconditional drain — bypasses completion test and stale timeout.
+     * Use at shutdown to capture all remaining buffered events.
+     */
+    public synchronized CompletionStage<Void> flush() {
+        var groups = accumulator.drainAll();
+        if (groups.isEmpty()) {return CompletableFuture.completedFuture(null);}
+        long now = System.currentTimeMillis();
+        @SuppressWarnings("unchecked")
+        CompletableFuture<Void>[] futures = groups.stream()
+                                                  .map(group -> {
+                                                      var batch = compactor != null ? compactor.compact(group) : group;
+                                                      return summariser.summarise(batch).thenAccept(results -> {
+                                                          for (var payload : results) {
+                                                              outputBus.publish(new LevelEvent<>(payload, now, outputLevel));
+                                                          }
+                                                      }).handle((v, ex) -> {
+                                                          if (ex != null) {
+                                                              LOG.log(System.Logger.Level.WARNING,
+                                                                      "Flush failed, batch size=" + batch.size(), ex);
+                                                              if (onFailure != null) {
+                                                                  onFailure.accept(batch);
+                                                              }
+                                                          }
+                                                          return (Void) null;
+                                                      }).toCompletableFuture();
+                                                  })
+                                                  .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
+    }
+
     public void clear() {
         accumulator.clear();
     }
