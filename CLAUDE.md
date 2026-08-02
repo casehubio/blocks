@@ -79,6 +79,20 @@ Reusable building blocks for CaseHub applications — composed from qhorus, engi
 **Peer repos (each has its own Claude session — do not commit to these):**
 platform, eidos, ledger, connectors, iot, work, worker, qhorus, pages, engine, claudony, openclaw, neural-text, devtown, aml, clinical, drafthouse, life, quarkmind, flow, soc, fsitrading, ras, ops, workers, desiredstate
 
+## Platform Docs
+- [Platform Index](https://raw.githubusercontent.com/casehubio/parent/main/docs/INDEX.md) — discovery index (start here)
+- [Building Platform](https://raw.githubusercontent.com/casehubio/parent/main/docs/guides/building-platform.md) — platform contributor guide
+
+## Repo Guide
+
+This repo owns its own documentation, synced to parent via CI:
+- `docs/consumer-guide.md` — for app builders: modules, APIs, quick start
+- `docs/contributor-guide.md` — for platform builders: architecture, SPIs, internals
+
+Update the relevant guide in the same session when implementation changes modules, SPIs, or public APIs. Do not defer — drift compounds.
+
+Read `consumer-guide.md` for app-level work. Only read `contributor-guide.md` when modifying this repo's internals or extension points.
+
 ## Build Commands
 
 ```bash
