@@ -6,6 +6,7 @@ import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Nested;
@@ -43,7 +44,7 @@ class PredecessorAnalyserTest {
     }
 
     private ExperiencePlanStep step(String capability, String worker, int priority) {
-        return new ExperiencePlanStep("b" + priority, capability, worker, "SUCCESS", priority, Map.of());
+        return new ExperiencePlanStep("b" + priority, capability, worker, RoutingOutcome.SUCCESS, priority, Map.of());
     }
 
     private RetrievedExperience experience(String outcome, double similarity, List<ExperiencePlanStep> trace) {

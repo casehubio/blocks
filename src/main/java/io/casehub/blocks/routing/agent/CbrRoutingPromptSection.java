@@ -71,7 +71,7 @@ public class CbrRoutingPromptSection implements RoutingPromptSection {
                     if (!isExcluded) {
                         var outcomes =
                                 agentOutcomes.computeIfAbsent(step.workerName(), k -> new LinkedHashMap<>());
-                        outcomes.merge(step.stepOutcome(), 1, Integer::sum);
+                        outcomes.merge(step.stepOutcome().name(), 1, Integer::sum);
                     }
                     caseNum++;
                     var line =

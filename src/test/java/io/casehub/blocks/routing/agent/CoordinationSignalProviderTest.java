@@ -6,6 +6,7 @@ import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Nested;
@@ -64,7 +65,7 @@ class CoordinationSignalProviderTest {
     @Test
     void whenAllExperiencesSingleAgent() {
       var exp = teamExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -75,8 +76,8 @@ class CoordinationSignalProviderTest {
     @Test
     void whenNoEligibleCandidatesInTeams() {
       var exp = teamExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "analysis", "not-eligible", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "also-not-eligible", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "not-eligible", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "also-not-eligible", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -87,8 +88,8 @@ class CoordinationSignalProviderTest {
     @Test
     void whenNegativeSimilarityOnly() {
       var exp = teamExperience("COMPLETED", -0.5, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -99,8 +100,8 @@ class CoordinationSignalProviderTest {
     @Test
     void whenCancelledCaseOutcome() {
       var exp = teamExperience("CANCELLED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -115,8 +116,8 @@ class CoordinationSignalProviderTest {
     @Test
     void candidateInCompletedTeamScoresHigh() {
       var exp = teamExperience("COMPLETED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -130,8 +131,8 @@ class CoordinationSignalProviderTest {
     @Test
     void candidateInFaultedTeamScoresLow() {
       var exp = teamExperience("FAULTED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "FAILURE", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.FAILURE, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -144,11 +145,11 @@ class CoordinationSignalProviderTest {
     @Test
     void multipleExperiencesWeightedBySimilarity() {
       var exp1 = teamExperience("COMPLETED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
       var exp2 = teamExperience("FAULTED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-c", RoutingOutcome.FAILURE, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp1, exp2)),
@@ -163,11 +164,11 @@ class CoordinationSignalProviderTest {
     @Test
     void higherSimilarityExperienceWeighsMore() {
       var expHigh = teamExperience("COMPLETED", 0.95, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
       var expLow = teamExperience("FAULTED", 0.1, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-c", RoutingOutcome.FAILURE, 1, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(expHigh, expLow)),
@@ -181,9 +182,9 @@ class CoordinationSignalProviderTest {
     @Test
     void scoresAllTeamMembersNotJustTargetCapability() {
       var exp = teamExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of()),
-          new ExperiencePlanStep("b3", "approval", "agent-c", "SUCCESS", 2, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of()),
+          new ExperiencePlanStep("b3", "approval", "agent-c", RoutingOutcome.SUCCESS, 2, Map.of())));
 
       var result = provider.evaluate(
           context("analysis", List.of(exp)),
@@ -197,9 +198,9 @@ class CoordinationSignalProviderTest {
     @Test
     void duplicateWorkerInTraceCountedOnce() {
       var exp = teamExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-a", "SUCCESS", 1, Map.of()),
-          new ExperiencePlanStep("b3", "approval", "agent-b", "SUCCESS", 2, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-a", RoutingOutcome.SUCCESS, 1, Map.of()),
+          new ExperiencePlanStep("b3", "approval", "agent-b", RoutingOutcome.SUCCESS, 2, Map.of())));
 
       Set<String> team = CoordinationSignalProvider.extractTeam(exp.planTrace());
       assertThat(team).containsExactlyInAnyOrder("agent-a", "agent-b");
@@ -213,12 +214,12 @@ class CoordinationSignalProviderTest {
         void higherTeamOverlapScoresHigher() {
             // exp1: team = {agent-a, agent-b} — both eligible → overlap = 1.0
             var exp1 = teamExperience("COMPLETED", 0.8, List.of(
-                    new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-                    new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+                    new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+                    new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
             // exp2: team = {agent-a, agent-x} — only agent-a eligible → overlap = 0.5
             var exp2 = teamExperience("COMPLETED", 0.8, List.of(
-                    new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-                    new ExperiencePlanStep("b2", "review", "agent-x", "SUCCESS", 1, Map.of())));
+                    new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+                    new ExperiencePlanStep("b2", "review", "agent-x", RoutingOutcome.SUCCESS, 1, Map.of())));
 
             var result = provider.evaluate(
                     context("analysis", List.of(exp1, exp2)),
@@ -234,8 +235,8 @@ class CoordinationSignalProviderTest {
         @Test
         void zeroOverlapExperienceIsSkipped() {
             var exp = teamExperience("COMPLETED", 0.9, List.of(
-                    new ExperiencePlanStep("b1", "analysis", "agent-x", "SUCCESS", 0, Map.of()),
-                    new ExperiencePlanStep("b2", "review", "agent-y", "SUCCESS", 1, Map.of())));
+                    new ExperiencePlanStep("b1", "analysis", "agent-x", RoutingOutcome.SUCCESS, 0, Map.of()),
+                    new ExperiencePlanStep("b2", "review", "agent-y", RoutingOutcome.SUCCESS, 1, Map.of())));
 
             var result = provider.evaluate(
                     context("analysis", List.of(exp)),
@@ -248,13 +249,13 @@ class CoordinationSignalProviderTest {
         void agrWeightsCompetingExperiencesByOverlap() {
             // COMPLETED team with full overlap (agent-a + agent-b both eligible)
             var goodExp = teamExperience("COMPLETED", 0.8, List.of(
-                    new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-                    new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+                    new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+                    new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
             // FAULTED team with partial overlap (agent-a eligible, agent-x not)
             var badExp = teamExperience("FAULTED", 0.8, List.of(
-                    new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-                    new ExperiencePlanStep("b2", "review", "agent-x", "FAILURE", 1, Map.of())));
+                    new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+                    new ExperiencePlanStep("b2", "review", "agent-x", RoutingOutcome.FAILURE, 1, Map.of())));
 
             // With AGR: goodExp overlap=1.0 (adj=0.8), badExp overlap=0.5 (adj=0.4)
             // score = (1.0*0.8 + 0.2*0.4) / (0.8+0.4) = 0.88/1.2 ≈ 0.733

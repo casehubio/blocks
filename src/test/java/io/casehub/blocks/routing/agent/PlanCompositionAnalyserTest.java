@@ -6,6 +6,7 @@ import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Nested;
@@ -64,7 +65,7 @@ class PlanCompositionAnalyserTest {
     @Test
     void whenAllExperiencesSingleStep() {
       var exp = multiStepExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -75,8 +76,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void whenNoEligibleCandidatesInTraces() {
       var exp = multiStepExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "analysis", "not-eligible", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "other", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "not-eligible", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "other", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -87,8 +88,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void whenNegativeSimilarityOnly() {
       var exp = multiStepExperience("COMPLETED", -0.5, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -99,8 +100,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void whenCancelledCaseOutcome() {
       var exp = multiStepExperience("CANCELLED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -115,8 +116,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void workerInCompletedMultiStepPlanScoresHigh() {
       var exp = multiStepExperience("COMPLETED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -130,8 +131,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void workerInFaultedMultiStepPlanScoresLow() {
       var exp = multiStepExperience("FAULTED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "FAILURE", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.FAILURE, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -144,11 +145,11 @@ class PlanCompositionAnalyserTest {
     @Test
     void multipleExperiencesAveraged() {
       var exp1 = multiStepExperience("COMPLETED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
       var exp2 = multiStepExperience("FAULTED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-c", RoutingOutcome.FAILURE, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp1, exp2)),
@@ -162,11 +163,11 @@ class PlanCompositionAnalyserTest {
     @Test
     void higherSimilarityExperienceWeighsMore() {
       var expHigh = multiStepExperience("COMPLETED", 0.95, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
       var expLow = multiStepExperience("FAULTED", 0.1, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-c", "FAILURE", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-c", RoutingOutcome.FAILURE, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(expHigh, expLow)),
@@ -180,8 +181,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void onlyTargetCapabilityStepsAreScored() {
       var exp = multiStepExperience("COMPLETED", 0.8, List.of(
-          new ExperiencePlanStep("b1", "other-cap", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "analysis", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "other-cap", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "analysis", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -195,8 +196,8 @@ class PlanCompositionAnalyserTest {
     @Test
     void unknownCaseOutcomeDefaultsToZero() {
       var exp = multiStepExperience("ESCALATED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = analyser.evaluate(
           context("analysis", List.of(exp)),
@@ -220,8 +221,8 @@ class PlanCompositionAnalyserTest {
       var customAnalyser = new PlanCompositionAnalyser(customWeights);
 
       var exp = multiStepExperience("FAULTED", 0.9, List.of(
-          new ExperiencePlanStep("b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-          new ExperiencePlanStep("b2", "review", "agent-b", "SUCCESS", 1, Map.of())));
+          new ExperiencePlanStep("b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+          new ExperiencePlanStep("b2", "review", "agent-b", RoutingOutcome.SUCCESS, 1, Map.of())));
 
       var result = customAnalyser.evaluate(
           context("analysis", List.of(exp)),

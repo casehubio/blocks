@@ -6,6 +6,7 @@ import io.casehub.api.spi.routing.AgentHealth;
 import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.eidos.api.MatchDegree;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +49,7 @@ class CbrRoutingPromptSectionTest {
             Map.of(),
             List.of(
                 new ExperiencePlanStep(
-                    "binding", "other-cap", "agent-a", "SUCCESS", 0, Map.of())),
+                    "binding", "other-cap", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of())),
             Map.of());
 
     var result =
@@ -70,7 +71,7 @@ class CbrRoutingPromptSectionTest {
             Map.of(),
             List.of(
                 new ExperiencePlanStep(
-                    "assess-risk", "analysis", "agent-a", "SUCCESS", 0, Map.of())),
+                    "assess-risk", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of())),
             Map.of());
 
     var result =
@@ -96,7 +97,7 @@ class CbrRoutingPromptSectionTest {
                       Map.of(),
                       List.of(
                               new ExperiencePlanStep(
-                                      "binding", "analysis", "not-eligible", "SUCCESS", 0, Map.of())),
+                                      "binding", "analysis", "not-eligible", RoutingOutcome.SUCCESS, 0, Map.of())),
                       Map.of());
 
       var result =
@@ -117,9 +118,9 @@ class CbrRoutingPromptSectionTest {
             Map.of(),
             List.of(
                 new ExperiencePlanStep(
-                    "b1", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
+                    "b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
                 new ExperiencePlanStep(
-                    "b2", "analysis", "agent-a", "FAILURE", 0, Map.of())),
+                    "b2", "analysis", "agent-a", RoutingOutcome.FAILURE, 0, Map.of())),
             Map.of());
 
     var result =
@@ -143,7 +144,7 @@ class CbrRoutingPromptSectionTest {
                         Map.of(),
                         List.of(
                                 new ExperiencePlanStep(
-                                        "assess-risk", "analysis", "agent-a", "SUCCESS", 0, Map.of(),
+                                        "assess-risk", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of(),
                                         "BOOSTED", "high relevance")),
                         Map.of());
 
@@ -167,7 +168,7 @@ class CbrRoutingPromptSectionTest {
                     Map.of(),
                     List.of(
                             new ExperiencePlanStep(
-                                    "assess-risk", "analysis", "agent-a", "SUCCESS", 0, Map.of(),
+                                    "assess-risk", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of(),
                                     "RETAINED", null)),
                     Map.of());
 
@@ -192,10 +193,10 @@ class CbrRoutingPromptSectionTest {
                     Map.of(),
                     List.of(
                             new ExperiencePlanStep(
-                                    "b1", "analysis", "agent-a", "SUCCESS", 0, Map.of(),
+                                    "b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of(),
                                     "ADDED", "adapter recommendation"),
                             new ExperiencePlanStep(
-                                    "b2", "analysis", "agent-b", "SUCCESS", 0, Map.of(),
+                                    "b2", "analysis", "agent-b", RoutingOutcome.SUCCESS, 0, Map.of(),
                                     "RETAINED", null)),
                     Map.of());
 
@@ -221,10 +222,10 @@ class CbrRoutingPromptSectionTest {
                     Map.of(),
                     List.of(
                             new ExperiencePlanStep(
-                                    "b1", "analysis", "agent-a", "SUCCESS", 0, Map.of(),
+                                    "b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of(),
                                     "SUBSTITUTED", "replaced original-worker"),
                             new ExperiencePlanStep(
-                                    "b2", "analysis", "agent-b", "FAILURE", 0, Map.of(),
+                                    "b2", "analysis", "agent-b", RoutingOutcome.FAILURE, 0, Map.of(),
                                     "RETAINED", null)),
                     Map.of());
 

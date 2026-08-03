@@ -7,6 +7,7 @@ import io.casehub.api.spi.routing.AgentRoutingContext;
 import io.casehub.api.spi.routing.ExperiencePlanStep;
 import io.casehub.api.spi.routing.RetrievedExperience;
 import io.casehub.api.spi.routing.RoutingOutcome;
+import io.casehub.api.spi.routing.RoutingOutcome;
 import io.casehub.api.spi.routing.RoutingResult;
 import io.casehub.api.spi.routing.RoutingSignal;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
@@ -49,7 +50,7 @@ class CbrAgentRoutingStrategyTest {
         id, Set.of("analysis"), 0, AgentHealth.READY, null, new MatchDegree.None());
   }
 
-  private RetrievedExperience experience(String capName, String workerName, String outcome) {
+  private RetrievedExperience experience(String capName, String workerName, RoutingOutcome outcome) {
     return new RetrievedExperience(
         "problem",
         "solution",
@@ -92,9 +93,9 @@ class CbrAgentRoutingStrategyTest {
     void selectsWorkerWithHighestSuccessRate() {
       var experiences =
           List.of(
-              experience("analysis", "agent-a", "SUCCESS"),
-              experience("analysis", "agent-b", "FAILURE"),
-              experience("analysis", "agent-a", "SUCCESS"));
+              experience("analysis", "agent-a", RoutingOutcome.SUCCESS),
+              experience("analysis", "agent-b", RoutingOutcome.FAILURE),
+              experience("analysis", "agent-a", RoutingOutcome.SUCCESS));
 
       var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
       var result =
@@ -110,7 +111,7 @@ class CbrAgentRoutingStrategyTest {
 
     @Test
     void ignoresWorkersNotInCandidateList() {
-      var experiences = List.of(experience("analysis", "not-a-candidate", "SUCCESS"));
+      var experiences = List.of(experience("analysis", "not-a-candidate", RoutingOutcome.SUCCESS));
 
       var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
       var result =
@@ -123,7 +124,7 @@ class CbrAgentRoutingStrategyTest {
 
     @Test
     void ignoresExperiencesForDifferentCapability() {
-      var experiences = List.of(experience("other-cap", "agent-a", "SUCCESS"));
+      var experiences = List.of(experience("other-cap", "agent-a", RoutingOutcome.SUCCESS));
 
       var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
       var result =
@@ -145,9 +146,9 @@ class CbrAgentRoutingStrategyTest {
               0.8,
               Map.of(),
               List.of(
-                  new ExperiencePlanStep("b", "analysis", "agent-a", "SUCCESS", 0, Map.of()),
-                  new ExperiencePlanStep("b", "analysis", "agent-b", "SUCCESS", 0, Map.of()),
-                  new ExperiencePlanStep("b", "analysis", "agent-b", "SUCCESS", 0, Map.of())),
+                  new ExperiencePlanStep("b", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of()),
+                  new ExperiencePlanStep("b", "analysis", "agent-b", RoutingOutcome.SUCCESS, 0, Map.of()),
+                  new ExperiencePlanStep("b", "analysis", "agent-b", RoutingOutcome.SUCCESS, 0, Map.of())),
               Map.of());
 
       var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
@@ -174,10 +175,10 @@ class CbrAgentRoutingStrategyTest {
                           Map.of(),
                           List.of(
                                   new ExperiencePlanStep(
-                                          "b1", "analysis", "agent-a", "SUCCESS", 0, Map.of(),
+                                          "b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of(),
                                           "ADDED", "adapter recommendation"),
                                   new ExperiencePlanStep(
-                                          "b2", "analysis", "agent-b", "SUCCESS", 0, Map.of(),
+                                          "b2", "analysis", "agent-b", RoutingOutcome.SUCCESS, 0, Map.of(),
                                           "RETAINED", null)),
                           Map.of());
 
@@ -206,10 +207,10 @@ class CbrAgentRoutingStrategyTest {
                       Map.of(),
                       List.of(
                               new ExperiencePlanStep(
-                                      "b1", "analysis", "agent-a", "SUCCESS", 0, Map.of(),
+                                      "b1", "analysis", "agent-a", RoutingOutcome.SUCCESS, 0, Map.of(),
                                       "SUBSTITUTED", "replaced original-worker"),
                               new ExperiencePlanStep(
-                                      "b2", "analysis", "agent-b", "FAILURE", 0, Map.of(),
+                                      "b2", "analysis", "agent-b", RoutingOutcome.FAILURE, 0, Map.of(),
                                       "RETAINED", null)),
                       Map.of());
 
@@ -237,8 +238,8 @@ class CbrAgentRoutingStrategyTest {
     void gateExpiredCountsAsHalfCredit() {
       var experiences =
           List.of(
-              experience("analysis", "agent-a", "GATE_EXPIRED"),
-              experience("analysis", "agent-b", "FAILURE"));
+              experience("analysis", "agent-a", RoutingOutcome.GATE_EXPIRED),
+              experience("analysis", "agent-b", RoutingOutcome.FAILURE));
 
       var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
       var result =
@@ -256,8 +257,8 @@ class CbrAgentRoutingStrategyTest {
     void unknownOutcomeTreatedAsFailure() {
       var experiences =
           List.of(
-              experience("analysis", "agent-a", "UNKNOWN_OUTCOME"),
-              experience("analysis", "agent-b", "SUCCESS"));
+              experience("analysis", "agent-a", RoutingOutcome.DECLINED),
+              experience("analysis", "agent-b", RoutingOutcome.SUCCESS));
 
       var strategy = new CbrAgentRoutingStrategy((AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
       var result =
@@ -321,7 +322,7 @@ class CbrAgentRoutingStrategyTest {
       when(classifier.classify(any(), eq("analysis"), eq(policy), eq(scoreSource)))
           .thenReturn(classified);
 
-      var experiences = List.of(experience("analysis", "qualified", "SUCCESS"));
+      var experiences = List.of(experience("analysis", "qualified", RoutingOutcome.SUCCESS));
 
       var strategy =
           new CbrAgentRoutingStrategy((AgentGraphQuery) graphQuery, classifier, scoreSource, policyProvider, new DefaultCbrOutcomeWeights(), null);
@@ -352,8 +353,8 @@ class CbrAgentRoutingStrategyTest {
       };
 
       var experiences = List.of(
-          experience("analysis", "agent-a", "GATE_EXPIRED"),
-          experience("analysis", "agent-b", "SUCCESS"));
+          experience("analysis", "agent-a", RoutingOutcome.GATE_EXPIRED),
+          experience("analysis", "agent-b", RoutingOutcome.SUCCESS));
 
       var strategy = new CbrAgentRoutingStrategy(
           (AgentGraphQuery) null, null, null, null, customWeights, null);
@@ -369,8 +370,8 @@ class CbrAgentRoutingStrategyTest {
     @Test
     void unrecognisedOutcomeDefaultsToZero() {
       var experiences = List.of(
-          experience("analysis", "agent-a", "DECLINED"),
-          experience("analysis", "agent-b", "SUCCESS"));
+          experience("analysis", "agent-a", RoutingOutcome.DECLINED),
+          experience("analysis", "agent-b", RoutingOutcome.SUCCESS));
 
       var strategy = new CbrAgentRoutingStrategy(
           (AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
@@ -388,7 +389,7 @@ class CbrAgentRoutingStrategyTest {
   class SimilarityWeighting {
 
     private RetrievedExperience experienceWithSimilarity(
-        String capName, String workerName, String outcome, double similarity) {
+        String capName, String workerName, RoutingOutcome outcome, double similarity) {
       return new RetrievedExperience(
           "problem", "solution", "COMPLETED", 0.9, similarity,
           Map.of(),
@@ -402,10 +403,10 @@ class CbrAgentRoutingStrategyTest {
       // agent-b: SUCCESS at low similarity, FAILURE at high similarity
       // Similarity weighting makes agent-a's SUCCESS count more
       var experiences = List.of(
-          experienceWithSimilarity("analysis", "agent-a", "SUCCESS", 0.95),
-          experienceWithSimilarity("analysis", "agent-a", "FAILURE", 0.3),
-          experienceWithSimilarity("analysis", "agent-b", "SUCCESS", 0.3),
-          experienceWithSimilarity("analysis", "agent-b", "FAILURE", 0.95));
+          experienceWithSimilarity("analysis", "agent-a", RoutingOutcome.SUCCESS, 0.95),
+          experienceWithSimilarity("analysis", "agent-a", RoutingOutcome.FAILURE, 0.3),
+          experienceWithSimilarity("analysis", "agent-b", RoutingOutcome.SUCCESS, 0.3),
+          experienceWithSimilarity("analysis", "agent-b", RoutingOutcome.FAILURE, 0.95));
 
       var strategy = new CbrAgentRoutingStrategy(
           (AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
@@ -423,8 +424,8 @@ class CbrAgentRoutingStrategyTest {
     @Test
     void negativeSimilarityClampedToZero() {
       var experiences = List.of(
-          experienceWithSimilarity("analysis", "agent-a", "SUCCESS", -0.5),
-          experienceWithSimilarity("analysis", "agent-b", "SUCCESS", 0.7));
+          experienceWithSimilarity("analysis", "agent-a", RoutingOutcome.SUCCESS, -0.5),
+          experienceWithSimilarity("analysis", "agent-b", RoutingOutcome.SUCCESS, 0.7));
 
       var strategy = new CbrAgentRoutingStrategy(
           (AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
@@ -440,8 +441,8 @@ class CbrAgentRoutingStrategyTest {
     @Test
     void zeroSimilarityExperienceContributesNothing() {
       var experiences = List.of(
-          experienceWithSimilarity("analysis", "agent-a", "SUCCESS", 0.0),
-          experienceWithSimilarity("analysis", "agent-b", "SUCCESS", 0.8));
+          experienceWithSimilarity("analysis", "agent-a", RoutingOutcome.SUCCESS, 0.0),
+          experienceWithSimilarity("analysis", "agent-b", RoutingOutcome.SUCCESS, 0.8));
 
       var strategy = new CbrAgentRoutingStrategy(
           (AgentGraphQuery) null, null, null, null, new DefaultCbrOutcomeWeights(), null);
@@ -470,8 +471,8 @@ class CbrAgentRoutingStrategyTest {
     @Test
     void signalBoostsCandidateAboveExperienceOnlyWinner() {
       var experiences = List.of(
-          experience("analysis", "agent-a", "GATE_EXPIRED"),
-          experience("analysis", "agent-b", "FAILURE"));
+          experience("analysis", "agent-a", RoutingOutcome.GATE_EXPIRED),
+          experience("analysis", "agent-b", RoutingOutcome.FAILURE));
 
       var signal = new RoutingSignal(Map.of(
           "agent-b", new RoutingSignal.CandidateSignal.Score(0.9, "plan-fit")));
@@ -527,8 +528,8 @@ class CbrAgentRoutingStrategyTest {
     @Test
     void sparseCandidateMapHandledGracefully() {
       var experiences = List.of(
-          experience("analysis", "agent-a", "SUCCESS"),
-          experience("analysis", "agent-b", "SUCCESS"));
+          experience("analysis", "agent-a", RoutingOutcome.SUCCESS),
+          experience("analysis", "agent-b", RoutingOutcome.SUCCESS));
 
       var signal = new RoutingSignal(Map.of(
           "agent-a", new RoutingSignal.CandidateSignal.Score(0.5, "boosted")));
