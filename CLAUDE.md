@@ -196,7 +196,9 @@ Structured conversation protocol — reusable infrastructure for multi-agent del
 | `ConvergencePolicy` | `@FunctionalInterface` strategy for evaluating convergence from conversation and common ground state. |
 | `ConvergencePolicies` | Three provided policies: `structural(similarityThreshold, staleRounds)`, `commonGroundRatio(consensusThreshold, deadlockDisputeRatio)`, `composite(policies...)`. |
 | `ConvergenceAnalyser` | Stateless utility: `analyse(ConversationState, CommonGroundState, ConvergencePolicy, recentWindow) → ConvergenceSignal`. |
-| `RenderContext` | Supplementary render-time inputs: reactions, commonGround, convergence. Replaces renderer overloads. |
+| `RenderContext` | Supplementary render-time inputs: reactions, commonGround, convergence, progress. Replaces renderer overloads. |
+| `ProgressRenderer` | `@FunctionalInterface` SPI: `String render(ProgressInstance)`. Pluggable progress-to-text rendering for LLM agent prompts. |
+| `DefaultProgressRenderer` | Built-in `ProgressRenderer`: percentage (`"Label: N%"`), count (`"Label: N of M"`), step (`"a ✓ → b ⏳ → c ○"`), fallback to status name. Null-safe. |
 
 ## Package: `io.casehub.blocks.oversight`
 
@@ -366,7 +368,7 @@ LLM-backed content summarisation. Separated from the pure-Java `blocks.summarisa
 ## Dependencies
 
 **Compile:** `casehub-qhorus-api`, `casehub-work-api`, `casehub-engine-api`, `casehub-eidos-api`, `casehub-worker-api`, `org.jspecify:jspecify`
-**Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `io.opentelemetry:opentelemetry-api`
+**Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `casehub-work-progress-api`, `io.opentelemetry:opentelemetry-api`
 **Test:** `casehub-qhorus`, `casehub-qhorus-testing`, `casehub-engine`, `casehub-engine-testing`, `assertj`, `mockito`, `awaitility`, `io.opentelemetry:opentelemetry-sdk-testing`
 
 **No Jandex index.** blocks does not include a Jandex index — its CDI beans are not auto-discovered by Quarkus. Consumers that need blocks' CDI beans (routing strategies, channel summarisers) must opt in:

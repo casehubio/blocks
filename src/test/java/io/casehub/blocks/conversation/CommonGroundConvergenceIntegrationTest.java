@@ -77,7 +77,7 @@ class CommonGroundConvergenceIntegrationTest {
                 .showConvergenceSignal(true)
                 .build();
         var renderer = new ConversationRenderer(config);
-        var ctx = new RenderContext(Map.of(), cg, signal);
+        var ctx = new RenderContext(Map.of(), cg, signal, Map.of());
         var result = renderer.render(state, ctx);
 
         assertThat(result).contains("**Convergence:** CONSENSUS");

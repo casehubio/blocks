@@ -572,7 +572,7 @@ class ConversationRendererTest {
                 Map.of("p1", new GroundedFact("p1", "general", EpistemicStatus.ESTABLISHED,
                                               "a claim", java.util.Set.of("agent-a"), java.util.Set.of(), 1)),
                 Map.of(), Map.of());
-        var ctx    = new RenderContext(Map.of(), cg, null);
+        var ctx    = new RenderContext(Map.of(), cg, null, Map.of());
         var result = renderer.render(state(points, List.of(), List.of(), Map.of()), ctx);
         assertThat(result).contains("[established by agent-a]");
     }
@@ -588,7 +588,7 @@ class ConversationRendererTest {
                                        Map.of("p1", new GroundedFact("p1", "general", EpistemicStatus.PENDING,
                                                                      "a claim", java.util.Set.of(), java.util.Set.of(), 1)),
                                        Map.of());
-        var ctx    = new RenderContext(Map.of(), cg, null);
+        var ctx    = new RenderContext(Map.of(), cg, null, Map.of());
         var result = renderer.render(state(points, List.of(), List.of(), Map.of()), ctx);
         assertThat(result).contains("[pending — awaiting acknowledgement]");
     }
@@ -603,7 +603,7 @@ class ConversationRendererTest {
         var cg = new CommonGroundState(Map.of(), Map.of(),
                                        Map.of("p1", new GroundedFact("p1", "general", EpistemicStatus.DISPUTED,
                                                                      "a claim", java.util.Set.of(), java.util.Set.of("agent-b"), 1)));
-        var ctx    = new RenderContext(Map.of(), cg, null);
+        var ctx    = new RenderContext(Map.of(), cg, null, Map.of());
         var result = renderer.render(state(points, List.of(), List.of(), Map.of()), ctx);
         assertThat(result).contains("[disputed by agent-b]");
     }
@@ -615,7 +615,7 @@ class ConversationRendererTest {
         var renderer = new ConversationRenderer(config);
         var signal = new ConvergenceSignal(ConvergenceState.CONVERGING, 0.78,
                                            "common ground growing, 1 disputed point remaining");
-        var ctx = new RenderContext(Map.of(), null, signal);
+        var ctx = new RenderContext(Map.of(), null, signal, Map.of());
         var result = renderer.render(
                 state(Map.of(), List.of(), List.of(), Map.of()), ctx);
         assertThat(result).contains("**Convergence:** CONVERGING (0.78)");
@@ -632,8 +632,181 @@ class ConversationRendererTest {
                 Map.of("p1", new GroundedFact("p1", "general", EpistemicStatus.ESTABLISHED,
                                               "a claim", java.util.Set.of("agent-a"), java.util.Set.of(), 1)),
                 Map.of(), Map.of());
-        var ctx    = new RenderContext(Map.of(), cg, null);
+        var ctx    = new RenderContext(Map.of(), cg, null, Map.of());
         var result = renderer.render(state(points, List.of(), List.of(), Map.of()), ctx);
         assertThat(result).doesNotContain("[established");
+    }
+
+    // --- Progress rendering tests ---
+
+    static ConversationPoint topicPoint(String id, String topic, String status) {
+        return new ConversationPoint(id, topic,
+                new PointClassification(Priority.HIGH, "scope", null),
+                List.of(entry("agent", "RAISE", "content")), status);
+    }
+
+    static ConversationState stateOf(List<ConversationPoint> pts) {
+        var map = new LinkedHashMap<String, ConversationPoint>();
+        pts.forEach(p -> map.put(p.id(), p));
+        return new ConversationState(map, List.of(), List.of(), Map.of());
+    }
+
+    static io.casehub.work.progress.ProgressInstance progressInstance(
+            String shapeType,
+            com.fasterxml.jackson.databind.JsonNode definition,
+            com.fasterxml.jackson.databind.JsonNode state) {
+        return new io.casehub.work.progress.ProgressInstance(
+                java.util.UUID.randomUUID(), "t1", "WORK_ITEM", "s1",
+                null, null, shapeType, definition, state,
+                io.casehub.work.progress.ProgressStatus.ACTIVE, null,
+                java.time.Instant.now(), java.time.Instant.now());
+    }
+
+    static com.fasterxml.jackson.databind.ObjectMapper om() {
+        return new com.fasterxml.jackson.databind.ObjectMapper();
+    }
+
+    @Test
+    void progress_inTopicView_rendersBetweenHeaderAndObligationChain() {
+        var config = ConversationRendererConfig.builder()
+                .groupByTopic(true).showProgress(true).build();
+        var renderer = new ConversationRenderer(config);
+
+        var pi = progressInstance("percentage",
+                om().createObjectNode().put("label", "Code quality"),
+                om().createObjectNode().put("value", 63));
+        var ctx = new RenderContext(Map.of(), null, null,
+                Map.of("review", List.of(pi)));
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        assertThat(result).contains("## review\n\nCode quality: 63%\n");
+    }
+
+    @Test
+    void progress_inFlatView_singleTopic_rendersUnderProgressHeader() {
+        var config = ConversationRendererConfig.builder()
+                .showProgress(true).build();
+        var renderer = new ConversationRenderer(config);
+
+        var pi = progressInstance("count",
+                om().createObjectNode().put("label", "Files"),
+                om().createObjectNode().put("current", 3).put("total", 10));
+        var ctx = new RenderContext(Map.of(), null, null,
+                Map.of("review", List.of(pi)));
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        assertThat(result).contains("**Progress**\n");
+        assertThat(result).contains("Files: 3 of 10\n");
+        assertThat(result).doesNotContain("_review:_");
+    }
+
+    @Test
+    void progress_inFlatView_multiTopic_prefixesWithTopicName() {
+        var config = ConversationRendererConfig.builder()
+                .showProgress(true).build();
+        var renderer = new ConversationRenderer(config);
+
+        var pi1 = progressInstance("percentage",
+                om().createObjectNode().put("label", "Quality"),
+                om().createObjectNode().put("value", 50));
+        var pi2 = progressInstance("percentage",
+                om().createObjectNode().put("label", "Coverage"),
+                om().createObjectNode().put("value", 80));
+        var progress = new LinkedHashMap<String, List<io.casehub.work.progress.ProgressInstance>>();
+        progress.put("review", List.of(pi1));
+        progress.put("analysis", List.of(pi2));
+        var ctx = new RenderContext(Map.of(), null, null, progress);
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "general", "open"))), ctx);
+
+        assertThat(result).contains("_review:_");
+        assertThat(result).contains("_analysis:_");
+    }
+
+    @Test
+    void progress_showProgressFalse_noProgressInOutput() {
+        var config = ConversationRendererConfig.builder()
+                .showProgress(false).build();
+        var renderer = new ConversationRenderer(config);
+
+        var pi = progressInstance("percentage",
+                om().createObjectNode().put("label", "Quality"),
+                om().createObjectNode().put("value", 63));
+        var ctx = new RenderContext(Map.of(), null, null,
+                Map.of("review", List.of(pi)));
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        assertThat(result).doesNotContain("Quality");
+        assertThat(result).doesNotContain("63%");
+    }
+
+    @Test
+    void progress_emptyMap_noCrashNoOutput() {
+        var config = ConversationRendererConfig.builder()
+                .showProgress(true).build();
+        var renderer = new ConversationRenderer(config);
+
+        var ctx = new RenderContext(Map.of(), null, null, Map.of());
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        assertThat(result).doesNotContain("Progress");
+    }
+
+    @Test
+    void progress_customRenderer_isUsed() {
+        var config = ConversationRendererConfig.builder()
+                .showProgress(true).groupByTopic(true).build();
+        ProgressRenderer custom = pi -> "CUSTOM:" + pi.shapeType();
+        var renderer = new ConversationRenderer(config, custom);
+
+        var pi = progressInstance("percentage",
+                om().createObjectNode().put("label", "Q"),
+                om().createObjectNode().put("value", 50));
+        var ctx = new RenderContext(Map.of(), null, null,
+                Map.of("review", List.of(pi)));
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        assertThat(result).contains("CUSTOM:percentage");
+    }
+
+    @Test
+    void progress_topicWithNoProgress_rendersNormally() {
+        var config = ConversationRendererConfig.builder()
+                .groupByTopic(true).showProgress(true).build();
+        var renderer = new ConversationRenderer(config);
+
+        var ctx = new RenderContext(Map.of(), null, null, Map.of());
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        assertThat(result).contains("## review\n\n##");
+    }
+
+    @Test
+    void progress_orderingPreserved() {
+        var config = ConversationRendererConfig.builder()
+                .groupByTopic(true).showProgress(true).build();
+        var renderer = new ConversationRenderer(config);
+
+        var pi1 = progressInstance("percentage",
+                om().createObjectNode().put("label", "First"),
+                om().createObjectNode().put("value", 10));
+        var pi2 = progressInstance("percentage",
+                om().createObjectNode().put("label", "Second"),
+                om().createObjectNode().put("value", 20));
+        var ctx = new RenderContext(Map.of(), null, null,
+                Map.of("review", List.of(pi1, pi2)));
+
+        var result = renderer.render(stateOf(List.of(topicPoint("p1", "review", "open"))), ctx);
+
+        int firstIdx = result.indexOf("First: 10%");
+        int secondIdx = result.indexOf("Second: 20%");
+        assertThat(firstIdx).isGreaterThan(-1);
+        assertThat(firstIdx).isLessThan(secondIdx);
     }
 }

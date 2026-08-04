@@ -78,7 +78,7 @@ Structured conversation protocol -- reusable infrastructure for multi-agent deli
 | `FlagEntry` | record | Human-escalation flag: `entryId`, `round`, `role`, `content` |
 | `RoundMemo` | record | Agent working notes: `role`, `round`, `content` |
 | `SubTaskFinding` | record | Sub-task lifecycle: `subTaskId`, `taskType`, `requestedBy`, `pointId`, `finding`, `errorReason`, `status` (TaskStatus) |
-| `RenderContext` | record | Optional rendering enrichments: `reactions` (Map), `commonGround` (CommonGroundState), `convergence` (ConvergenceSignal). Has `EMPTY` singleton and `withReactions()` factory. |
+| `RenderContext` | record | Optional rendering enrichments: `reactions` (Map), `commonGround` (CommonGroundState), `convergence` (ConvergenceSignal), `progress` (Map). Has `EMPTY` singleton, `withReactions()`, and `withProgress()` factories. |
 
 **Epistemic common ground:**
 

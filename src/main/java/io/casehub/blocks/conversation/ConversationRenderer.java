@@ -1,13 +1,22 @@
 package io.casehub.blocks.conversation;
 
+import io.casehub.work.progress.ProgressInstance;
+
 public class ConversationRenderer {
 
     private static final String DEFAULT_EMOJI = "⬜";
 
     private final ConversationRendererConfig config;
+    private final ProgressRenderer progressRenderer;
 
     public ConversationRenderer(ConversationRendererConfig config) {
+        this(config, new DefaultProgressRenderer());
+    }
+
+    public ConversationRenderer(ConversationRendererConfig config,
+                                ProgressRenderer progressRenderer) {
         this.config = config;
+        this.progressRenderer = progressRenderer;
     }
 
     public String render(ConversationState state) {
@@ -61,6 +70,19 @@ public class ConversationRenderer {
     }
 
     private void renderFlat(StringBuilder sb, ConversationState state, RenderContext ctx) {
+        if (config.showProgress() && !ctx.progress().isEmpty()) {
+            sb.append("**Progress**\n");
+            for (var topicEntry : ctx.progress().entrySet()) {
+                if (ctx.progress().size() > 1) {
+                    sb.append("_").append(topicEntry.getKey()).append(":_ ");
+                }
+                for (ProgressInstance pi : topicEntry.getValue()) {
+                    sb.append(progressRenderer.render(pi)).append("\n");
+                }
+            }
+            sb.append("\n");
+        }
+
         java.util.List<ConversationPoint> unresolved = new java.util.ArrayList<>();
         java.util.List<ConversationPoint> escalated  = new java.util.ArrayList<>();
         java.util.List<ConversationPoint> resolved   = new java.util.ArrayList<>();
@@ -89,6 +111,13 @@ public class ConversationRenderer {
 
         for (var entry : topicOrder.entrySet()) {
             sb.append("## ").append(entry.getKey()).append("\n\n");
+
+            if (config.showProgress() && ctx.progress().containsKey(entry.getKey())) {
+                for (ProgressInstance pi : ctx.progress().get(entry.getKey())) {
+                    sb.append(progressRenderer.render(pi)).append("\n");
+                }
+                sb.append("\n");
+            }
 
             if (config.showObligationChain()) {
                 String chain = renderObligationChain(entry.getValue());

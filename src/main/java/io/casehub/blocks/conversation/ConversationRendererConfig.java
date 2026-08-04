@@ -16,7 +16,8 @@ public record ConversationRendererConfig(
         boolean groupByTopic,
         boolean showObligationChain,
         boolean showEpistemicStatus,
-        boolean showConvergenceSignal) {
+        boolean showConvergenceSignal,
+        boolean showProgress) {
 
     public ConversationRendererConfig {
         statusEmoji       = Map.copyOf(statusEmoji);
@@ -44,7 +45,8 @@ public record ConversationRendererConfig(
                        .groupByTopic(groupByTopic)
                        .showObligationChain(showObligationChain)
                        .showEpistemicStatus(showEpistemicStatus)
-                       .showConvergenceSignal(showConvergenceSignal);
+                       .showConvergenceSignal(showConvergenceSignal)
+                       .showProgress(showProgress);
     }
 
     public static final class Builder {
@@ -59,6 +61,7 @@ public record ConversationRendererConfig(
         private boolean                                                showObligationChain   = false;
         private boolean                                                showEpistemicStatus   = false;
         private boolean                                                showConvergenceSignal = false;
+        private boolean                                                showProgress          = false;
 
         private Builder()                                                                                        {}
 
@@ -117,11 +120,17 @@ public record ConversationRendererConfig(
                                                                                                                      return this;
                                                                                                                  }
 
+        public Builder showProgress(boolean showProgress)                                                        {
+                                                                                                                     this.showProgress = showProgress;
+                                                                                                                     return this;
+                                                                                                                 }
+
         public ConversationRendererConfig build() {
             return new ConversationRendererConfig(
                     statusEmoji, priorityLabel, entryTypeLabel, roleLabel,
                     resolvedStatuses, escalatedStatuses, messageTypeLabel,
-                    groupByTopic, showObligationChain, showEpistemicStatus, showConvergenceSignal);
+                    groupByTopic, showObligationChain, showEpistemicStatus, showConvergenceSignal,
+                    showProgress);
         }
     }
 }
