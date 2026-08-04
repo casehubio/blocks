@@ -147,10 +147,7 @@ AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` im
 | `LlmAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"llm"`). LLM-reasoned agent selection via `AgentProvider`. Composable prompt enrichment via `RoutingPromptAssembler`. |
 | `CbrAgentRoutingStrategy` | `AgentRoutingStrategy` (id: `"cbr"`). CBR-evidence agent selection from pre-retrieved experiences. Similarity-weighted worker success rates via `ExperienceAnalyser`. |
 | `PlanCompositionAnalyser` | `RoutingSignalProvider` (id: `"plan-composition"`). Scores candidates by case-level outcomes in multi-step plans. |
-<<<<<<< HEAD
 | `PredecessorAnalyser` | `RoutingSignalProvider` (id: `"predecessor"`). Scores candidates by immediate predecessor context in historical plan traces. |
-=======
->>>>>>> f33eccf (feat(qhorus#359): ContentSummariser<T> — reusable summarisation SPI with tiered dispatch)
 | `CoordinationSignalProvider` | `RoutingSignalProvider` (id: `"coordination"`). Scores candidates by historical team composition outcomes with adaptation-guided retrieval (AGR). Weights by team re-assembly feasibility. |
 | `CbrOutcomeWeights` / `CbrCaseOutcomeWeights` / `CoordinationOutcomeWeights` | SPIs for configurable outcome weighting — step-level, case-level, and coordination-level respectively. Each has a `@DefaultBean` default. |
 

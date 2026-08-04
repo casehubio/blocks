@@ -157,12 +157,13 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 
 ## Package: `io.casehub.blocks.channel.summary`
 
-Channel summary integration — Message-specific `ContentSummariser<Message>` implementations and the `SummaryUpdateHook` adapter that bridges blocks' summarisation framework to qhorus's channel summary slot.
+Channel and thread summary integration — Message-specific `ContentSummariser<Message>` implementations, the `SummaryUpdateHook` adapter for channel summaries, and the push-based `ThreadSummaryObserver` for per-thread summaries.
 
 | Class | What it does |
 |-------|-------------|
 | `HeuristicMessageSummariser` | `@DefaultBean` `ContentSummariser<Message>` — append-only structural summary from message metadata (participants, topics, time span). Merges annotations across invocations. Zero LLM cost. |
 | `ChannelSummariser` | `@ApplicationScoped` `SummaryUpdateHook` adapter — delegates to injected `ContentSummariser<Message>`. Mutiny-aware blocking, channel-context error logging. |
+| `ThreadSummaryObserver` | `@ApplicationScoped` push-based observer — detects DONE/FAILURE messages with correlationId, fetches thread messages via `CrossTenantMessageStore`, delegates to `ContentSummariser<Message>`, writes to `ThreadSummaryStore`. Per-correlationId concurrency guard. Async via `ManagedExecutor`. |
 
 ## Package: `io.casehub.blocks.conversation`
 
