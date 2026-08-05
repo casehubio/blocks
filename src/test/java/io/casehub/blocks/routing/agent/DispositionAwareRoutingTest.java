@@ -110,7 +110,7 @@ class DispositionAwareRoutingTest {
   @Test
   void candidateWithoutDescriptorSkipped() {
     var ctx = routingContext(profileContext("socialOrient", "collaborative"));
-    var noDescriptor = new AgentCandidate("bare", Set.of(), 0, AgentHealth.READY, null, null);
+    var noDescriptor = new AgentCandidate("bare", Set.of(), 0, AgentHealth.READY, null, null, null);
     var withDescriptor = candidateWith("real", disposition("collaborative"));
 
     var result = routing.evaluate(ctx, List.of(noDescriptor, withDescriptor));
@@ -250,6 +250,6 @@ class DispositionAwareRoutingTest {
     if (disposition != null) {
       builder.disposition(disposition);
     }
-    return new AgentCandidate(id, Set.of(), 0, AgentHealth.READY, builder.build(), null);
+    return new AgentCandidate(id, Set.of(), 0, AgentHealth.READY, builder.build(), null, null);
   }
 }

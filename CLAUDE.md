@@ -108,6 +108,10 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 
 | Path | Contents |
 |------|----------|
+| `src/main/java/io/casehub/blocks/attestation/` | Attestation write-path types — `AttestationIntent`, `AttestationIntentWriter`, `LifecycleAttestationObserver<E>` SPI, `AttestationContext` |
+| `src/test/java/io/casehub/blocks/attestation/` | Tests for attestation types |
+| `src/main/java/io/casehub/blocks/trust/` | Trust-lifecycle SPIs — `IntakeClassifier<S>`, `VouchService` with pluggable `VouchConstraint` chain |
+| `src/test/java/io/casehub/blocks/trust/` | Tests for trust SPIs |
 | `src/main/java/io/casehub/blocks/channel/` | Channel utility blocks — message meta, context tracking, bounded projection |
 | `src/test/java/io/casehub/blocks/channel/` | Tests for channel blocks |
 | `src/main/java/io/casehub/blocks/channel/summary/` | Channel summary integration — `ContentSummariser<Message>` implementations + `SummaryUpdateHook` adapter |
@@ -122,9 +126,9 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/routing/` | Tests for routing utilities |
 | `src/main/java/io/casehub/blocks/routing/agent/` | AI-powered AgentRoutingStrategy implementations — LLM-reasoned and CBR-evidence agent selection, composable prompt enrichment pipeline, feature extraction SPI, outcome recording |
 | `src/test/java/io/casehub/blocks/routing/agent/` | Tests for AI routing strategies |
-| `src/main/java/io/casehub/blocks/prompt/` | DSPy-inspired prompt optimisation — core model, SPIs (`PromptOptimiser`, `PromptQualityMetric`, `PromptVariantStore`, `SystemPromptCustomiser`), batch orchestration, A/B variant selection |
+| `src/main/java/io/casehub/blocks/prompt/` | DSPy-inspired prompt optimisation — core model, SPIs (`PromptOptimiser`, `PromptQualityMetric`, `PromptVariantStore`, `SystemPromptCustomiser`, `DiversityStrategy`), batch orchestration, A/B variant selection |
 | `src/test/java/io/casehub/blocks/prompt/` | Tests for prompt optimisation framework |
-| `src/main/java/io/casehub/blocks/prompt/optimiser/` | `PromptOptimiser` implementations — `FewShotOptimiser` (data-driven), `InstructionOptimiser` (LLM meta-prompting) |
+| `src/main/java/io/casehub/blocks/prompt/optimiser/` | `PromptOptimiser` implementations — `FewShotOptimiser` (data-driven, diversity-aware via `DiversityStrategy`), `InstructionOptimiser` (LLM meta-prompting), `TopNDiversityStrategy` (identity), `OutcomeAwareDiversityStrategy` (MMR + Jaccard) |
 | `src/test/java/io/casehub/blocks/prompt/optimiser/` | Tests for prompt optimisers |
 | `src/main/java/io/casehub/blocks/prompt/runtime/` | CDI runtime beans — `OptimisedFewShotSection`, `VariantAwareSystemPromptCustomiser`, `WeightedOutcomeMetric`, `InMemoryPromptVariantStore` |
 | `src/test/java/io/casehub/blocks/prompt/runtime/` | Tests for prompt runtime beans |
@@ -138,6 +142,32 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/summarisation/observation/affordance/` | Tests for affordance rendering |
 | `src/test/java/io/casehub/blocks/summarisation/examples/clinical/` | Clinical temporal abstraction example (L1-L4 pipeline) |
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
+
+## Package: `io.casehub.blocks.attestation`
+
+Attestation write-path types and lifecycle observer SPI. `AttestationIntent` captures the full attestation payload; `AttestationIntentWriter` is the persistence SPI; `LifecycleAttestationObserver<E>` maps domain lifecycle events to attestation intents.
+
+| Class | What it does |
+|-------|-------------|
+| `AttestationIntent` | Record: entryId, subjectId, verdict, confidence, capabilityTag, attestorId, actorType, attestorRole, dimensions (Map), evidence, namespace, causedByEntryId (nullable, for idempotent writes) |
+| `AttestationIntentWriter` | SPI: `void write(AttestationIntent, String tenancyId)`. Implementations MUST honour the provided `entryId`. |
+| `LifecycleAttestationObserver<E>` | `@FunctionalInterface` SPI: `List<AttestationIntent> observe(E event, AttestationContext)`. Domain repos implement per event type. Returns non-null (empty list for irrelevant events). |
+| `AttestationContext` | Record: tenancyId, caseId, capabilityTag — ambient context for observers |
+
+## Package: `io.casehub.blocks.trust`
+
+Trust-lifecycle SPIs with no compile-time attestation dependency. Intake classification and vouch orchestration.
+
+| Class | What it does |
+|-------|-------------|
+| `IntakeClassifier<S>` | `@FunctionalInterface` SPI: `IntakeResult classify(S subject, IntakeContext)`. Generic subject — not coupled to trust infrastructure. |
+| `IntakeContext` | Record: tenancyId, capabilityTag (nullable), attributes (Map escape hatch). Compact constructor defaults attributes to empty. |
+| `IntakeResult` | Record: lane (String, domain-defined), confidence [0,1] (validated), reason, metadata. Compact constructor defaults metadata to empty. |
+| `VouchConstraint` | SPI: `VouchEligibility check(VouchRequest)`. Pluggable eligibility check. |
+| `VouchEligibility` | Sealed: `Eligible()`, `Ineligible(String reason)` |
+| `VouchRequest` | Record: voucherId, voucheeId (UUID), capabilityTag, tenancyId, voucherActorType, voucherRole, namespace (nullable), attributes |
+| `VouchResult` | Sealed: `Accepted(UUID attestationEntryId)`, `Rejected(List<String> reasons)` |
+| `VouchService` | Orchestrator: runs all constraints (all-must-pass), writes ENDORSED attestation via `AttestationIntentWriter`. Not CDI-managed — consumer constructs with domain-specific constraints. |
 
 ## Package: `io.casehub.blocks.channel`
 
@@ -289,6 +319,7 @@ DSPy-inspired prompt optimisation framework — offline batch cycle that auto-im
 | `PromptQualityMetric` | `@FunctionalInterface` SPI: scores variant performance from a list of `VariantOutcome`. |
 | `PromptVariantStore` | SPI: holds active variants — store, getActive (by slot), getHistory, activate. |
 | `SystemPromptCustomiser` | `@FunctionalInterface` SPI: customises base system prompts with instruction deltas from active variants. |
+| `DiversityStrategy` | `@FunctionalInterface` SPI: `List<ExampleCandidate> select(shortlist, maxExamples)`. Pluggable re-ranking for `FewShotOptimiser`. Contract: subset of input, ≤ maxExamples, no mutation. |
 | `VariantSelector` | Deterministic A/B split via `(hash & 0x7FFFFFFF) % 100`. Per-capability circuit breaker trips after consecutive experiment failures. |
 | `PromptOptimisationBatch` | Batch orchestrator — gate check, score variants, run optimisers, build candidate, promotion decision (consecutive wins required), concurrency guard (per-signature lock). |
 
@@ -296,8 +327,10 @@ DSPy-inspired prompt optimisation framework — offline batch cycle that auto-im
 
 | Class | What it does |
 |-------|-------------|
-| `FewShotOptimiser` | `PromptOptimiser` (id: `"few-shot"`). Pure data-driven — filters `ExampleCandidate` by quality threshold, ranks by `qualityScore × similarityScore`, selects top N. No LLM cost. |
+| `FewShotOptimiser` | `PromptOptimiser` (id: `"few-shot"`). Diversity-aware — filters by quality, scores by `qualityScore × similarityScore`, takes 2× shortlist, delegates to `DiversityStrategy` for final selection. No-arg constructor uses `TopNDiversityStrategy` (backward compatible). |
 | `InstructionOptimiser` | `PromptOptimiser` (id: `"instruction"`). LLM meta-prompting — analyses outcome patterns, asks LLM to generate instruction refinements. Requires `AgentProvider`. Graceful degradation on LLM failure. |
+| `TopNDiversityStrategy` | `DiversityStrategy` identity implementation — returns first N candidates from pre-sorted shortlist. Used as default. |
+| `OutcomeAwareDiversityStrategy` | `DiversityStrategy` with outcome-category seeding + token-level Jaccard MMR. Constructor takes `diversityWeight` [0,1]. Skips seeding at 0.0 (pure relevance). Case-insensitive outcome grouping. |
 
 ### Sub-package: `io.casehub.blocks.prompt.runtime`
 

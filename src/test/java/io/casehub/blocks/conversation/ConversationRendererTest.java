@@ -658,7 +658,7 @@ class ConversationRendererTest {
         return new io.casehub.work.progress.ProgressInstance(
                 java.util.UUID.randomUUID(), "t1", "WORK_ITEM", "s1",
                 null, null, shapeType, definition, state,
-                io.casehub.work.progress.ProgressStatus.ACTIVE, null,
+                io.casehub.work.progress.ProgressStatus.ACTIVE, null, null, null,
                 java.time.Instant.now(), java.time.Instant.now());
     }
 

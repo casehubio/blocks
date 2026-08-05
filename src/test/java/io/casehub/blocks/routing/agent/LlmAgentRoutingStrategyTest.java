@@ -62,7 +62,7 @@ class LlmAgentRoutingStrategyTest {
                 .agentId(id).name(id).slot("agent").tenancyId("test")
                 .capabilities(List.of(AgentCapability.builder().name("analysis").build()))
                 .briefing(briefing).build();
-        return new AgentCandidate(id, Set.of("analysis"), 0, AgentHealth.READY, descriptor, new MatchDegree.None());
+        return new AgentCandidate(id, Set.of("analysis"), 0, AgentHealth.READY, descriptor, new MatchDegree.None(), null);
     }
 
     private void agentReturns(String text) {

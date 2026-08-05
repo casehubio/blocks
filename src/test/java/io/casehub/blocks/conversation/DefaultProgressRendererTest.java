@@ -149,7 +149,7 @@ class DefaultProgressRendererTest {
                 UUID.randomUUID(), "tenant-1", "WORK_ITEM", "cal-001",
                 null, null, "percentage", null,
                 state().put("value", 50),
-                ProgressStatus.ACTIVE, null,
+                ProgressStatus.ACTIVE, null, null, null,
                 Instant.now(), Instant.now());
 
         assertThat(renderer.render(pi)).isEqualTo("cal-001: 50%");
@@ -172,7 +172,7 @@ class DefaultProgressRendererTest {
                 null, null, "percentage",
                 defn().put("label", "Calibration"),
                 state().put("value", 42),
-                ProgressStatus.ACTIVE, null,
+                ProgressStatus.ACTIVE, null, null, null,
                 Instant.now(), Instant.now());
 
         assertThat(renderer.render(pi)).isEqualTo("Calibration: 42%");
@@ -182,7 +182,7 @@ class DefaultProgressRendererTest {
             JsonNode state, ProgressStatus status) {
         return new ProgressInstance(
                 UUID.randomUUID(), "tenant-1", "WORK_ITEM", "scope-1",
-                null, null, shapeType, definition, state, status, null,
+                null, null, shapeType, definition, state, status, null, null, null,
                 Instant.now(), Instant.now());
     }
 

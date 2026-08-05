@@ -1,5 +1,6 @@
 package io.casehub.blocks.prompt.optimiser;
 
+import io.casehub.blocks.prompt.DiversityStrategy;
 import io.casehub.blocks.prompt.ExampleCandidate;
 import io.casehub.blocks.prompt.OptimisationDataset;
 import io.casehub.blocks.prompt.OptimiserConfig;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -107,5 +109,40 @@ class FewShotOptimiserTest {
         assertThat(ex.input()).isEqualTo("Case: patient triage");
         assertThat(ex.output()).isEqualTo("Selected: dr-smith");
         assertThat(ex.outcome()).isEqualTo("SUCCESS");
+    }
+
+    @Test
+    void noArgConstructorUsesTopNStrategy() {
+        var optimiser = new FewShotOptimiser();
+        var config = new OptimiserConfig(2, 0.0, 1, 1);
+        var candidates = List.of(
+                candidate("SUCCESS", 0.9, 0.9),
+                candidate("SUCCESS", 0.8, 0.8),
+                candidate("SUCCESS", 0.7, 0.7),
+                candidate("SUCCESS", 0.6, 0.6));
+        var result = optimiser.optimise(signature(), null, dataset(candidates), config)
+                .toCompletableFuture().join();
+        assertThat(result.examples()).hasSize(2);
+        assertThat(result.examples().get(0).qualityScore()).isEqualTo(0.9);
+        assertThat(result.examples().get(1).qualityScore()).isEqualTo(0.8);
+    }
+
+    @Test
+    void customStrategyReceivesDoubleShortlist() {
+        var capturedSize = new AtomicInteger();
+        DiversityStrategy spy = (shortlist, max) -> {
+            capturedSize.set(shortlist.size());
+            return shortlist.stream().limit(max).toList();
+        };
+        var optimiser = new FewShotOptimiser(spy);
+        var config = new OptimiserConfig(2, 0.0, 1, 1);
+        var candidates = List.of(
+                candidate("SUCCESS", 0.9, 0.9),
+                candidate("SUCCESS", 0.8, 0.8),
+                candidate("SUCCESS", 0.7, 0.7),
+                candidate("SUCCESS", 0.6, 0.6));
+        optimiser.optimise(signature(), null, dataset(candidates), config)
+                .toCompletableFuture().join();
+        assertThat(capturedSize.get()).isEqualTo(4);
     }
 }

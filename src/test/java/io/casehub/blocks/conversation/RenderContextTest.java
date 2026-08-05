@@ -46,7 +46,7 @@ class RenderContextTest {
         return new ProgressInstance(
                 UUID.randomUUID(), "tenant-1", "WORK_ITEM", "scope-1",
                 null, null, shapeType, null, state,
-                ProgressStatus.ACTIVE, null,
+                ProgressStatus.ACTIVE, null, null, null,
                 Instant.now(), Instant.now());
     }
 }

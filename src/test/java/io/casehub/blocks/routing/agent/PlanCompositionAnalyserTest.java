@@ -36,7 +36,7 @@ class PlanCompositionAnalyserTest {
 
   private AgentCandidate candidate(String id) {
     return new AgentCandidate(
-        id, Set.of("analysis"), 0, AgentHealth.READY, null, new MatchDegree.None());
+        id, Set.of("analysis"), 0, AgentHealth.READY, null, new MatchDegree.None(), Map.of());
   }
 
   private RetrievedExperience multiStepExperience(

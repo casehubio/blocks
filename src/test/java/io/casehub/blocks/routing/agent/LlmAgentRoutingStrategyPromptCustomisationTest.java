@@ -37,7 +37,7 @@ class LlmAgentRoutingStrategyPromptCustomisationTest {
     }
 
     private AgentCandidate candidate(String id) {
-        return new AgentCandidate(id, Set.of("triage"), 0, AgentHealth.READY, null, new MatchDegree.None());
+        return new AgentCandidate(id, Set.of("triage"), 0, AgentHealth.READY, null, new MatchDegree.None(), null);
     }
 
     @Test

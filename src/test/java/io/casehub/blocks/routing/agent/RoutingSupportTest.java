@@ -42,11 +42,11 @@ class RoutingSupportTest {
                 .capabilities(List.of(AgentCapability.builder().name("analysis").build()))
                 .briefing(briefing)
                 .build();
-        return new AgentCandidate(workerId, Set.of("analysis"), 0, AgentHealth.READY, descriptor, new MatchDegree.None());
+        return new AgentCandidate(workerId, Set.of("analysis"), 0, AgentHealth.READY, descriptor, new MatchDegree.None(), null);
     }
 
     private AgentCandidate candidateNoDescriptor(String workerId) {
-        return new AgentCandidate(workerId, Set.of("analysis"), 0, AgentHealth.READY, null, new MatchDegree.None());
+        return new AgentCandidate(workerId, Set.of("analysis"), 0, AgentHealth.READY, null, new MatchDegree.None(), null);
     }
 
     @Nested
