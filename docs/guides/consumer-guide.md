@@ -117,6 +117,73 @@ Structured conversation protocol -- reusable infrastructure for multi-agent deli
 | `ConvergencePolicy` | @FunctionalInterface | Strategy for evaluating convergence: `evaluate(state, commonGround, context) -> ConvergenceSignal`. |
 | `ConvergencePolicies` | final class | Built-in policies: `structural(similarityThreshold, staleRounds)`, `commonGroundRatio(consensusThreshold, deadlockDisputeRatio)`, `composite(policies...)`. |
 
+### `io.casehub.blocks.conversation.orchestration`
+
+Autonomous multi-agent conversation orchestrator -- composes `ConversationProjection`, `PartitionedObservationService`, pluggable turn policies, and `TerminationCondition` into a self-driving conversation loop. Applications wire it into their `ChannelBackend` with domain-specific context injection only.
+
+**SPIs:**
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `TurnPolicy` | interface | Determines which agents respond next. Receives `ConversationState`, `TurnContext`, and the participant list. Returns a list (empty = silence). |
+| `PromptAssembler` | @FunctionalInterface | Assembles per-agent prompts from the agent's observation drain and conversation state. Override to inject domain context (document content, selection scope). |
+| `ResponseMessageBuilder` | @FunctionalInterface | Converts an agent's `AgentResult` into a `MessageView` the projection can fold. Override for domain-specific entry type determination. |
+
+**Core types:**
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `ConversationOrchestrator` | class | Composition root. Constructor takes projection, observation service, turn policy, termination condition, agent invoker, prompt assembler, response builder, response dispatcher, and participant list. `converse(MessageView) -> Uni<ConversationOutcome>` runs the full conversation loop. `terminate()` stops from outside. |
+| `ConversationOutcome` | record | Result: `finalState`, `terminationDecision`, `agentResults`, `dispatchCount`, `elapsed`. |
+| `AgentParticipant` | record | Agent identity + role + system prompt. `agentId()` delegates to `agentRef.name()`. |
+| `TurnContext` | record | Turn-relevant fields: `senderId`, `targetId` (nullable), `entryType`, `metadata`. Extracted from `MessageView` by the orchestrator. |
+
+**Standard turn policies:**
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `RoundRobinTurnPolicy` | class | Strict alternation through participants. Stateless -- derives next from `ConversationState`. |
+| `AddressedTurnPolicy` | class | Respond when message target matches agent role. Null target = silence. |
+| `PointAddressedTurnPolicy` | class | Respond to unresolved OPEN/ACTIVE points not yet responded to by the agent's role. |
+| `FreeTurnPolicy` | class | All participants except the sender respond. Pair with `MaxIterationsTermination` as a safety valve. |
+
+**Conversation-specific termination conditions** (all implement `TerminationCondition<ConversationState>`):
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `AllAgreedTermination` | class | Complete when all points have a resolved status (configurable set, e.g., AGREED, VERIFIED). |
+| `SupervisorTermination` | class | Complete when a supervisor-role agent signals end with a configurable entry type. |
+| `ContestedEscalation` | class | Escalate when any DISPUTED point exceeds a dispute-round threshold. |
+| `CompositeTermination` | class | Evaluates conditions in order; first non-Continue decision wins. |
+
+**Wiring example (drafthouse debate):**
+
+```java
+var participants = List.of(
+    new AgentParticipant(reviewerRef, "REV", reviewerSystemPrompt),
+    new AgentParticipant(implementorRef, "IMP", implementorSystemPrompt)
+);
+
+var orchestrator = new ConversationOrchestrator(
+    new DebateChannelProjection(),
+    observationService,
+    new RoundRobinTurnPolicy(),
+    new CompositeTermination(List.of(
+        new MaxIterationsTermination<>(20),
+        new AllAgreedTermination(Set.of("AGREED", "VERIFIED")),
+        new ContestedEscalation(3)
+    )),
+    debateAgentInvoker,
+    new DebatePromptAssembler(documentContent, selectionScope),
+    debateResponseBuilder,
+    message -> messageService.post(channelId, message),
+    participants
+);
+
+ConversationOutcome outcome = orchestrator.converse(triggeringMessage)
+    .await().indefinitely();
+```
+
 ### `io.casehub.blocks.agentic`
 
 Compositional agentic orchestration framework -- ten sub-packages implementing five SPIs for routing, decomposition, activation, aggregation, and termination, plus execution drivers, accountability listeners, and pre-composed pattern builders.

@@ -120,6 +120,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/agentic/` | Tests for agentic orchestration blocks |
 | `src/main/java/io/casehub/blocks/conversation/` | Structured conversation protocol — projections, fold state, rendering, point classification, epistemic common ground, convergence detection |
 | `src/test/java/io/casehub/blocks/conversation/` | Tests for conversation blocks |
+| `src/main/java/io/casehub/blocks/conversation/orchestration/` | Conversation orchestrator — TurnPolicy SPI, termination conditions, PromptAssembler, ConversationOrchestrator composition root |
+| `src/test/java/io/casehub/blocks/conversation/orchestration/` | Tests for conversation orchestrator |
 | `src/main/java/io/casehub/blocks/oversight/` | Oversight gate lifecycle + risk classification — SPIs, classifier chaining, gate outcomes |
 | `src/test/java/io/casehub/blocks/oversight/` | Tests for oversight blocks |
 | `src/main/java/io/casehub/blocks/routing/` | Trust routing utilities — shared preference keys, policy resolver, compliance records |
@@ -232,6 +234,28 @@ Structured conversation protocol — reusable infrastructure for multi-agent del
 | `RenderContext` | Supplementary render-time inputs: reactions, commonGround, convergence, progress. Replaces renderer overloads. |
 | `ProgressRenderer` | `@FunctionalInterface` SPI: `String render(ProgressInstance)`. Pluggable progress-to-text rendering for LLM agent prompts. |
 | `DefaultProgressRenderer` | Built-in `ProgressRenderer`: percentage (`"Label: N%"`), count (`"Label: N of M"`), step (`"a ✓ → b ⏳ → c ○"`), fallback to status name. Null-safe. |
+
+## Package: `io.casehub.blocks.conversation.orchestration`
+
+Autonomous multi-agent conversation orchestrator — composes `ConversationProjection`, `PartitionedObservationService`, pluggable turn policies, and `TerminationCondition` into a self-driving conversation loop.
+
+| Class | What it does |
+|-------|-------------|
+| `ConversationOrchestrator` | Composition root — iterative queue-based loop. `converse(MessageView) → Uni<ConversationOutcome>`. Participants passed at construction; observation service auto-registers observers. `terminate()` for external stop (volatile flag). |
+| `ConversationOutcome` | Record: `finalState`, `terminationDecision`, `agentResults`, `dispatchCount`, `elapsed` |
+| `TurnPolicy` | SPI: `nextResponders(ConversationState, TurnContext, List<AgentParticipant>) → List<AgentParticipant>`. Synchronous. Empty list = silence. |
+| `TurnContext` | Record: `senderId`, `@Nullable targetId`, `entryType`, `metadata`. Extracted from `MessageView` by orchestrator. |
+| `AgentParticipant` | Record: `agentRef` (AgentRef), `role`, `systemPrompt`. `agentId()` delegates to `agentRef.name()`. |
+| `PromptAssembler` | `@FunctionalInterface`: `assemble(AgentParticipant, PartitionedDrain<String>, ConversationState) → String`. Per-agent prompt construction. |
+| `ResponseMessageBuilder` | `@FunctionalInterface`: `build(AgentParticipant, AgentResult, ConversationState) → MessageView`. Converts agent output to foldable message. |
+| `RoundRobinTurnPolicy` | Strict alternation. Stateless — derives next from sender ID in participant order. |
+| `AddressedTurnPolicy` | Respond when `targetId` matches agent role. Null target = silence. |
+| `PointAddressedTurnPolicy` | Respond to unresolved OPEN/ACTIVE points not yet responded to by agent's role. |
+| `FreeTurnPolicy` | All participants except sender. Pair with `MaxIterationsTermination`. |
+| `AllAgreedTermination` | `TerminationCondition<ConversationState>` — Complete when all points have a resolved status (configurable set). |
+| `SupervisorTermination` | `TerminationCondition<ConversationState>` — Complete when supervisor role signals end via configurable entry type. |
+| `ContestedEscalation` | `TerminationCondition<ConversationState>` — Escalate when DISPUTED points exceed threshold. |
+| `CompositeTermination` | `TerminationCondition<ConversationState>` — evaluates conditions in order; first non-Continue wins. |
 
 ## Package: `io.casehub.blocks.oversight`
 
