@@ -51,6 +51,20 @@ Channel summary integration -- bridges `ContentSummariser` into qhorus `SummaryU
 |-------|------|-------------|
 | `ChannelSummariser` | class | CDI-managed `SummaryUpdateHook` implementation. Delegates to injected `ContentSummariser<Message>`. Annotated `@ApplicationScoped`. |
 | `HeuristicMessageSummariser` | class | Default (non-LLM) `ContentSummariser<Message>`. Produces heuristic text summaries with participant lists, time periods, topics. Annotated `@DefaultBean @ApplicationScoped` -- replaceable by any `@ApplicationScoped ContentSummariser<Message>`. |
+| `NoOpThreadSummaryStore` | class | No-op `@DefaultBean @ApplicationScoped` `ThreadSummaryStore`. `save()` returns the input unchanged, queries return empty. Prevents CDI deployment failures when no real store is on the classpath. Override with a qhorus persistence implementation. |
+| `ThreadSummaryObserver` | class | `@ApplicationScoped` push-based observer -- detects DONE/FAILURE messages with correlationId, fetches thread messages via `CrossTenantMessageStore`, delegates to `ContentSummariser<Message>`, writes to `ThreadSummaryStore`. Per-correlationId concurrency guard. Async via `ManagedExecutor`. |
+
+### `io.casehub.blocks.attestation`
+
+Attestation write-path types and lifecycle observer SPI.
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `AttestationIntent` | record | Full attestation payload: entryId, subjectId, verdict, confidence, capabilityTag, attestorId, actorType, attestorRole, dimensions, evidence, namespace, causedByEntryId (nullable). |
+| `AttestationIntentWriter` | interface | SPI: `void write(AttestationIntent, String tenancyId)`. Implementations MUST honour the provided `entryId`. |
+| `NoOpAttestationIntentWriter` | class | No-op `@DefaultBean @ApplicationScoped` `AttestationIntentWriter`. Prevents CDI deployment failures when no real writer is on the classpath. Override with a ledger-backed implementation. |
+| `LifecycleAttestationObserver<E>` | interface | `@FunctionalInterface` SPI: `List<AttestationIntent> observe(E event, AttestationContext)`. Domain repos implement per event type. |
+| `AttestationContext` | record | Ambient context for observers: tenancyId, caseId, capabilityTag. |
 
 ### `io.casehub.blocks.conversation`
 

@@ -108,13 +108,13 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 
 | Path | Contents |
 |------|----------|
-| `src/main/java/io/casehub/blocks/attestation/` | Attestation write-path types — `AttestationIntent`, `AttestationIntentWriter`, `LifecycleAttestationObserver<E>` SPI, `AttestationContext` |
+| `src/main/java/io/casehub/blocks/attestation/` | Attestation write-path types — `AttestationIntent`, `AttestationIntentWriter` (+ `NoOpAttestationIntentWriter` `@DefaultBean`), `LifecycleAttestationObserver<E>` SPI, `AttestationContext` |
 | `src/test/java/io/casehub/blocks/attestation/` | Tests for attestation types |
 | `src/main/java/io/casehub/blocks/trust/` | Trust-lifecycle SPIs — `IntakeClassifier<S>`, `VouchService` with pluggable `VouchConstraint` chain |
 | `src/test/java/io/casehub/blocks/trust/` | Tests for trust SPIs |
 | `src/main/java/io/casehub/blocks/channel/` | Channel utility blocks — message meta, context tracking, bounded projection |
 | `src/test/java/io/casehub/blocks/channel/` | Tests for channel blocks |
-| `src/main/java/io/casehub/blocks/channel/summary/` | Channel summary integration — `ContentSummariser<Message>` implementations + `SummaryUpdateHook` adapter |
+| `src/main/java/io/casehub/blocks/channel/summary/` | Channel summary integration — `ContentSummariser<Message>` implementations, `SummaryUpdateHook` adapter, `NoOpThreadSummaryStore` `@DefaultBean` |
 | `src/test/java/io/casehub/blocks/channel/summary/` | Tests for channel summary integration |
 | `src/main/java/io/casehub/blocks/agentic/` | Compositional agentic orchestration — five SPIs, execution drivers, pattern builders |
 | `src/test/java/io/casehub/blocks/agentic/` | Tests for agentic orchestration blocks |
@@ -151,6 +151,7 @@ Attestation write-path types and lifecycle observer SPI. `AttestationIntent` cap
 |-------|-------------|
 | `AttestationIntent` | Record: entryId, subjectId, verdict, confidence, capabilityTag, attestorId, actorType, attestorRole, dimensions (Map), evidence, namespace, causedByEntryId (nullable, for idempotent writes) |
 | `AttestationIntentWriter` | SPI: `void write(AttestationIntent, String tenancyId)`. Implementations MUST honour the provided `entryId`. |
+| `NoOpAttestationIntentWriter` | `@DefaultBean` `@ApplicationScoped` no-op implementation of `AttestationIntentWriter`. Consumers override with real persistence. |
 | `LifecycleAttestationObserver<E>` | `@FunctionalInterface` SPI: `List<AttestationIntent> observe(E event, AttestationContext)`. Domain repos implement per event type. Returns non-null (empty list for irrelevant events). |
 | `AttestationContext` | Record: tenancyId, caseId, capabilityTag — ambient context for observers |
 
@@ -193,6 +194,7 @@ Channel and thread summary integration — Message-specific `ContentSummariser<M
 |-------|-------------|
 | `HeuristicMessageSummariser` | `@DefaultBean` `ContentSummariser<Message>` — append-only structural summary from message metadata (participants, topics, time span). Merges annotations across invocations. Zero LLM cost. |
 | `ChannelSummariser` | `@ApplicationScoped` `SummaryUpdateHook` adapter — delegates to injected `ContentSummariser<Message>`. Mutiny-aware blocking, channel-context error logging. |
+| `NoOpThreadSummaryStore` | `@DefaultBean` `@ApplicationScoped` no-op `ThreadSummaryStore` — `save()` returns input, queries return empty. Consumers override with qhorus persistence. |
 | `ThreadSummaryObserver` | `@ApplicationScoped` push-based observer — detects DONE/FAILURE messages with correlationId, fetches thread messages via `CrossTenantMessageStore`, delegates to `ContentSummariser<Message>`, writes to `ThreadSummaryStore`. Per-correlationId concurrency guard. Async via `ManagedExecutor`. |
 
 ## Package: `io.casehub.blocks.conversation`
