@@ -31,15 +31,13 @@ class StructuralCostHeuristicTest {
 
     @Test
     void prefersMethodWithFewerLeafTasks() {
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"), leaf("b"), leaf("c"))));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("x"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"), leaf("b"), leaf("c"))), null);
+        var method2 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("x"))), null);
 
         var methods = List.of(method1, method2);
         var heuristic = new StructuralCostHeuristic<String>();
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored).hasSize(2);
@@ -49,21 +47,17 @@ class StructuralCostHeuristicTest {
 
     @Test
     void nestedCompoundTask_usesMinimumCostAcrossMethods() {
-        var nestedCompound = new TaskNode.CompoundTask<String>("nested", List.of(
-                new DecompositionMethod<String>(s -> true,
-                        new SequenceStrategy<>(List.of(leaf("x"), leaf("y"), leaf("z")))),
-                new DecompositionMethod<String>(s -> true,
-                        new SequenceStrategy<>(List.of(leaf("a"))))));
+        var nestedCompound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "nested", List.of(
+                new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("x"), leaf("y"), leaf("z"))), null),
+                new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"))), null)));
 
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.<TaskNode<String>>of(leaf("top"), nestedCompound)));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"), leaf("b"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.<TaskNode<String>>of(leaf("top"), nestedCompound)), null);
+        var method2 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"), leaf("b"))), null);
 
         var methods = List.of(method1, method2);
         var heuristic = new StructuralCostHeuristic<String>();
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored.get(0).score()).isEqualTo(scored.get(1).score());
@@ -71,15 +65,13 @@ class StructuralCostHeuristicTest {
 
     @Test
     void opaqueStrategy_usesConfiguredDefaultCost() {
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"), leaf("b"))));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf("x"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"), leaf("b"))), null);
+        var method2 = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf("x"))), null);
 
         var methods = List.of(method1, method2);
         var heuristic = new StructuralCostHeuristic<String>(5.0);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         var seqScore = scored.stream().filter(s -> s.method() == method1).findFirst().orElseThrow().score();
@@ -89,17 +81,14 @@ class StructuralCostHeuristicTest {
 
     @Test
     void returnsOneScorePerInputMethod() {
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"))));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("b"))));
-        var method3 = new DecompositionMethod<String>(s -> true,
-                (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf("c"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"))), null);
+        var method2 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("b"))), null);
+        var method3 = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf("c"))), null);
 
         var methods = List.of(method1, method2, method3);
         var heuristic = new StructuralCostHeuristic<String>();
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored).hasSize(3);

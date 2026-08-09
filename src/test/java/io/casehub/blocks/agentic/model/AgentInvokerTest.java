@@ -109,4 +109,26 @@ class AgentInvokerTest {
         assertThat(result.output()).isEqualTo("primary");
     }
 
+    @Test
+    void composedAgentUsesBackendWhenPresent() {
+        var backendResult = new ExecutionResult.Completed("from-backend");
+        ExecutionBackend<Object> backend = (m, ctx) ->
+                                                   io.smallrye.mutiny.Uni.createFrom().item(backendResult);
+        var innerModel = new ExecutionModel<>(
+                new io.casehub.blocks.agentic.routing.FirstMatchRouting<>(c -> true),
+                new io.casehub.blocks.agentic.decomposition.IdentityDecomposition<>(),
+                new io.casehub.blocks.agentic.activation.OnExplicitDispatch<>(),
+                new io.casehub.blocks.agentic.aggregation.PassThrough<>(),
+                new io.casehub.blocks.agentic.termination.MaxIterationsTermination<>(1),
+                List::of,
+                io.casehub.blocks.agentic.FailurePolicy.defaults(),
+                List.of(), "test", null, backend);
+        var                  composed = AgentRef.composed(innerModel);
+        AgentInvoker<String> invoker  = AgentInvoker.defaultInvoker();
+        var                  result   = invoker.invoke(composed, "input").await().indefinitely();
+        assertThat(result.status()).isEqualTo(AgentResult.AgentResultStatus.SUCCESS);
+        assertThat(result.output()).isEqualTo("from-backend");
+    }
+
+
 }

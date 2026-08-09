@@ -53,15 +53,13 @@ class LlmDecompositionHeuristicTest {
         var json = """
                 [{"method": 1, "score": 0.8}, {"method": 2, "score": 0.3}]
                 """;
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"), leaf("b"))));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("c"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"), leaf("b"))), null);
+        var method2 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("c"))), null);
 
         var heuristic = new LlmDecompositionHeuristic<String>(providerReturning(json));
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx("state"))
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
                 .await().indefinitely();
 
         assertThat(scored).hasSize(2);
@@ -76,13 +74,12 @@ class LlmDecompositionHeuristicTest {
                 [{"method": 1, "score": 0.6}]
                 ```
                 """;
-        var method = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"))));
+        var method = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"))), null);
 
         var heuristic = new LlmDecompositionHeuristic<String>(providerReturning(json));
         var methods = List.of(method);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx("state"))
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
                 .await().indefinitely();
 
         assertThat(scored).hasSize(1);
@@ -91,15 +88,13 @@ class LlmDecompositionHeuristicTest {
 
     @Test
     void llmFailure_returnsEqualScores() {
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"))));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("b"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"))), null);
+        var method2 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("b"))), null);
 
         var heuristic = new LlmDecompositionHeuristic<String>(failingProvider());
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx("state"))
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
                 .await().indefinitely();
 
         assertThat(scored).hasSize(2);
@@ -118,11 +113,10 @@ class LlmDecompositionHeuristicTest {
                     "[{\"method\": 1, \"score\": 0.5}]"));
         });
 
-        var method = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"))));
+        var method = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"))), null);
         var heuristic = new LlmDecompositionHeuristic<String>(provider, s -> "RENDERED:" + s);
         var methods = List.of(method);
-        heuristic.evaluate(new TaskNode.CompoundTask<String>("goal", methods),
+        heuristic.evaluate(new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", methods),
                 methods, ctx("my-state")).await().indefinitely();
 
         assertThat(promptCapture.get()).contains("RENDERED:my-state");
@@ -132,15 +126,13 @@ class LlmDecompositionHeuristicTest {
     @Test
     void unscoredMethods_defaultToZero() {
         var json = "[{\"method\": 1, \"score\": 0.9}]";
-        var method1 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("a"))));
-        var method2 = new DecompositionMethod<String>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("b"))));
+        var method1 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("a"))), null);
+        var method2 = new DecompositionMethod<String>(s -> true, new SequenceStrategy<>(List.of(leaf("b"))), null);
 
         var heuristic = new LlmDecompositionHeuristic<String>(providerReturning(json));
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx("state"))
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
                 .await().indefinitely();
 
         assertThat(scored).hasSize(2);

@@ -115,8 +115,8 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
     public ExecutionModel<T> build() {
         return new ExecutionModel<>(routing, decomposition, activation,
                                     aggregation, termination, candidateSupplier,
-                                    failurePolicy, listeners, task, patternType);
-    }
+                                    failurePolicy, listeners, task, patternType,
+                                    backend);}
 
     public Uni<ExecutionResult> execute(T initialContext) {
         var model = build();

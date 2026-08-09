@@ -49,16 +49,26 @@ public interface AgentInvoker<T> {
     private static <T> AgentResult invokeComposed(AgentRef agent,
                                                   AgentRef.ComposedAgent composed,
                                                   T state, Instant start) {
-        var                  model           = (ExecutionModel<Object>) (ExecutionModel<?>) composed.model();
-        AgentInvoker<Object> nested          = defaultInvoker();
-        var                  driver          = new OrchestratedDriver<>(nested);
-        var                  executionResult = driver.execute(model, state).await().indefinitely();
-        var                  elapsed         = Duration.between(start, Instant.now());
+        var model = (ExecutionModel<Object>) (ExecutionModel<?>) composed.model();
+
+        Uni<ExecutionResult> execution;
+        if (model.backend() != null) {
+            execution = model.backend().execute(model, state);
+        } else {
+            AgentInvoker<Object> nested = defaultInvoker();
+            execution = new OrchestratedDriver<>(nested).execute(model, state);
+        }
+
+        var executionResult = execution.await().indefinitely();
+        var elapsed         = Duration.between(start, Instant.now());
         return switch (executionResult) {
-            case ExecutionResult.Completed c -> new AgentResult(agent, c.result(), elapsed, AgentResult.AgentResultStatus.SUCCESS);
-            case ExecutionResult.Failed f -> new AgentResult(agent, f.reason(), elapsed, AgentResult.AgentResultStatus.FAILURE);
-            case ExecutionResult.Escalated e -> new AgentResult(agent, "Escalated: " + e.reason(), elapsed, AgentResult.AgentResultStatus.FAILURE);
-            case ExecutionResult.Cancelled ignored -> new AgentResult(agent, "Cancelled", elapsed, AgentResult.AgentResultStatus.FAILURE);
-        };
-    }
+            case ExecutionResult.Completed c -> new AgentResult(agent, c.result(), elapsed,
+                                                                AgentResult.AgentResultStatus.SUCCESS);
+            case ExecutionResult.Failed f -> new AgentResult(agent, f.reason(), elapsed,
+                                                             AgentResult.AgentResultStatus.FAILURE);
+            case ExecutionResult.Escalated e -> new AgentResult(agent, "Escalated: " + e.reason(),
+                                                                elapsed, AgentResult.AgentResultStatus.FAILURE);
+            case ExecutionResult.Cancelled ignored -> new AgentResult(agent, "Cancelled", elapsed,
+                                                                      AgentResult.AgentResultStatus.FAILURE);
+        };}
 }

@@ -97,7 +97,7 @@ class TasksTest {
     class CompoundFromMethods {
         @Test
         void compound_fromMethods_createsCompoundTask() {
-            var                           method = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>());
+            var                           method = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>(), null);
             TaskNode.CompoundTask<String> task   = compound("process", method);
             assertThat(task.name()).isEqualTo("process");
             assertThat(task.methods()).hasSize(1);
@@ -105,8 +105,8 @@ class TasksTest {
 
         @Test
         void compound_fromMultipleMethods_preservesOrder() {
-            var                           m1   = new DecompositionMethod<String>(s -> s.startsWith("a"), new IdentityDecomposition<>());
-            var                           m2   = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>());
+            var                           m1   = new DecompositionMethod<String>(s -> s.startsWith("a"), new IdentityDecomposition<>(), null);
+            var                           m2   = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>(), null);
             TaskNode.CompoundTask<String> task = compound("process", m1, m2);
             assertThat(task.methods()).hasSize(2);
             assertThat(task.methods().get(0).guard().test("alpha")).isTrue();

@@ -50,13 +50,11 @@ class HtnBuilderTest {
             return CompletableFuture.completedFuture(AgentResult.success(null, "deployed"));
         });
 
-        var rootTask = new TaskNode.CompoundTask<String>("deploy-app", List.of(
-                new DecompositionMethod<String>(
-                        state -> true,
-                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+        var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "deploy-app", List.of(
+                new DecompositionMethod<String>(state -> true, (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
                                 new PrimitiveTask<String>("h1", java.time.Instant.now(), null, build, s -> true, s -> {}),
                                 new PrimitiveTask<String>("h2", java.time.Instant.now(), null, test, s -> true, s -> {}),
-                                new PrimitiveTask<String>("h3", java.time.Instant.now(), null, deploy, s -> true, s -> {})))))));
+                                new PrimitiveTask<String>("h3", java.time.Instant.now(), null, deploy, s -> true, s -> {})))), null)));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -80,15 +78,11 @@ class HtnBuilderTest {
             return CompletableFuture.completedFuture(AgentResult.success(null, "deployed"));
         });
 
-        var rootTask = new TaskNode.CompoundTask<String>("deploy", List.of(
-                new DecompositionMethod<>(
-                        (String s) -> s.contains("hotfix"),
-                        (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(
-                                new PrimitiveTask<>("h4", java.time.Instant.now(), null, hotfix, s -> true, s -> {})))),
-                new DecompositionMethod<>(
-                        (String s) -> true,
-                        (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(
-                                new PrimitiveTask<>("h5", java.time.Instant.now(), null, fullDeploy, s -> true, s -> {}))))));
+        var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "deploy", List.of(
+                new DecompositionMethod<>((String s) -> s.contains("hotfix"), (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(
+                                new PrimitiveTask<>("h4", java.time.Instant.now(), null, hotfix, s -> true, s -> {}))), null),
+                new DecompositionMethod<>((String s) -> true, (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(
+                                new PrimitiveTask<>("h5", java.time.Instant.now(), null, fullDeploy, s -> true, s -> {}))), null)));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -112,9 +106,8 @@ class HtnBuilderTest {
         DecompositionStrategy<String> customStrategy = (compound, ctx) ->
                                                                Uni.createFrom().item(DagPlan.singleton(customPlan));
 
-        var rootTask = new TaskNode.CompoundTask<String>("root", List.of(
-                new DecompositionMethod<>(s -> true,
-                                          (c, x) -> Uni.createFrom().failure(new AssertionError("should not be called — strategy should override")))));
+        var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(
+                new DecompositionMethod<>(s -> true, (c, x) -> Uni.createFrom().failure(new AssertionError("should not be called — strategy should override")), null)));
 
         var result = Patterns.<String>htn()
                              .decompose(customStrategy)
@@ -140,7 +133,7 @@ class HtnBuilderTest {
             return Uni.createFrom().item(DagPlan.singleton(leaf));
         };
 
-        var rootTask = new TaskNode.CompoundTask<String>("root", List.of());
+        var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of());
 
         Patterns.<String>htn()
                 .decompose(capturing)

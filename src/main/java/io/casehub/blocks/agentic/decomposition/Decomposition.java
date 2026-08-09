@@ -54,7 +54,7 @@ public final class Decomposition {
 
     public static <T> DecompositionMethod<T> method(Predicate<T> guard,
                                                     DecompositionStrategy<T> strategy) {
-        return new DecompositionMethod<>(guard, strategy);
+        return new DecompositionMethod<>(guard, strategy, null);
     }
 
     @SafeVarargs
@@ -83,7 +83,7 @@ public final class Decomposition {
 
     public static <T> TaskNode.CompoundTask<T> compound(String name,
                                                         List<DecompositionMethod<T>> methods) {
-        return new TaskNode.CompoundTask<>(name, methods);
+        return new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), name, methods);
     }
 
     public static <T> PlannedTask<T> planned(String description, AgentRef agent) {

@@ -72,8 +72,8 @@ class TaskNodeTest {
     class CompoundTaskVariant {
         @Test
         void carriesNameAndMethods() {
-            var method = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>());
-            var task   = new TaskNode.CompoundTask<String>("analyse", List.of(method));
+            var method = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>(), null);
+            var task   = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "analyse", List.of(method));
             assertThat(task.name()).isEqualTo("analyse");
             assertThat(task.methods()).hasSize(1);
         }
@@ -81,8 +81,8 @@ class TaskNodeTest {
         @Test
         void methodsListIsDefensivelyCopied() {
             var methods = new java.util.ArrayList<DecompositionMethod<String>>();
-            methods.add(new DecompositionMethod<>(s -> true, new IdentityDecomposition<>()));
-            var task = new TaskNode.CompoundTask<>("t", methods);
+            methods.add(new DecompositionMethod<>(s -> true, new IdentityDecomposition<>(), null));
+            var task = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "t", methods);
             methods.clear();
             assertThat(task.methods()).hasSize(1);
         }

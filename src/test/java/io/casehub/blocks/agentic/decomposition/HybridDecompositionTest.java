@@ -71,7 +71,7 @@ class HybridDecompositionTest {
             var fallbackTask = new PrimitiveTask<String>("f1", Instant.now(), "fallback-task", dummyAgent(), null, null);
 
             var hybrid = new HybridDecomposition<>(staticThatMatches(staticTask), fallbackReturning(fallbackTask));
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             var result = hybrid.decompose(compound, ctx).await().indefinitely();
@@ -86,9 +86,9 @@ class HybridDecompositionTest {
             @SuppressWarnings("unchecked")
             var fallback = (DecompositionStrategy<String>) mock(DecompositionStrategy.class);
 
-            var compound = new TaskNode.CompoundTask<String>("root", List.of(
-                    new DecompositionMethod<>(s -> false, (c, x) -> Uni.createFrom().failure(new AssertionError("should not be called"))),
-                    new DecompositionMethod<>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(prim)))));
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(
+                    new DecompositionMethod<>(s -> false, (c, x) -> Uni.createFrom().failure(new AssertionError("should not be called")), null),
+                    new DecompositionMethod<>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(prim)), null)));
 
             var hybrid = new HybridDecomposition<>(new StaticDecomposition<>(), fallback);
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
@@ -105,7 +105,7 @@ class HybridDecompositionTest {
         void staticFails_llmProducesPlan() {
             var fallbackTask = new PrimitiveTask<String>("f1", Instant.now(), "llm-planned", dummyAgent(), null, null);
             var hybrid = new HybridDecomposition<>(staticThatFails(), fallbackReturning(fallbackTask));
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             var result = hybrid.decompose(compound, ctx).await().indefinitely();
@@ -126,7 +126,7 @@ class HybridDecompositionTest {
                                                                        Uni.createFrom().failure(new NoMethodMatchedException("incident-response", 3));
 
             var hybrid   = new HybridDecomposition<>(staticWith3Methods, capturingFallback);
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx      = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             hybrid.decompose(compound, ctx).await().indefinitely();
@@ -144,7 +144,7 @@ class HybridDecompositionTest {
                     Uni.createFrom().failure(new IllegalStateException("LLM also failed"));
 
             var hybrid = new HybridDecomposition<>(staticThatFails(), failingFallback);
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             assertThatThrownBy(() -> hybrid.decompose(compound, ctx).await().indefinitely())
@@ -178,7 +178,7 @@ class HybridDecompositionTest {
             var fallback = (DecompositionStrategy<String>) mock(DecompositionStrategy.class);
 
             var hybrid = new HybridDecomposition<>(throwing, fallback);
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             assertThatThrownBy(() -> hybrid.decompose(compound, ctx).await().indefinitely())
@@ -191,7 +191,7 @@ class HybridDecompositionTest {
         void fallbackWithEmptyAgents_stillInvokesFallback() {
             var fallbackTask = new PrimitiveTask<String>("f1", Instant.now(), "planned", dummyAgent(), null, null);
             var hybrid = new HybridDecomposition<>(staticThatFails(), fallbackReturning(fallbackTask));
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             var result = hybrid.decompose(compound, ctx).await().indefinitely();
@@ -208,7 +208,7 @@ class HybridDecompositionTest {
             var hybrid = new HybridDecomposition<String>(provider);
 
             var agents = List.of(candidate("analyst", "data analysis"));
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", agents, 0);
 
             var result = hybrid.decompose(compound, ctx).await().indefinitely();
@@ -222,7 +222,7 @@ class HybridDecompositionTest {
             var hybrid = new HybridDecomposition<String>(provider, s -> "RENDERED:" + s);
 
             var agents = List.of(candidate("analyst", "data analysis"));
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", agents, 0);
 
             var result = hybrid.decompose(compound, ctx).await().indefinitely();
@@ -238,7 +238,7 @@ class HybridDecompositionTest {
             var fallback = fallbackReturning(fallbackTask);
             var hybrid = new HybridDecomposition<>(primary, fallback);
 
-            var compound = new TaskNode.CompoundTask<String>("goal", List.of());
+            var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
             var result = hybrid.decompose(compound, ctx).await().indefinitely();

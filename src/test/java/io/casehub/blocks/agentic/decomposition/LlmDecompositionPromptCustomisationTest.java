@@ -45,7 +45,7 @@ class LlmDecompositionPromptCustomisationTest {
         var decomposition = new LlmDecomposition<String>(agentProvider, Object::toString,
                 1, customiser, selector, null);
 
-        var goal = new TaskNode.CompoundTask<String>("analyse", List.of());
+        var goal = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "analyse", List.of());
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null);
 
         try {
@@ -76,7 +76,7 @@ class LlmDecompositionPromptCustomisationTest {
         var decomposition = new LlmDecomposition<String>(agentProvider, Object::toString,
                 1, null, selector, store);
 
-        var goal = new TaskNode.CompoundTask<String>("analyse", List.of());
+        var goal = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "analyse", List.of());
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null);
 
         try {
@@ -96,7 +96,7 @@ class LlmDecompositionPromptCustomisationTest {
 
         var decomposition = new LlmDecomposition<String>(agentProvider);
 
-        var goal = new TaskNode.CompoundTask<String>("analyse", List.of());
+        var goal = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "analyse", List.of());
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null);
 
         try {

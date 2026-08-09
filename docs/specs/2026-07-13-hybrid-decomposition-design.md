@@ -234,24 +234,18 @@ record IncidentState(String type, String severity, String description) {}
 **Task tree — three static playbooks, no catch-all:**
 ```java
 var root = new CompoundTask<>("respond-to-incident", List.of(
-    new DecompositionMethod<>(
-        state -> "DATABASE_OUTAGE".equals(state.type()),
-        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
+    new DecompositionMethod<>(state -> "DATABASE_OUTAGE".equals(state.type()), (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
             Decomposition.primitive("failover-db", dbFailoverAgent),
             Decomposition.primitive("verify-connectivity", verifyAgent),
-            Decomposition.primitive("notify-stakeholders", notifyAgent))))),
-    new DecompositionMethod<>(
-        state -> "SECURITY_BREACH".equals(state.type()),
-        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
+            Decomposition.primitive("notify-stakeholders", notifyAgent)))), null),
+    new DecompositionMethod<>(state -> "SECURITY_BREACH".equals(state.type()), (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
             Decomposition.primitive("isolate-systems", isolateAgent),
             Decomposition.primitive("forensic-analysis", forensicsAgent),
-            Decomposition.primitive("notify-stakeholders", notifyAgent))))),
-    new DecompositionMethod<>(
-        state -> "NETWORK_FAILURE".equals(state.type()),
-        (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
+            Decomposition.primitive("notify-stakeholders", notifyAgent)))), null),
+    new DecompositionMethod<>(state -> "NETWORK_FAILURE".equals(state.type()), (compound, ctx) -> Uni.createFrom().item(ExecutionPlan.sequence(List.of(
             Decomposition.primitive("diagnose-network", diagnoseAgent),
             Decomposition.primitive("reroute-traffic", rerouteAgent),
-            Decomposition.primitive("notify-stakeholders", notifyAgent)))))
+            Decomposition.primitive("notify-stakeholders", notifyAgent)))), null)
 ));
 ```
 

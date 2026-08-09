@@ -28,7 +28,7 @@ class IdentityDecompositionTest {
     @Test
     void compoundTask_throws() {
         var decomp = new IdentityDecomposition<String>();
-        var compound = new TaskNode.CompoundTask<String>("test", List.of());
+        var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "test", List.of());
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
         assertThatThrownBy(() -> decomp.decompose(compound, ctx).await().indefinitely())

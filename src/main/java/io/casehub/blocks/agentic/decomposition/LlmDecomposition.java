@@ -289,7 +289,7 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
             return null;
         }
 
-        var subCompound = new TaskNode.CompoundTask<T>(subtaskName, List.of());
+        var subCompound = new TaskNode.CompoundTask<T>(java.util.UUID.randomUUID().toString(), subtaskName, List.of());
         var subCtx = new AgenticDecompositionContext<>(
                 ctx.state(), ctx.agents(), ctx.depth() + 1, null,
                 description, taskName, siblingNames, null);

@@ -49,4 +49,27 @@ class ExecutionModelTest {
                 FailurePolicy.defaults(), List.of(), "my task");
         assertThat(model.task()).isEqualTo("my task");
     }
+
+    @Test
+    void backendDefaultsToNullViaSecondaryConstructor() {
+        var model = new ExecutionModel<>(
+                new FirstMatchRouting<>(c -> true), new IdentityDecomposition<>(),
+                new OnExplicitDispatch<>(), new PassThrough<>(),
+                new MaxIterationsTermination<>(1), candidates,
+                FailurePolicy.defaults(), List.of(), "test", null);
+        assertThat(model.backend()).isNull();
+    }
+
+    @Test
+    void backendCarriedOnModel() {
+        ExecutionBackend<String> backend = (m, ctx) ->
+                                                   io.smallrye.mutiny.Uni.createFrom().item(new ExecutionResult.Completed("ok"));
+        var model = new ExecutionModel<>(
+                new FirstMatchRouting<>(c -> true), new IdentityDecomposition<>(),
+                new OnExplicitDispatch<>(), new PassThrough<>(),
+                new MaxIterationsTermination<>(1), candidates,
+                FailurePolicy.defaults(), List.of(), "test", null, backend);
+        assertThat(model.backend()).isSameAs(backend);
+    }
+
 }

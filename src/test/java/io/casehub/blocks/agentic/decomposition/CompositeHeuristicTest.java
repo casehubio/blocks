@@ -30,8 +30,7 @@ class CompositeHeuristicTest {
     }
 
     private static DecompositionMethod<String> method() {
-        return new DecompositionMethod<>(s -> true,
-                new SequenceStrategy<>(List.of(leaf("x"))));
+        return new DecompositionMethod<>(s -> true, new SequenceStrategy<>(List.of(leaf("x"))), null);
     }
 
     @Test
@@ -55,7 +54,7 @@ class CompositeHeuristicTest {
                 new CompositeHeuristic.WeightedHeuristic<>(llmBased, 0.5)));
 
         var scored = composite.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored).hasSize(2);
@@ -85,7 +84,7 @@ class CompositeHeuristicTest {
                 new CompositeHeuristic.WeightedHeuristic<>(varied, 1.0)));
 
         var scored = composite.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         var m1Score = scored.stream().filter(s -> s.method() == m1).findFirst().orElseThrow().score();
@@ -116,7 +115,7 @@ class CompositeHeuristicTest {
                 new CompositeHeuristic.WeightedHeuristic<>(prefersM2, 1.0)));
 
         var scored = composite.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         var m1Score = scored.stream().filter(s -> s.method() == m1).findFirst().orElseThrow().score();
@@ -135,7 +134,7 @@ class CompositeHeuristicTest {
                 new CompositeHeuristic.WeightedHeuristic<>(broken, 1.0)));
 
         assertThatThrownBy(() -> composite.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("completeness contract");
@@ -153,7 +152,7 @@ class CompositeHeuristicTest {
                 new CompositeHeuristic.WeightedHeuristic<>(single, 1.0)));
 
         var scored = composite.evaluate(
-                new TaskNode.CompoundTask<String>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored).hasSize(1);

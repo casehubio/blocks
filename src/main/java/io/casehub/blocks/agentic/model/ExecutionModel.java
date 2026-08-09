@@ -7,6 +7,7 @@ import io.casehub.blocks.agentic.aggregation.AggregationStrategy;
 import io.casehub.blocks.agentic.routing.RoutingStrategy;
 import io.casehub.blocks.agentic.termination.TerminationCondition;
 import io.casehub.engine.plan.DecompositionStrategy;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
@@ -22,7 +23,8 @@ public record ExecutionModel<T>(
         FailurePolicy failurePolicy,
         List<ExecutionEventListener> listeners,
         String task,
-        PatternType patternType
+        PatternType patternType,
+        @Nullable ExecutionBackend<T> backend
 ) {
     public ExecutionModel {
         Objects.requireNonNull(routing, "routing");
@@ -41,8 +43,18 @@ public record ExecutionModel<T>(
                           TerminationCondition<T> termination,
                           Supplier<List<RoutingCandidate>> candidateSupplier,
                           FailurePolicy failurePolicy, List<ExecutionEventListener> listeners,
+                          String task, PatternType patternType) {
+        this(routing, decomposition, activation, aggregation, termination,
+             candidateSupplier, failurePolicy, listeners, task, patternType, null);
+    }
+
+    public ExecutionModel(RoutingStrategy<T> routing, DecompositionStrategy<T> decomposition,
+                          ActivationRule<T> activation, AggregationStrategy<T> aggregation,
+                          TerminationCondition<T> termination,
+                          Supplier<List<RoutingCandidate>> candidateSupplier,
+                          FailurePolicy failurePolicy, List<ExecutionEventListener> listeners,
                           String task) {
         this(routing, decomposition, activation, aggregation, termination,
-             candidateSupplier, failurePolicy, listeners, task, null);
+             candidateSupplier, failurePolicy, listeners, task, null, null);
     }
 }
