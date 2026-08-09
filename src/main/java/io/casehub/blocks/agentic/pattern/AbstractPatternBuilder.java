@@ -123,6 +123,16 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
         if (backend != null) {
             return backend.execute(model, initialContext);
         }
-        return new OrchestratedDriver<T>().execute(model, initialContext);
+        return resolveDefaultBackend().execute(model, initialContext);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private ExecutionBackend<T> resolveDefaultBackend() {
+        java.util.ServiceLoader<ExecutionBackend> loader =
+            java.util.ServiceLoader.load(ExecutionBackend.class);
+        for (ExecutionBackend<?> candidate : loader) {
+            return (ExecutionBackend<T>) candidate;
+        }
+        return ExecutionBackend.reactive();
     }
 }
