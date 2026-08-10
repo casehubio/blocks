@@ -28,7 +28,8 @@ class SequenceStrategyTest {
         var leaf2 = new PrimitiveTask<String>("l2", Instant.now(), "second", agent(), null, null);
 
         TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
-                new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)), null)));
+                new DecompositionMethod<String>(s -> true,
+                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)), null)));
 
         var decomposerCalled = new AtomicBoolean(false);
         DecompositionStrategy<String> customDecomposer = (node, x) -> {
@@ -53,7 +54,8 @@ class SequenceStrategyTest {
         var leaf2 = new PrimitiveTask<String>("l2", Instant.now(), "second", agent(), null, null);
 
         TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
-                new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)), null)));
+                new DecompositionMethod<String>(s -> true,
+                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)), null)));
 
         var seq = new SequenceStrategy<>(List.<TaskNode<String>>of(leaf1, nestedCompound));
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);

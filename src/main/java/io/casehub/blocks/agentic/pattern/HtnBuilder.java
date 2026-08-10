@@ -1,19 +1,13 @@
 package io.casehub.blocks.agentic.pattern;
 
-import io.casehub.blocks.agentic.AgentRef;
-import io.casehub.blocks.agentic.RoutingCandidate;
-import io.casehub.engine.plan.DagPlan;
 import io.casehub.blocks.agentic.activation.OnExplicitDispatch;
 import io.casehub.blocks.agentic.aggregation.CollectAll;
-import io.casehub.blocks.agentic.decomposition.AgenticDecompositionContext;
 import io.casehub.blocks.agentic.decomposition.StaticDecomposition;
-import io.casehub.engine.plan.TaskNode;
-import io.casehub.blocks.agentic.model.ExecutionModel;
+import io.casehub.blocks.agentic.model.AgentInvoker;
 import io.casehub.blocks.agentic.model.ExecutionResult;
-import io.casehub.blocks.agentic.model.OrchestratedDriver;
 import io.casehub.blocks.agentic.routing.SequentialRouting;
-import io.casehub.blocks.agentic.termination.TerminationCondition;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
+import io.casehub.engine.plan.TaskNode;
 import io.smallrye.mutiny.Uni;
 
 public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
@@ -55,44 +49,13 @@ public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
             throw new IllegalStateException("rootTask must be set before execute()");
         }
 
-        return flatten(rootTask, initialContext)
-                       .map(plan -> {
-                           var sortedNodes = plan.topologicalSort();
-                           var agents = sortedNodes.stream()
-                                                   .map(n -> new RoutingCandidate((AgentRef) n.task().executor(), null))
-                                                   .toList();
+        if (candidateSupplier == null) {
+            candidateSupplier = java.util.List::of;
+        }
 
-                           var localTermination = (TerminationCondition<T>) ctx -> Uni.createFrom().item(
-                                   ctx.iterationCount() >= agents.size()
-                                   ? new TerminationDecision.Complete(ctx.results())
-                                   : TerminationDecision.Continue.INSTANCE);
+        var model    = build();
+        var executor = new HtnExecutor<T>(AgentInvoker.defaultInvoker());
 
-                           var localModel = new ExecutionModel<>(
-                                   routing,
-                                   decomposition,
-                                   activation,
-                                   aggregation,
-                                   localTermination,
-                                   () -> agents,
-                                   failurePolicy,
-                                   listeners,
-                                   task
-                           );
+        return Uni.createFrom().item(() -> executor.execute(rootTask, model, initialContext));}
 
-                           return localModel;
-                       })
-                       .flatMap(localModel -> new OrchestratedDriver<T>().execute(localModel, initialContext));
-    }
-
-    private Uni<DagPlan<TaskNode.LeafTask<T>>> flatten(TaskNode<T> node, T state) {
-        return switch (node) {
-            case TaskNode.LeafTask<T> leaf -> Uni.createFrom().item(DagPlan.singleton(leaf));
-            case TaskNode.CompoundTask<T> compound -> {
-                var agents = candidateSupplier != null
-                             ? candidateSupplier.get() : java.util.List.<io.casehub.blocks.agentic.RoutingCandidate>of();
-                var ctx = new AgenticDecompositionContext<>(state, agents, 0);
-                yield decomposition.decompose(compound, ctx);
-            }
-        };
-    }
 }

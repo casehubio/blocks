@@ -131,8 +131,10 @@ class HeuristicDecompositionTest {
         var topLeaf = new PrimitiveTask<String>("top", Instant.now(), "top", agent("top"), null, null);
 
         var nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
-                new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(expensiveLeaf)), null),
-                new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(cheapLeaf)), null)));
+                new DecompositionMethod<String>(s -> true,
+                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(expensiveLeaf)), null),
+                new DecompositionMethod<String>(s -> true,
+                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(cheapLeaf)), null)));
 
         TaskNode.CompoundTask<String> topCompound = compound("top-level", topLeaf, nestedCompound);
 

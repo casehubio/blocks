@@ -30,7 +30,8 @@ class CompositeHeuristicTest {
     }
 
     private static DecompositionMethod<String> method() {
-        return new DecompositionMethod<>(s -> true, new SequenceStrategy<>(List.of(leaf("x"))), null);
+        return new DecompositionMethod<>(s -> true,
+                new SequenceStrategy<>(List.of(leaf("x"))), null);
     }
 
     @Test

@@ -5,22 +5,38 @@ import java.time.Duration;
 public record FailurePolicy(
         RoutingFailureAction onRoutingFailure,
         AggregationFailureAction onDeadlock,
-        AgentRetryPolicy agentRetry
+        AgentRetryPolicy agentRetry,
+        ReplanPolicy replanPolicy
 ) {
-    public enum RoutingFailureAction { FAIL, RETRY_BROADER, ESCALATE }
-    public enum AggregationFailureAction { FAIL, ESCALATE, RETRY_DIFFERENT }
-    public enum AgentFailureAction { FAIL, ESCALATE, SKIP }
-    public enum BackoffStrategy { FIXED, EXPONENTIAL, EXPONENTIAL_WITH_JITTER }
+    public enum RoutingFailureAction {FAIL, RETRY_BROADER, ESCALATE}
+
+    public enum AggregationFailureAction {FAIL, ESCALATE, RETRY_DIFFERENT}
+
+    public enum AgentFailureAction {FAIL, ESCALATE, SKIP}
+
+    public enum BackoffStrategy {FIXED, EXPONENTIAL, EXPONENTIAL_WITH_JITTER}
 
     public record AgentRetryPolicy(int maxRetries, Duration backoff,
                                    BackoffStrategy backoffStrategy,
                                    AgentFailureAction onExhausted) {}
+
+    public record ReplanPolicy(int maxReplans, RoutingFailureAction fallbackAction) {
+        public ReplanPolicy {
+            if (maxReplans < 1) {throw new IllegalArgumentException("maxReplans must be >= 1");}
+        }
+    }
+
+    public FailurePolicy(RoutingFailureAction onRoutingFailure,
+                         AggregationFailureAction onDeadlock,
+                         AgentRetryPolicy agentRetry) {
+        this(onRoutingFailure, onDeadlock, agentRetry, null);
+    }
 
     public static FailurePolicy defaults() {
         return new FailurePolicy(
                 RoutingFailureAction.FAIL,
                 AggregationFailureAction.FAIL,
                 new AgentRetryPolicy(3, Duration.ofSeconds(1),
-                        BackoffStrategy.FIXED, AgentFailureAction.FAIL));
+                                     BackoffStrategy.FIXED, AgentFailureAction.FAIL));
     }
 }

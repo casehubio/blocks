@@ -46,7 +46,9 @@ public final class Tasks {
     // ── compound factories ──────────────────────────────────────────────────
 
     @SafeVarargs
-    public static <T> TaskNode.CompoundTask<T> compound(String name, DecompositionMethod<T>... methods) {return new TaskNode.CompoundTask<>(generateId(), name, List.of(methods));}
+    public static <T> TaskNode.CompoundTask<T> compound(String name, DecompositionMethod<T>... methods) {
+        return new TaskNode.CompoundTask<>(generateId(), name, List.of(methods));
+    }
 
     @SafeVarargs
     public static <T> TaskNode.CompoundTask<T> compound(String name, TaskNode<T>... children) {

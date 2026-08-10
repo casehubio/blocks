@@ -5,7 +5,11 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static io.casehub.blocks.agentic.FailurePolicy.*;
+import static io.casehub.blocks.agentic.FailurePolicy.AgentFailureAction;
+import static io.casehub.blocks.agentic.FailurePolicy.AgentRetryPolicy;
+import static io.casehub.blocks.agentic.FailurePolicy.AggregationFailureAction;
+import static io.casehub.blocks.agentic.FailurePolicy.BackoffStrategy;
+import static io.casehub.blocks.agentic.FailurePolicy.RoutingFailureAction;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FailurePolicyTest {
@@ -66,4 +70,52 @@ class FailurePolicyTest {
         assertThat(retry.backoffStrategy()).isEqualTo(BackoffStrategy.EXPONENTIAL);
         assertThat(retry.onExhausted()).isEqualTo(AgentFailureAction.ESCALATE);
     }
+
+    @Nested
+    class ReplanPolicyTests {
+        @Test
+        void defaultsHaveNoReplanPolicy() {
+            var policy = FailurePolicy.defaults();
+            assertThat(policy.replanPolicy()).isNull();
+        }
+
+        @Test
+        void replanPolicyConstructsCorrectly() {
+            var replan = new FailurePolicy.ReplanPolicy(3, RoutingFailureAction.FAIL);
+            assertThat(replan.maxReplans()).isEqualTo(3);
+            assertThat(replan.fallbackAction()).isEqualTo(RoutingFailureAction.FAIL);
+        }
+
+        @Test
+        void failurePolicyWithReplanPolicy() {
+            var replan = new FailurePolicy.ReplanPolicy(2, RoutingFailureAction.ESCALATE);
+            var policy = new FailurePolicy(
+                    RoutingFailureAction.FAIL,
+                    AggregationFailureAction.FAIL,
+                    new AgentRetryPolicy(3, Duration.ofSeconds(1),
+                                         BackoffStrategy.FIXED, AgentFailureAction.FAIL),
+                    replan);
+            assertThat(policy.replanPolicy()).isNotNull();
+            assertThat(policy.replanPolicy().maxReplans()).isEqualTo(2);
+            assertThat(policy.replanPolicy().fallbackAction()).isEqualTo(RoutingFailureAction.ESCALATE);
+        }
+
+        @Test
+        void backwardCompatConstructorSetsReplanPolicyNull() {
+            var policy = new FailurePolicy(
+                    RoutingFailureAction.FAIL,
+                    AggregationFailureAction.FAIL,
+                    new AgentRetryPolicy(3, Duration.ofSeconds(1),
+                                         BackoffStrategy.FIXED, AgentFailureAction.FAIL));
+            assertThat(policy.replanPolicy()).isNull();
+        }
+
+        @Test
+        void replanPolicyRejectsZeroMaxReplans() {
+            org.assertj.core.api.Assertions.assertThatThrownBy(
+                       () -> new FailurePolicy.ReplanPolicy(0, RoutingFailureAction.FAIL))
+                                           .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
 }
