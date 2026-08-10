@@ -335,7 +335,7 @@ AI-powered `AgentRoutingStrategy` implementations for the engine's routing pipel
 
 | Class | Type | What it does |
 |-------|------|-------------|
-| `LlmAgentRoutingStrategy` | class (@ApplicationScoped) | Strategy id: `"llm"`. LLM reasoning about which candidate best fits the task. Composable prompt enrichment via `RoutingPromptAssembler`. Trust filtering via `RoutingSupport.applyTrustFilter()`. |
+| `LlmAgentRoutingStrategy` | class (@ApplicationScoped) | Strategy id: `"llm"`. LLM reasoning about which candidate best fits the task. Composable prompt enrichment via `RoutingPromptAssembler` with configurable char budget (`casehub.blocks.routing.llm.prompt-budget-chars`, default: unlimited). Trust filtering via `RoutingSupport.applyTrustFilter()`. |
 | `CbrAgentRoutingStrategy` | class (@ApplicationScoped) | Strategy id: `"cbr"`. Case-based evidence with similarity-weighted scoring via `ExperienceAnalyser.workerSuccessRates()`. Falls back to `AgentGraphQuery.topAgentsByOutcome()`, then `TrustCandidateClassifier.decide`. |
 | `PlanCompositionAnalyser` | class (@ApplicationScoped) | `RoutingSignalProvider` (id: `"plan-composition"`). Scores candidates based on case-level outcomes in multi-step plans (planTrace.size() >= 2). |
 | `PredecessorAnalyser` | class (@ApplicationScoped) | `RoutingSignalProvider` (id: `"predecessor"`). Scores candidates based on immediate predecessor context in historical plan traces. |
