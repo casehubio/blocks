@@ -57,7 +57,7 @@ git -C /Users/mdproctor/claude/casehub/blocks ...           # project artifacts
 | Artifact   | Destination | Notes |
 |------------|-------------|-------|
 | adr        | project     | lands in `docs/adr/` |
-| blog       | project     | lands in docs/blog/ — promoted at work end |
+| blog       | project     | lands in `docs/blog/` — promoted at work end |
 | design     | project     | journal file lives in workspace design/; DESIGN.md merge target is project docs/DESIGN.md |
 | snapshots  | workspace   | |
 | specs      | project     | lands in docs/specs/ |
