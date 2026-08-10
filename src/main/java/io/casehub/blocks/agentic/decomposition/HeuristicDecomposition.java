@@ -81,7 +81,8 @@ public class HeuristicDecomposition<T> implements DecompositionStrategy<T> {
     private DecompositionContext<T> enrichContext(DecompositionContext<T> context) {
         if (context instanceof AgenticDecompositionContext<T> ac) {
             return new AgenticDecompositionContext<>(ac.state(), ac.agents(), ac.depth(),
-                    ac.staticFailureHint(), ac.subtaskDescription(), ac.parentGoal(), ac.siblingNames(), this);
+                    ac.staticFailureHint(), ac.subtaskDescription(), ac.parentGoal(), ac.siblingNames(), this,
+                    ac.planningConstraints());
         }
         return context;
     }

@@ -88,7 +88,7 @@ Nine decomposition strategies with increasing sophistication:
 | Strategy | Approach | Key Internal Detail |
 |----------|----------|---------------------|
 | `IdentityDecomposition` | Pass-through -- wraps single task as-is | Throws on CompoundTask input |
-| `StaticDecomposition` | Pre-defined task breakdown via `DecompositionMethod` | First-match guard evaluation |
+| `StaticDecomposition` | Pre-defined task breakdown via `DecompositionMethod` | First-match guard evaluation; pre-filters methods by `estimatedCost`/`estimatedDuration` against `context.constraints()` |
 | `SequenceStrategy` | Package-private: resolves children sequentially using composed decomposer | Used internally by `Tasks.compound()` and `Tasks.decompose()` |
 | `ForwardReasoningDecomposition` | SHOP-style forward reasoning -- applies `PrimitiveTask.effect()` to projected state | Uses `UnaryOperator<T> stateCopier` to clone state before effect application |
 | `LlmDecomposition` | Recursive multi-level LLM planning via `maxDepth` | Parses JSON: `[{"agent":..., "task":..., "rationale":...}]` for leaves, `{"subtask":..., "description":...}` for compounds |

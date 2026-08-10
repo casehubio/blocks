@@ -41,7 +41,7 @@ class SequenceStrategyTest {
         };
 
         var seq = new SequenceStrategy<>(List.<TaskNode<String>>of(leaf1, nestedCompound));
-        var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null, null, null, null, customDecomposer);
+        var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null, null, null, null, customDecomposer, null);
 
         var plan = seq.decompose(leaf1, ctx).await().indefinitely();
         assertThat(decomposerCalled.get()).isTrue();

@@ -225,7 +225,7 @@ Compositional agentic orchestration framework -- ten sub-packages implementing f
 | `DecompositionHeuristic<T>` | @FunctionalInterface | Scores decomposition methods: `evaluate(CompoundTask, methods, context) -> Uni<List<ScoredMethod>>` |
 | `ScoredMethod<T>` | record | Heuristic output: `method` (DecompositionMethod), `score` (double) |
 | `IdentityDecomposition<T>` | class | Pass-through -- wraps single task as-is |
-| `StaticDecomposition<T>` | class | Pre-defined task breakdown via `DecompositionMethod` guard evaluation |
+| `StaticDecomposition<T>` | class | Pre-defined task breakdown via `DecompositionMethod` guard evaluation; pre-filters methods whose `estimatedCost`/`estimatedDuration` exceed `context.constraints()` before guard evaluation |
 | `ForwardReasoningDecomposition<T>` | class | SHOP-style forward reasoning -- applies `PrimitiveTask.effect()` to projected state copy during planning |
 | `LlmDecomposition<T>` | class | LLM-driven decomposition. Recursive multi-level planning via `maxDepth`. Parses JSON response to create `PlannedTask` or `CompoundTask` nodes. |
 | `HybridDecomposition<T>` | class | Static-first with LLM fallback. Passes `staticFailureHint` from failed static method to LLM context. |
@@ -235,7 +235,7 @@ Compositional agentic orchestration framework -- ten sub-packages implementing f
 | `StructuralCostHeuristic<T>` | class | Structural cost estimation: scores by negative estimated cost. Leaf=1, compound=min of methods, opaque=configurable default. |
 | `CompositeHeuristic<T>` | class | Weighted combination of multiple heuristics with min-max normalisation. Inner type: `WeightedHeuristic<T>(heuristic, weight)`. |
 | `NoMethodMatchedException` | class | Extends `IllegalStateException`. Fields: `taskName`, `methodCount`. Thrown when no decomposition method's guard matches. |
-| `AgenticDecompositionContext<T>` | record | Implements `DecompositionContext<T>`. Fields: `state`, `agents`, `depth`, `staticFailureHint`, `subtaskDescription`, `parentGoal`, `siblingNames`, `decomposer`. |
+| `AgenticDecompositionContext<T>` | record | Implements `DecompositionContext<T>`. Fields: `state`, `agents`, `depth`, `staticFailureHint`, `subtaskDescription`, `parentGoal`, `siblingNames`, `decomposer`, `planningConstraints`. Overrides `constraints()` to return `planningConstraints` (defaults to `unconstrained()` when null). |
 | `GoapDecompositionContext<T>` | record | Implements `DecompositionContext<T>`. Fields: `state`, `agents`, `depth`, `goalTypes`, `availableTypes`. |
 
 #### `agentic.activation` -- Activation SPI

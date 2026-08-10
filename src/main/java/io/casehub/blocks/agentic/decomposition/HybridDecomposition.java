@@ -70,7 +70,8 @@ public class HybridDecomposition<T> implements DecompositionStrategy<T> {
                    + failure.taskName() + "'";
         if (context instanceof AgenticDecompositionContext<T> ac) {
             return new AgenticDecompositionContext<>(ac.state(), ac.agents(), ac.depth(), hint,
-                                                     ac.subtaskDescription(), ac.parentGoal(), ac.siblingNames(), ac.decomposer());
+                                                     ac.subtaskDescription(), ac.parentGoal(), ac.siblingNames(), ac.decomposer(),
+                                                     ac.planningConstraints());
         }
         return context;
     }
