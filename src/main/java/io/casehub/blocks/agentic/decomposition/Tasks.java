@@ -47,13 +47,13 @@ public final class Tasks {
 
     @SafeVarargs
     public static <T> TaskNode.CompoundTask<T> compound(String name, DecompositionMethod<T>... methods) {
-        return new TaskNode.CompoundTask<>(name, List.of(methods));
+        return new TaskNode.CompoundTask<>(generateId(), name, List.of(methods));
     }
 
     @SafeVarargs
     public static <T> TaskNode.CompoundTask<T> compound(String name, TaskNode<T>... children) {
-        return new TaskNode.CompoundTask<>(name, List.of(
-                new DecompositionMethod<>(x -> true, new SequenceStrategy<>(List.of(children)))));
+        return new TaskNode.CompoundTask<>(generateId(), name, List.of(
+                new DecompositionMethod<>(x -> true, new SequenceStrategy<>(List.of(children)), null)));
     }
 
     // ── decomposition method factories ──────────────────────────────────────
@@ -62,14 +62,14 @@ public final class Tasks {
     public static <T> DecompositionMethod<T> decompose(TaskNode.LeafTask<T>... subtasks) {
         var tasks = List.of(subtasks);
         return new DecompositionMethod<>(x -> true,
-                                         (ignored, ctx) -> Uni.createFrom().item(DagPlan.sequence(tasks)));
+                                         (ignored, ctx) -> Uni.createFrom().item(DagPlan.sequence(tasks)), null);
     }
 
     @SafeVarargs
     public static <T> DecompositionMethod<T> decompose(Predicate<T> guard, TaskNode.LeafTask<T>... subtasks) {
         var tasks = List.of(subtasks);
         return new DecompositionMethod<>(guard,
-                                         (ignored, ctx) -> Uni.createFrom().item(DagPlan.sequence(tasks)));
+                                         (ignored, ctx) -> Uni.createFrom().item(DagPlan.sequence(tasks)), null);
     }
 
     // ── internals ───────────────────────────────────────────────────────────

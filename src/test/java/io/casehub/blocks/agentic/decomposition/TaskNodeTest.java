@@ -81,8 +81,8 @@ class TaskNodeTest {
         @Test
         void methodsListIsDefensivelyCopied() {
             var methods = new java.util.ArrayList<DecompositionMethod<String>>();
-            methods.add(new DecompositionMethod<>(s -> true, new IdentityDecomposition<>()));
-            var task = new TaskNode.CompoundTask<>("t", methods);
+            methods.add(new DecompositionMethod<>(s -> true, new IdentityDecomposition<>(), null));
+            var task = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "t", methods);
             methods.clear();
             assertThat(task.methods()).hasSize(1);
         }

@@ -27,7 +27,7 @@ class SequenceStrategyTest {
         var leaf1 = new PrimitiveTask<String>("l1", Instant.now(), "first", agent(), null, null);
         var leaf2 = new PrimitiveTask<String>("l2", Instant.now(), "second", agent(), null, null);
 
-        TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>("nested", List.of(
+        TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
                         (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)))));
 
@@ -53,7 +53,7 @@ class SequenceStrategyTest {
         var leaf1 = new PrimitiveTask<String>("l1", Instant.now(), "first", agent(), null, null);
         var leaf2 = new PrimitiveTask<String>("l2", Instant.now(), "second", agent(), null, null);
 
-        TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>("nested", List.of(
+        TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
                         (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)))));
 

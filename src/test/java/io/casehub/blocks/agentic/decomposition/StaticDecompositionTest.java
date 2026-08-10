@@ -26,7 +26,7 @@ class StaticDecompositionTest {
         var method1 = new DecompositionMethod<String>(s -> s.equals("match"), strategy1);
         var method2 = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>());
 
-        var compound = new TaskNode.CompoundTask<>("root", List.of(method1, method2));
+        var compound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", List.of(method1, method2));
         var decomp   = new StaticDecomposition<String>();
         var ctx      = new AgenticDecompositionContext<>("match", List.of(), 0);
 
@@ -38,7 +38,7 @@ class StaticDecompositionTest {
     @Test
     void throwsWhenNoMethodMatches() {
         var compound = new TaskNode.CompoundTask<String>("root", List.of(
-                new DecompositionMethod<>(s -> false, new IdentityDecomposition<>())));
+                new DecompositionMethod<>(s -> false, new IdentityDecomposition<>(), null)));
         var decomp = new StaticDecomposition<String>();
         var ctx    = new AgenticDecompositionContext<>("state", List.of(), 0);
 

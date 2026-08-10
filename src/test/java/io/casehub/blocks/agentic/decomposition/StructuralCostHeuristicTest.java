@@ -39,7 +39,7 @@ class StructuralCostHeuristicTest {
         var methods = List.of(method1, method2);
         var heuristic = new StructuralCostHeuristic<String>();
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored).hasSize(2);
@@ -63,7 +63,7 @@ class StructuralCostHeuristicTest {
         var methods = List.of(method1, method2);
         var heuristic = new StructuralCostHeuristic<String>();
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored.get(0).score()).isEqualTo(scored.get(1).score());
@@ -79,7 +79,7 @@ class StructuralCostHeuristicTest {
         var methods = List.of(method1, method2);
         var heuristic = new StructuralCostHeuristic<String>(5.0);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         var seqScore = scored.stream().filter(s -> s.method() == method1).findFirst().orElseThrow().score();
@@ -99,7 +99,7 @@ class StructuralCostHeuristicTest {
         var methods = List.of(method1, method2, method3);
         var heuristic = new StructuralCostHeuristic<String>();
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<>("root", methods), methods, ctx())
+                new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
                 .await().indefinitely();
 
         assertThat(scored).hasSize(3);

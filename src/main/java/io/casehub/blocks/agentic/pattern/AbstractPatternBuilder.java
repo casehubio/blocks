@@ -9,7 +9,6 @@ import io.casehub.blocks.agentic.model.ExecutionBackend;
 import io.casehub.blocks.agentic.model.ExecutionEventListener;
 import io.casehub.blocks.agentic.model.ExecutionModel;
 import io.casehub.blocks.agentic.model.ExecutionResult;
-import io.casehub.blocks.agentic.model.OrchestratedDriver;
 import io.casehub.blocks.agentic.model.PatternType;
 import io.casehub.blocks.agentic.routing.RoutingStrategy;
 import io.casehub.blocks.agentic.termination.TerminationCondition;
@@ -63,13 +62,15 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
 
     public B onRoutingFailure(FailurePolicy.RoutingFailureAction action) {
         this.failurePolicy = new FailurePolicy(action,
-                                               failurePolicy.onDeadlock(), failurePolicy.agentRetry());
+                                               failurePolicy.onDeadlock(), failurePolicy.agentRetry(),
+                                               failurePolicy.replanPolicy());
         return (B) this;
     }
 
     public B onDeadlock(FailurePolicy.AggregationFailureAction action) {
         this.failurePolicy = new FailurePolicy(failurePolicy.onRoutingFailure(),
-                                               action, failurePolicy.agentRetry());
+                                               action, failurePolicy.agentRetry(),
+                                               failurePolicy.replanPolicy());
         return (B) this;
     }
 
@@ -79,9 +80,33 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
                                                new FailurePolicy.AgentRetryPolicy(max,
                                                                                   failurePolicy.agentRetry().backoff(),
                                                                                   failurePolicy.agentRetry().backoffStrategy(),
-                                                                                  failurePolicy.agentRetry().onExhausted()));
+                                                                                  failurePolicy.agentRetry().onExhausted()),
+                                               failurePolicy.replanPolicy());
         return (B) this;
     }
+
+    public B maxReplans(int max) {
+        this.failurePolicy = new FailurePolicy(failurePolicy.onRoutingFailure(),
+                                               failurePolicy.onDeadlock(),
+                                               failurePolicy.agentRetry(),
+                                               new FailurePolicy.ReplanPolicy(max,
+                                                                              FailurePolicy.RoutingFailureAction.FAIL));
+        return (B) this;
+    }
+
+    public B replanFallback(FailurePolicy.RoutingFailureAction action) {
+        var existing = failurePolicy.replanPolicy();
+        if (existing == null) {
+            throw new IllegalStateException("Call maxReplans() before replanFallback()");
+        }
+        this.failurePolicy = new FailurePolicy(failurePolicy.onRoutingFailure(),
+                                               failurePolicy.onDeadlock(),
+                                               failurePolicy.agentRetry(),
+                                               new FailurePolicy.ReplanPolicy(
+                                                       existing.maxReplans(), action));
+        return (B) this;
+    }
+
 
     public B listener(ExecutionEventListener listener) {
         this.listeners.add(listener);
