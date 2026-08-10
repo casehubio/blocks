@@ -21,8 +21,8 @@ import io.casehub.api.spi.routing.AgentRoutingStrategy;
 import io.casehub.api.spi.routing.EscalationReason;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingResult;
-import io.casehub.blocks.prompt.SystemPromptCustomiser;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
+import io.casehub.blocks.prompt.SystemPromptCustomiser;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.ledger.routing.TrustCandidateClassifier.ScoredCandidate;
@@ -30,6 +30,7 @@ import io.casehub.platform.agent.AgentProvider;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -49,7 +50,7 @@ import java.util.List;
  * </ul>
  *
  * <h3>Trust classification flow</h3>
- *
+ * <p>
  * When trust services are present, follows the four-phase trust maturity model:
  *
  * <ol>
@@ -64,7 +65,7 @@ import java.util.List;
  * </ol>
  *
  * <h3>LLM invocation</h3>
- *
+ * <p>
  * Delegates to {@link RoutingSupport} for prompt construction, LLM invocation, and response
  * parsing. Returns {@link AgentAssignment.Unresolvable} on LLM failure, unparseable response, or
  * unknown agent selection.
@@ -75,51 +76,55 @@ import java.util.List;
 @ApplicationScoped
 public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
 
-  private static final System.Logger LOG =
-      System.getLogger(LlmAgentRoutingStrategy.class.getName());
+    private static final System.Logger LOG =
+            System.getLogger(LlmAgentRoutingStrategy.class.getName());
 
-  private final @Nullable AgentProvider agentProvider;
-  private final @Nullable TrustCandidateClassifier classifier;
-  private final @Nullable TrustScoreSource scoreSource;
-  private final @Nullable TrustRoutingPolicyProvider policyProvider;
-  private final RoutingPromptAssembler promptAssembler;
-  private final @Nullable SystemPromptCustomiser systemPromptCustomiser;
+    private final @Nullable AgentProvider              agentProvider;
+    private final @Nullable TrustCandidateClassifier   classifier;
+    private final @Nullable TrustScoreSource           scoreSource;
+    private final @Nullable TrustRoutingPolicyProvider policyProvider;
+    private final           RoutingPromptAssembler     promptAssembler;
+    private final @Nullable SystemPromptCustomiser     systemPromptCustomiser;
+    @ConfigProperty(name = "casehub.blocks.routing.llm.prompt-budget-chars", defaultValue = "2147483647")
+    int promptBudgetChars;
 
-  @Inject
-  public LlmAgentRoutingStrategy(
-      final Instance<AgentProvider> agentProvider,
-      final Instance<TrustCandidateClassifier> classifier,
-      final Instance<TrustScoreSource> scoreSource,
-      final Instance<TrustRoutingPolicyProvider> policyProvider,
-      final RoutingPromptAssembler promptAssembler,
-      final Instance<SystemPromptCustomiser> systemPromptCustomiser) {
-    this.agentProvider = agentProvider.isUnsatisfied() ? null : agentProvider.get();
-    this.classifier = classifier.isUnsatisfied() ? null : classifier.get();
-    this.scoreSource = scoreSource.isUnsatisfied() ? null : scoreSource.get();
-    this.policyProvider = policyProvider.isUnsatisfied() ? null : policyProvider.get();
-    this.promptAssembler = promptAssembler;
-    this.systemPromptCustomiser = systemPromptCustomiser.isUnsatisfied() ? null : systemPromptCustomiser.get();
-  }
 
-  public LlmAgentRoutingStrategy(
-      final @Nullable AgentProvider agentProvider,
-      final @Nullable TrustCandidateClassifier classifier,
-      final @Nullable TrustScoreSource scoreSource,
-      final @Nullable TrustRoutingPolicyProvider policyProvider,
-      final RoutingPromptAssembler promptAssembler,
-      final @Nullable SystemPromptCustomiser systemPromptCustomiser) {
-    this.agentProvider = agentProvider;
-    this.classifier = classifier;
-    this.scoreSource = scoreSource;
-    this.policyProvider = policyProvider;
-    this.promptAssembler = promptAssembler;
-    this.systemPromptCustomiser = systemPromptCustomiser;
-  }
+    @Inject
+    public LlmAgentRoutingStrategy(
+            final Instance<AgentProvider> agentProvider,
+            final Instance<TrustCandidateClassifier> classifier,
+            final Instance<TrustScoreSource> scoreSource,
+            final Instance<TrustRoutingPolicyProvider> policyProvider,
+            final RoutingPromptAssembler promptAssembler,
+            final Instance<SystemPromptCustomiser> systemPromptCustomiser) {
+        this.agentProvider          = agentProvider.isUnsatisfied() ? null : agentProvider.get();
+        this.classifier             = classifier.isUnsatisfied() ? null : classifier.get();
+        this.scoreSource            = scoreSource.isUnsatisfied() ? null : scoreSource.get();
+        this.policyProvider         = policyProvider.isUnsatisfied() ? null : policyProvider.get();
+        this.promptAssembler        = promptAssembler;
+        this.systemPromptCustomiser = systemPromptCustomiser.isUnsatisfied() ? null : systemPromptCustomiser.get();
+    }
 
-  @Override
-  public String id() {
-    return "llm";
-  }
+    public LlmAgentRoutingStrategy(
+            final @Nullable AgentProvider agentProvider,
+            final @Nullable TrustCandidateClassifier classifier,
+            final @Nullable TrustScoreSource scoreSource,
+            final @Nullable TrustRoutingPolicyProvider policyProvider,
+            final RoutingPromptAssembler promptAssembler,
+            final @Nullable SystemPromptCustomiser systemPromptCustomiser) {
+        this.agentProvider          = agentProvider;
+        this.classifier             = classifier;
+        this.scoreSource            = scoreSource;
+        this.policyProvider         = policyProvider;
+        this.promptAssembler        = promptAssembler;
+        this.systemPromptCustomiser = systemPromptCustomiser;
+        this.promptBudgetChars      = Integer.MAX_VALUE;
+    }
+
+    @Override
+    public String id() {
+        return "llm";
+    }
 
     @Override
     public RoutingResult select(
@@ -134,60 +139,60 @@ public class LlmAgentRoutingStrategy implements AgentRoutingStrategy {
         return doSelect(context, candidates);
     }
 
-  private RoutingResult doSelect(
-          final AgentRoutingContext context, final List<AgentCandidate> candidates) {
-    final var trustOutcome = RoutingSupport.applyTrustFilter(
-            classifier, scoreSource, policyProvider, context, candidates);
+    private RoutingResult doSelect(
+            final AgentRoutingContext context, final List<AgentCandidate> candidates) {
+        final var trustOutcome = RoutingSupport.applyTrustFilter(
+                classifier, scoreSource, policyProvider, context, candidates);
 
-    if (trustOutcome instanceof RoutingSupport.TrustFilterOutcome.Decided decided) {
-      return decided.assignment();
+        if (trustOutcome instanceof RoutingSupport.TrustFilterOutcome.Decided decided) {
+            return decided.assignment();
+        }
+
+        final var proceed  = (RoutingSupport.TrustFilterOutcome.Proceed) trustOutcome;
+        final var eligible = proceed.eligible();
+
+        // NullNode case context filtering — avoid sending "null" as context to the LLM
+        final String caseContextSummary = context.caseContext() != null
+                                          && !context.caseContext().isNull()
+                                          ? context.caseContext().toString()
+                                          : null;
+        String prompt =
+                RoutingSupport.buildUserPrompt(context.capabilityName(), caseContextSummary, eligible);
+
+        final String enrichment = promptAssembler.assemble(context, eligible, promptBudgetChars);
+        if (enrichment != null) {
+            prompt = prompt + "\n\n" + enrichment;
+        }
+
+        final String systemPrompt = systemPromptCustomiser != null
+                                    ? systemPromptCustomiser.customise(RoutingSupport.SYSTEM_PROMPT, "llm-routing", "control")
+                                    : RoutingSupport.SYSTEM_PROMPT;
+        final String response =
+                RoutingSupport.invokeAndCollect(agentProvider, systemPrompt, prompt);
+
+        if (response == null) {
+            if (proceed.classified() != null) {
+                final var scored = proceed.classified().stream()
+                                          .map(c -> new ScoredCandidate(c, 0.0, "LLM invocation failed"))
+                                          .toList();
+                return classifier.decide(proceed.classified(), scored, context.capabilityName());
+            }
+            return RoutingResult.unresolvable("LLM invocation failed or returned no response");
+        }
+
+        final String workerId = RoutingSupport.parseSelection(response, eligible);
+        if (workerId == null) {
+            if (proceed.classified() != null) {
+                final var scored = proceed.classified().stream()
+                                          .map(c -> new ScoredCandidate(c, 0.0, "LLM response unparseable"))
+                                          .toList();
+                return classifier.decide(proceed.classified(), scored, context.capabilityName());
+            }
+            return RoutingResult.unresolvable(
+                    "LLM response unparseable or selected unknown agent: " + response);
+        }
+
+        return RoutingResult.assigned(
+                workerId, "LLM selected from %d candidates".formatted(eligible.size()));
     }
-
-    final var proceed  = (RoutingSupport.TrustFilterOutcome.Proceed) trustOutcome;
-    final var eligible = proceed.eligible();
-
-    // NullNode case context filtering — avoid sending "null" as context to the LLM
-    final String caseContextSummary = context.caseContext() != null
-                                      && !context.caseContext().isNull()
-                                      ? context.caseContext().toString()
-                                      : null;
-    String prompt =
-            RoutingSupport.buildUserPrompt(context.capabilityName(), caseContextSummary, eligible);
-
-    final String enrichment = promptAssembler.assemble(context, eligible);
-    if (enrichment != null) {
-      prompt = prompt + "\n\n" + enrichment;
-    }
-
-    final String systemPrompt = systemPromptCustomiser != null
-            ? systemPromptCustomiser.customise(RoutingSupport.SYSTEM_PROMPT, "llm-routing", "control")
-            : RoutingSupport.SYSTEM_PROMPT;
-    final String response =
-            RoutingSupport.invokeAndCollect(agentProvider, systemPrompt, prompt);
-
-    if (response == null) {
-      if (proceed.classified() != null) {
-        final var scored = proceed.classified().stream()
-                                  .map(c -> new ScoredCandidate(c, 0.0, "LLM invocation failed"))
-                                  .toList();
-        return classifier.decide(proceed.classified(), scored, context.capabilityName());
-      }
-      return RoutingResult.unresolvable("LLM invocation failed or returned no response");
-    }
-
-    final String workerId = RoutingSupport.parseSelection(response, eligible);
-    if (workerId == null) {
-      if (proceed.classified() != null) {
-        final var scored = proceed.classified().stream()
-                                  .map(c -> new ScoredCandidate(c, 0.0, "LLM response unparseable"))
-                                  .toList();
-        return classifier.decide(proceed.classified(), scored, context.capabilityName());
-      }
-      return RoutingResult.unresolvable(
-              "LLM response unparseable or selected unknown agent: " + response);
-    }
-
-    return RoutingResult.assigned(
-            workerId, "LLM selected from %d candidates".formatted(eligible.size()));
-  }
 }

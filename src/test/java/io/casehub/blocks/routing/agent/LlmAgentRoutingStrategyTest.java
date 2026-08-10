@@ -34,6 +34,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -367,7 +368,7 @@ class LlmAgentRoutingStrategyTest {
         @Test
         void assemblerOutputAppendedToPrompt() {
             var assembler = mock(RoutingPromptAssembler.class);
-            when(assembler.assemble(any(), any())).thenReturn("Historical context: 3 cases");
+            when(assembler.assemble(any(), any(), anyInt())).thenReturn("Historical context: 3 cases");
             agentReturns("{\"agent\": \"agent-a\", \"reason\": \"best\"}");
 
             var strategy = new LlmAgentRoutingStrategy(
@@ -388,7 +389,7 @@ class LlmAgentRoutingStrategyTest {
         @Test
         void assemblerReturnsNull_promptUnchanged() {
             var assembler = mock(RoutingPromptAssembler.class);
-            when(assembler.assemble(any(), any())).thenReturn(null);
+            when(assembler.assemble(any(), any(), anyInt())).thenReturn(null);
             agentReturns("{\"agent\": \"agent-a\", \"reason\": \"best\"}");
 
             var strategy = new LlmAgentRoutingStrategy(
