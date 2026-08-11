@@ -8,7 +8,7 @@ import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,29 +41,27 @@ public class LlmDecompositionHeuristic<T> implements DecompositionHeuristic<T> {
     }
 
     @Override
-    public Uni<List<ScoredMethod<T>>> evaluate(TaskNode.CompoundTask<T> task,
-                                                List<DecompositionMethod<T>> methods,
-                                                DecompositionContext<T> context) {
-        return Uni.createFrom().item(() -> {
-            try {
-                var prompt = buildPrompt(task, methods, context);
-                var config = AgentSessionConfig.of(SYSTEM_PROMPT, prompt);
+    public List<ScoredMethod<T>> evaluate(TaskNode.CompoundTask<T> task,
+                                           List<DecompositionMethod<T>> methods,
+                                           DecompositionContext<T> context) {
+        try {
+            var prompt = buildPrompt(task, methods, context);
+            var config = AgentSessionConfig.of(SYSTEM_PROMPT, prompt);
 
-                var text = agentProvider.invoke(config)
-                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                        .collect().with(Collectors.joining())
-                        .await().indefinitely();
+            var text = agentProvider.invoke(config)
+                    .filter(e -> e instanceof AgentEvent.TextDelta)
+                    .map(e -> ((AgentEvent.TextDelta) e).text())
+                    .collect().with(Collectors.joining())
+                    .await().indefinitely();
 
-                return parseResponse(text, methods);
-            } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING,
-                        "LLM heuristic evaluation failed — falling back to equal scores", e);
-                return methods.stream()
-                        .map(m -> new ScoredMethod<>(m, 0.0))
-                        .toList();
-            }
-        });
+            return parseResponse(text, methods);
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING,
+                    "LLM heuristic evaluation failed — falling back to equal scores", e);
+            return methods.stream()
+                    .map(m -> new ScoredMethod<>(m, 0.0))
+                    .toList();
+        }
     }
 
     private String buildPrompt(TaskNode.CompoundTask<T> task,

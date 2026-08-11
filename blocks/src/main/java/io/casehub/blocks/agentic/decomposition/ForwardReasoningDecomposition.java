@@ -5,7 +5,7 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,11 +29,11 @@ public class ForwardReasoningDecomposition<T> implements DecompositionStrategy<T
     }
 
     @Override
-    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> task, DecompositionContext<T> ctx) {
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task, DecompositionContext<T> ctx) {
         T projected = stateCopier.apply(ctx.state());
         List<TaskNode.LeafTask<T>> result = new ArrayList<>();
         expand(task, projected, result);
-        return Uni.createFrom().item(DagPlan.sequence(result));
+        return DagPlan.sequence(result);
     }
 
     private void expand(TaskNode<T> node, T state, List<TaskNode.LeafTask<T>> result) {
@@ -62,7 +62,7 @@ public class ForwardReasoningDecomposition<T> implements DecompositionStrategy<T
             }
         } else {
             var ctx = new AgenticDecompositionContext<>(state, List.of(), 0);
-            var plan = method.strategy().decompose(ct, ctx).await().indefinitely();
+            var plan = method.strategy().decompose(ct, ctx);
             for (var dagNode : plan.topologicalSort()) {
                 result.add(dagNode.task());
                 if (dagNode.task() instanceof PrimitiveTask<T> pt && pt.effect() != null) {

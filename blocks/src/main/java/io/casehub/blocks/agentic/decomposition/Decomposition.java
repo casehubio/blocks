@@ -69,8 +69,7 @@ public final class Decomposition {
         var leafTasks = java.util.Arrays.stream(tasks)
                                         .map(t -> (TaskNode.LeafTask<T>) t)
                                         .toList();
-        return (compound, ctx) -> io.smallrye.mutiny.Uni.createFrom()
-                                                        .item(DagPlan.sequence(leafTasks));
+        return (compound, ctx) -> DagPlan.sequence(leafTasks);
     }
 
     public static <T> PrimitiveTask<T> primitive(AgentRef agent) {

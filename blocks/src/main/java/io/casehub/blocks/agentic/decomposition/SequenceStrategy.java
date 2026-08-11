@@ -4,8 +4,7 @@ import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
-
+import java.util.ArrayList;
 import java.util.List;
 
 final class SequenceStrategy<T> implements DecompositionStrategy<T> {
@@ -21,23 +20,22 @@ final class SequenceStrategy<T> implements DecompositionStrategy<T> {
     }
 
     @Override
-    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> ignored, DecompositionContext<T> ctx) {
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> ignored, DecompositionContext<T> ctx) {
         DecompositionStrategy<T> decomposer =
                 (ctx instanceof AgenticDecompositionContext<T> adc && adc.decomposer() != null)
                 ? adc.decomposer() : new StaticDecomposition<>();
-        Uni<DagPlan<TaskNode.LeafTask<T>>> result = resolvePlan(children.get(0), decomposer, ctx);
-        for (int i = 1; i < children.size(); i++) {
-            var sub = children.get(i);
-            result = result.flatMap(prev ->
-                                            resolvePlan(sub, decomposer, ctx)
-                                                    .map(next -> DagPlan.sequentialMerge(List.of(prev, next))));
+        
+        var plans = new ArrayList<DagPlan<TaskNode.LeafTask<T>>>();
+        for (var child : children) {
+            plans.add(resolvePlan(child, decomposer, ctx));
         }
-        return result;}
+        return DagPlan.sequentialMerge(plans);
+    }
 
-    private static <T> Uni<DagPlan<TaskNode.LeafTask<T>>> resolvePlan(
+    private static <T> DagPlan<TaskNode.LeafTask<T>> resolvePlan(
             TaskNode<T> node, DecompositionStrategy<T> decomposer, DecompositionContext<T> ctx) {
         if (node instanceof TaskNode.LeafTask<T> leaf) {
-            return Uni.createFrom().item(DagPlan.singleton(leaf));
+            return DagPlan.singleton(leaf);
         }
         return decomposer.decompose(node, ctx);
     }

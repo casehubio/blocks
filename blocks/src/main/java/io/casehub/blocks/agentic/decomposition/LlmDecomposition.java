@@ -15,7 +15,7 @@ import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
-import io.smallrye.mutiny.Uni;
+
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -111,37 +111,34 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
     }
 
     @Override
-    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> compound,
-                                                        DecompositionContext<T> context) {
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> compound,
+                                                   DecompositionContext<T> context) {
         if (!(compound instanceof TaskNode.CompoundTask<T> goal)) {
             if (compound instanceof TaskNode.LeafTask<T> leaf) {
-                return Uni.createFrom().item(DagPlan.singleton(leaf));
+                return DagPlan.singleton(leaf);
             }
-            return Uni.createFrom().failure(
-                    new IllegalStateException("Unexpected TaskNode type: " + compound.getClass()));
+            throw new IllegalStateException("Unexpected TaskNode type: " + compound.getClass());
         }
 
         var agenticCtx = (AgenticDecompositionContext<T>) context;
-        return Uni.createFrom().item(() -> {
-            try {
-                var systemPrompt = selectSystemPrompt(agenticCtx.depth());
-                var userPrompt   = buildUserPrompt(goal, agenticCtx);
-                var config       = AgentSessionConfig.of(systemPrompt, userPrompt);
+        try {
+            var systemPrompt = selectSystemPrompt(agenticCtx.depth());
+            var userPrompt   = buildUserPrompt(goal, agenticCtx);
+            var config       = AgentSessionConfig.of(systemPrompt, userPrompt);
 
-                var text = agentProvider.invoke(config)
-                                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                                        .collect().with(Collectors.joining())
-                                        .await().indefinitely();
+            var text = agentProvider.invoke(config)
+                                    .filter(e -> e instanceof AgentEvent.TextDelta)
+                                    .map(e -> ((AgentEvent.TextDelta) e).text())
+                                    .collect().with(Collectors.joining())
+                                    .await().indefinitely();
 
-                return resolveEntries(text, goal.name(), agenticCtx);
-            } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING,
-                        "LLM decomposition failed for ''{0}'' at depth {1}",
-                        goal.name(), agenticCtx.depth());
-                throw e;
-            }
-        });
+            return resolveEntries(text, goal.name(), agenticCtx);
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING,
+                    "LLM decomposition failed for ''{0}'' at depth {1}",
+                    goal.name(), agenticCtx.depth());
+            throw e;
+        }
     }
 
     private String selectSystemPrompt(int currentDepth) {
@@ -295,7 +292,7 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
                 description, taskName, siblingNames, null,
                 ctx.planningConstraints());
 
-        return this.decompose(subCompound, subCtx).await().indefinitely();
+        return this.decompose(subCompound, subCtx);
     }
 
     private static List<String> collectEntryNames(JsonNode root) {

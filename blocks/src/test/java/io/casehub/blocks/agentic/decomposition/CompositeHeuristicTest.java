@@ -41,12 +41,12 @@ class CompositeHeuristicTest {
         var methods = List.of(m1, m2);
 
         DecompositionHeuristic<String> costBased = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(ms.get(0), -3.0),
                         new ScoredMethod<>(ms.get(1), -1.0)));
 
         DecompositionHeuristic<String> llmBased = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(ms.get(0), 0.2),
                         new ScoredMethod<>(ms.get(1), 0.8)));
 
@@ -56,7 +56,7 @@ class CompositeHeuristicTest {
 
         var scored = composite.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
-                .await().indefinitely();
+                ;
 
         assertThat(scored).hasSize(2);
         var m1Score = scored.stream().filter(s -> s.method() == m1).findFirst().orElseThrow().score();
@@ -71,12 +71,12 @@ class CompositeHeuristicTest {
         var methods = List.of(m1, m2);
 
         DecompositionHeuristic<String> flat = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(ms.get(0), 5.0),
                         new ScoredMethod<>(ms.get(1), 5.0)));
 
         DecompositionHeuristic<String> varied = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(ms.get(0), 0.2),
                         new ScoredMethod<>(ms.get(1), 0.8)));
 
@@ -86,7 +86,7 @@ class CompositeHeuristicTest {
 
         var scored = composite.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
-                .await().indefinitely();
+                ;
 
         var m1Score = scored.stream().filter(s -> s.method() == m1).findFirst().orElseThrow().score();
         var m2Score = scored.stream().filter(s -> s.method() == m2).findFirst().orElseThrow().score();
@@ -102,12 +102,12 @@ class CompositeHeuristicTest {
         var methods = List.of(m1, m2);
 
         DecompositionHeuristic<String> prefersM1 = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(ms.get(0), 1.0),
                         new ScoredMethod<>(ms.get(1), 0.0)));
 
         DecompositionHeuristic<String> prefersM2 = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(ms.get(0), 0.0),
                         new ScoredMethod<>(ms.get(1), 1.0)));
 
@@ -117,7 +117,7 @@ class CompositeHeuristicTest {
 
         var scored = composite.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
-                .await().indefinitely();
+                ;
 
         var m1Score = scored.stream().filter(s -> s.method() == m1).findFirst().orElseThrow().score();
         var m2Score = scored.stream().filter(s -> s.method() == m2).findFirst().orElseThrow().score();
@@ -129,14 +129,14 @@ class CompositeHeuristicTest {
         var methods = List.of(method(), method());
 
         DecompositionHeuristic<String> broken = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(new ScoredMethod<>(ms.get(0), 1.0)));
+                (List.of(new ScoredMethod<>(ms.get(0), 1.0)));
 
         var composite = new CompositeHeuristic<>(List.of(
                 new CompositeHeuristic.WeightedHeuristic<>(broken, 1.0)));
 
         assertThatThrownBy(() -> composite.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
-                .await().indefinitely())
+                )
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("completeness contract");
     }
@@ -147,14 +147,14 @@ class CompositeHeuristicTest {
         var methods = List.of(m1);
 
         DecompositionHeuristic<String> single = (task, ms, ctx) ->
-                Uni.createFrom().item(List.of(new ScoredMethod<>(ms.get(0), 0.7)));
+                (List.of(new ScoredMethod<>(ms.get(0), 0.7)));
 
         var composite = new CompositeHeuristic<>(List.of(
                 new CompositeHeuristic.WeightedHeuristic<>(single, 1.0)));
 
         var scored = composite.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx())
-                .await().indefinitely();
+                ;
 
         assertThat(scored).hasSize(1);
         assertThat(scored.get(0).score()).isEqualTo(0.5);

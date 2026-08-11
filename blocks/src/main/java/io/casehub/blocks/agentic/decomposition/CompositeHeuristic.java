@@ -3,7 +3,7 @@ package io.casehub.blocks.agentic.decomposition;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,26 +27,22 @@ public class CompositeHeuristic<T> implements DecompositionHeuristic<T> {
     }
 
     @Override
-    public Uni<List<ScoredMethod<T>>> evaluate(TaskNode.CompoundTask<T> task,
-                                                List<DecompositionMethod<T>> methods,
-                                                DecompositionContext<T> context) {
-        Uni<List<List<ScoredMethod<T>>>> allResults = Uni.createFrom().item(new ArrayList<>());
+    public List<ScoredMethod<T>> evaluate(TaskNode.CompoundTask<T> task,
+                                           List<DecompositionMethod<T>> methods,
+                                           DecompositionContext<T> context) {
+        var allResults = new ArrayList<List<ScoredMethod<T>>>();
 
         for (var delegate : delegates) {
-            allResults = allResults.flatMap(acc ->
-                    delegate.heuristic().evaluate(task, methods, context)
-                            .map(scored -> {
-                                if (scored.size() != methods.size()) {
-                                    throw new IllegalStateException(
-                                            "Heuristic returned " + scored.size() + " scores for "
-                                            + methods.size() + " methods — completeness contract violated");
-                                }
-                                acc.add(scored);
-                                return acc;
-                            }));
+            var scored = delegate.heuristic().evaluate(task, methods, context);
+            if (scored.size() != methods.size()) {
+                throw new IllegalStateException(
+                        "Heuristic returned " + scored.size() + " scores for "
+                        + methods.size() + " methods — completeness contract violated");
+            }
+            allResults.add(scored);
         }
 
-        return allResults.map(results -> combine(methods, results));
+        return combine(methods, allResults);
     }
 
     private List<ScoredMethod<T>> combine(List<DecompositionMethod<T>> methods,
