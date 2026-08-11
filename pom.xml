@@ -10,145 +10,17 @@
     <version>0.2-SNAPSHOT</version>
   </parent>
 
-  <artifactId>casehub-blocks</artifactId>
-  <packaging>jar</packaging>
+  <artifactId>casehub-blocks-parent</artifactId>
+  <packaging>pom</packaging>
 
-  <name>casehub-blocks</name>
-  <description>Reusable building blocks for CaseHub applications</description>
+  <name>casehub-blocks-parent</name>
+  <description>Parent POM for CaseHub Blocks modules</description>
   <url>https://github.com/casehubio/blocks</url>
 
-  <dependencies>
-    <!-- Compile — foundation SPIs -->
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-qhorus-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-work-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-work-progress-api</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-engine-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-eidos-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-worker-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.jspecify</groupId>
-      <artifactId>jspecify</artifactId>
-      <version>1.0.0</version>
-    </dependency>
-
-    <!-- Provided — reactive types -->
-    <dependency>
-      <groupId>io.smallrye.reactive</groupId>
-      <artifactId>mutiny</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Provided — preference system (consumer brings the runtime) -->
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-platform-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Provided — LLM abstraction (consumer brings the AgentProvider implementation) -->
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-platform-agent-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Provided — trust routing and CBR support -->
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-engine-ledger</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-ledger-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-neocortex-memory-api</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Provided — OTel metrics instrumentation (consumer brings the SDK) -->
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-api</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Test — foundation runtimes -->
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-qhorus</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-qhorus-testing</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-engine</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-engine-testing</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.opentelemetry</groupId>
-      <artifactId>opentelemetry-sdk-testing</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
+  <modules>
+    <module>blocks</module>
+    <module>engine-adapter</module>
+  </modules>
 
   <repositories>
     <repository>
