@@ -197,7 +197,7 @@ class PatternWorkerFunctionHandlerTest {
             leaf);
 
     io.casehub.engine.plan.DecompositionStrategy<Object> decomposition =
-        (task, ctx) -> io.smallrye.mutiny.Uni.createFrom().item(plan);
+        (task, ctx) -> plan;
 
     var rootTask = new io.casehub.engine.plan.TaskNode.CompoundTask<>("goal", java.util.List.of());
     var model =
@@ -245,22 +245,20 @@ class PatternWorkerFunctionHandlerTest {
     io.casehub.engine.plan.DecompositionStrategy<Object> decomposition =
         new io.casehub.engine.plan.DecompositionStrategy<>() {
           @Override
-          public io.smallrye.mutiny.Uni<
-                  io.casehub.engine.plan.DagPlan<io.casehub.engine.plan.TaskNode.LeafTask<Object>>>
+          public io.casehub.engine.plan.DagPlan<io.casehub.engine.plan.TaskNode.LeafTask<Object>>
               decompose(
                   io.casehub.engine.plan.TaskNode<Object> task,
                   io.casehub.engine.plan.DecompositionContext<Object> ctx) {
-            return io.smallrye.mutiny.Uni.createFrom().item(originalPlan);
+            return originalPlan;
           }
 
           @Override
-          public io.smallrye.mutiny.Uni<
-                  io.casehub.engine.plan.DagPlan<io.casehub.engine.plan.TaskNode.LeafTask<Object>>>
+          public io.casehub.engine.plan.DagPlan<io.casehub.engine.plan.TaskNode.LeafTask<Object>>
               replan(
                   io.casehub.engine.plan.TaskNode<Object> task,
                   io.casehub.engine.plan.DecompositionContext<Object> ctx,
                   io.casehub.engine.plan.ReplanContext<Object> replanCtx) {
-            return io.smallrye.mutiny.Uni.createFrom().item(revisedPlan);
+            return revisedPlan;
           }
         };
 
