@@ -7,12 +7,14 @@ public interface ExecutionBackend<T> {
 
     Uni<ExecutionResult> execute(ExecutionModel<T> model, T initialContext);
 
+    default void cancel() {}
+
     static <T> ExecutionBackend<T> reactive() {
-        return (model, ctx) -> new OrchestratedDriver<T>().execute(model, ctx);
+        return new CancellableBackend<>(new OrchestratedDriver<>());
     }
 
     static <T> ExecutionBackend<T> reactive(AgentInvoker<T> invoker) {
-        return (model, ctx) -> new OrchestratedDriver<>(invoker).execute(model, ctx);
+        return new CancellableBackend<>(new OrchestratedDriver<>(invoker));
     }
 
     @Deprecated

@@ -75,4 +75,47 @@ class ExecutionBackendTest {
 
         assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
     }
+
+    @Test
+    void cancelDefaultIsNoOp() {
+        ExecutionBackend<Object> backend = (model, ctx) ->
+                                                   io.smallrye.mutiny.Uni.createFrom().item(new ExecutionResult.Completed("ok"));
+        backend.cancel();
+    }
+
+    @Test
+    void reactiveBackendCancelStopsExecution() {
+        var invokeCount = new AtomicInteger(0);
+        var agent = AgentRef.external("pacer", (Object ctx) -> {
+            invokeCount.incrementAndGet();
+            var future = new CompletableFuture<AgentResult>();
+            new Thread(() -> {
+                try {Thread.sleep(100);} catch (InterruptedException ignored) {}
+                future.complete(AgentResult.success(null, "done"));
+            }).start();
+            return future;
+        });
+
+        var model = new ExecutionModel<>(
+                new FirstMatchRouting<>(c -> true),
+                new IdentityDecomposition<>(),
+                new OnExplicitDispatch<>(),
+                new PassThrough<>(),
+                new MaxIterationsTermination<>(100),
+                () -> List.of(new RoutingCandidate(agent, null)),
+                io.casehub.blocks.agentic.FailurePolicy.defaults(),
+                List.of(), "test", null);
+
+        ExecutionBackend<Object> backend = ExecutionBackend.reactive();
+        var future = CompletableFuture.supplyAsync(() ->
+                                                           backend.execute(model, "input").await().indefinitely());
+
+        try {Thread.sleep(500);} catch (InterruptedException ignored) {}
+        backend.cancel();
+
+        var result = future.join();
+        assertThat(result).isInstanceOf(ExecutionResult.Cancelled.class);
+        assertThat(invokeCount.get()).isGreaterThan(0).isLessThan(100);
+    }
+
 }

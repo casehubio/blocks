@@ -289,7 +289,7 @@ Compositional agentic orchestration framework -- ten sub-packages implementing f
 | `ExecutionState` | sealed interface | Seven states: `Idle`, `Running(iteration)`, `WaitingForAgent(agent)`, `WaitingForEvent`, `Complete`, `Faulted`, `Cancelled` |
 | `ExecutionEventListener` | interface | Callback SPI with default no-ops: `onRoutingDecision()`, `onActivation()`, `onAgentDispatched()`, `onAgentResult()`, `onAggregation()`, `onTermination()`, `onStateTransition()`, `onFailure()`, `onExecutionStart()`, `onExecutionComplete()`. Static method: `agentName(AgentRef)`. |
 | `AgentInvoker<T>` | @FunctionalInterface | Agent dispatch: `invoke(AgentRef, T) -> Uni<AgentResult>`. Default: `withFallback(AgentInvoker)`. Static `defaultInvoker()` handles ExternalAgent/ComposedAgent, returns failure for others. |
-| `ExecutionBackend<T>` | @FunctionalInterface | Top-level entry: `execute(ExecutionModel<T>, T) -> Uni<ExecutionResult>`. Static: `orchestrated()`, `orchestrated(AgentInvoker)`. |
+| `ExecutionBackend<T>` | @FunctionalInterface | Top-level entry: `execute(ExecutionModel<T>, T) -> Uni<ExecutionResult>`, `cancel()` (default no-op). Static: `reactive()`, `reactive(AgentInvoker)` — return `CancellableBackend` wrapping `OrchestratedDriver`. |
 | `OrchestratedDriver<T>` | class | Imperative while-loop execution driver |
 | `ChoreographedDriver<T>` | class | Event-reactive execution driver |
 | `PatternType` | enum | `SEQUENCE`, `PARALLEL`, `LOOP`, `CONDITIONAL`, `SUPERVISOR`, `DEBATE`, `VOTING`, `HTN`. Method: `isWorkflowShaped()` (true for first four). |

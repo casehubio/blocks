@@ -25,7 +25,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class BarrierStrategyTest {
 
@@ -67,6 +70,37 @@ class BarrierStrategyTest {
         assertThat(captor.getValue().sender()).isEqualTo("barrier-agent");
         assertThat(captor.getValue().channelId()).isEqualTo(binding.channelId());
     }
+
+    @Test
+    void timeoutProducesTimeoutResultForSlowAgent() {
+        var dispatcher = mock(MessageDispatcher.class);
+        var slow = AgentRef.external("slow", (Object ctx) -> {
+            var future = new CompletableFuture<AgentResult>();
+            new Thread(() -> {
+                try {Thread.sleep(5000);} catch (InterruptedException ignored) {}
+                future.complete(AgentResult.success(null, "late"));
+            }).start();
+            return future;
+        });
+        var fast = AgentRef.external("fast", (Object ctx) ->
+                                                     CompletableFuture.completedFuture(AgentResult.success(null, "ok")));
+
+        var strategy = new ChannelExecutionStrategy.Barrier<String>(
+                AgentInvoker.defaultInvoker(), resultToDispatchBuilder(),
+                java.time.Duration.ofMillis(100));
+        var binding = new ChannelBinding(UUID.randomUUID(), ChannelSemantic.BARRIER);
+        var model   = buildModel(slow, fast);
+
+        var result = (ExecutionResult.Completed) strategy.run(binding, model, "go", dispatcher)
+                                                         .await().indefinitely();
+
+        @SuppressWarnings("unchecked")
+        var results = (List<AgentResult>) result.result();
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).status()).isEqualTo(AgentResult.AgentResultStatus.TIMEOUT);
+        assertThat(results.get(1).status()).isEqualTo(AgentResult.AgentResultStatus.SUCCESS);
+    }
+
 
     private static Function<AgentResult, MessageDispatch.Builder> resultToDispatchBuilder() {
         return result -> MessageDispatch.builder()
