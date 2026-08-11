@@ -29,7 +29,7 @@ class SequenceStrategyTest {
 
         TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
-                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)), null)));
+                        (c, x) -> (DagPlan.singleton(leaf2)), null)));
 
         var decomposerCalled = new AtomicBoolean(false);
         DecompositionStrategy<String> customDecomposer = (node, x) -> {
@@ -37,13 +37,13 @@ class SequenceStrategyTest {
                 decomposerCalled.set(true);
                 return ct.methods().get(0).strategy().decompose(ct, x);
             }
-            return Uni.createFrom().item(DagPlan.singleton((TaskNode.LeafTask<String>) node));
+            return (DagPlan.singleton((TaskNode.LeafTask<String>) node));
         };
 
         var seq = new SequenceStrategy<>(List.<TaskNode<String>>of(leaf1, nestedCompound));
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null, null, null, null, customDecomposer, null);
 
-        var plan = seq.decompose(leaf1, ctx).await().indefinitely();
+        var plan = seq.decompose(leaf1, ctx);
         assertThat(decomposerCalled.get()).isTrue();
         assertThat(plan.nodes()).hasSize(2);
     }
@@ -55,12 +55,12 @@ class SequenceStrategyTest {
 
         TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
-                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf2)), null)));
+                        (c, x) -> (DagPlan.singleton(leaf2)), null)));
 
         var seq = new SequenceStrategy<>(List.<TaskNode<String>>of(leaf1, nestedCompound));
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-        var plan = seq.decompose(leaf1, ctx).await().indefinitely();
+        var plan = seq.decompose(leaf1, ctx);
         assertThat(plan.nodes()).hasSize(2);
     }
 }

@@ -22,7 +22,7 @@ class StaticDecompositionTest {
         var prim1  = new PrimitiveTask<String>("s1", java.time.Instant.now(), null, agent1, null, null);
 
         DecompositionStrategy<String> strategy1 = (compound, ctx) ->
-                                                          io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(prim1));
+                                                          (DagPlan.singleton(prim1));
 
         var method1 = new DecompositionMethod<String>(s -> s.equals("match"), strategy1, null);
         var method2 = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>(), null);
@@ -31,7 +31,7 @@ class StaticDecompositionTest {
         var decomp   = new StaticDecomposition<String>();
         var ctx      = new AgenticDecompositionContext<>("match", List.of(), 0);
 
-        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx).await().indefinitely();
+        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx);
         assertThat(result.nodes()).hasSize(1);
         assertThat(result.topologicalSort().get(0).task()).isSameAs(prim1);
     }
@@ -43,7 +43,7 @@ class StaticDecompositionTest {
         var decomp = new StaticDecomposition<String>();
         var ctx    = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-        assertThatThrownBy(() -> decomp.decompose(compound, ctx).await().indefinitely())
+        assertThatThrownBy(() -> decomp.decompose(compound, ctx))
                 .isInstanceOf(NoMethodMatchedException.class)
                 .hasMessageContaining("No decomposition method guard matched")
                 .extracting(e -> ((NoMethodMatchedException) e).taskName())
@@ -59,7 +59,7 @@ class StaticDecompositionTest {
             captured.set(ctx);
             var agent = AgentRef.external(s -> java.util.concurrent.CompletableFuture.completedFuture(null));
             var leaf  = new PrimitiveTask<String>("t", java.time.Instant.now(), null, agent, null, null);
-            return io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(leaf));
+            return (DagPlan.singleton(leaf));
         };
 
         var method   = new DecompositionMethod<String>(s -> true, capturing, null);
@@ -68,7 +68,7 @@ class StaticDecompositionTest {
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0,
                                                     null, null, null, null, null, constraints);
 
-        decomp.decompose(compound, ctx).await().indefinitely();
+        decomp.decompose(compound, ctx);
 
         assertThat(captured.get()).isNotNull();
         assertThat(captured.get().constraints()).isSameAs(constraints);
@@ -81,9 +81,9 @@ class StaticDecompositionTest {
         var cheap     = new PrimitiveTask<String>("cheap", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> expensiveStrategy = (c, ctx) ->
-                                                                  io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(expensive));
+                                                                  (DagPlan.singleton(expensive));
         DecompositionStrategy<String> cheapStrategy = (c, ctx) ->
-                                                              io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(cheap));
+                                                              (DagPlan.singleton(cheap));
 
         var expensiveMethod = new DecompositionMethod<String>(
                 "expensive", s -> true, expensiveStrategy, null,
@@ -100,7 +100,7 @@ class StaticDecompositionTest {
                                                     null, null, null, null, null, constraints);
         var decomp = new StaticDecomposition<String>();
 
-        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx).await().indefinitely();
+        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx);
         assertThat(result.topologicalSort().get(0).task()).isSameAs(cheap);
     }
 
@@ -110,7 +110,7 @@ class StaticDecompositionTest {
         var prim  = new PrimitiveTask<String>("t", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> strategy = (c, ctx) ->
-                                                         io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(prim));
+                                                         (DagPlan.singleton(prim));
 
         var method = new DecompositionMethod<String>(s -> true, strategy, null);
 
@@ -121,7 +121,7 @@ class StaticDecompositionTest {
                                                     null, null, null, null, null, constraints);
         var decomp = new StaticDecomposition<String>();
 
-        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx).await().indefinitely();
+        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx);
         assertThat(result.nodes()).hasSize(1);
     }
 
@@ -131,7 +131,7 @@ class StaticDecompositionTest {
         var prim  = new PrimitiveTask<String>("t", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> strategy = (c, ctx) ->
-                                                         io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(prim));
+                                                         (DagPlan.singleton(prim));
 
         var method = new DecompositionMethod<String>(
                 "within-budget", s -> true, strategy, null,
@@ -144,7 +144,7 @@ class StaticDecompositionTest {
                                                     null, null, null, null, null, constraints);
         var decomp = new StaticDecomposition<String>();
 
-        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx).await().indefinitely();
+        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx);
         assertThat(result.nodes()).hasSize(1);
     }
 
@@ -155,9 +155,9 @@ class StaticDecompositionTest {
         var fast  = new PrimitiveTask<String>("fast", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> slowStrategy = (c, ctx) ->
-                                                             io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(slow));
+                                                             (DagPlan.singleton(slow));
         DecompositionStrategy<String> fastStrategy = (c, ctx) ->
-                                                             io.smallrye.mutiny.Uni.createFrom().item(DagPlan.singleton(fast));
+                                                             (DagPlan.singleton(fast));
 
         var slowMethod = new DecompositionMethod<String>(
                 "slow", s -> true, slowStrategy, null,
@@ -174,7 +174,7 @@ class StaticDecompositionTest {
                                                     null, null, null, null, null, constraints);
         var decomp = new StaticDecomposition<String>();
 
-        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx).await().indefinitely();
+        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(compound, ctx);
         assertThat(result.topologicalSort().get(0).task()).isSameAs(fast);
     }
 

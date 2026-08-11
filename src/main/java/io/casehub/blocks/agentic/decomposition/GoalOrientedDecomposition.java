@@ -8,7 +8,7 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.JoinType;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
+
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -29,19 +29,19 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
   }
 
   @Override
-  public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> task,
-                                                       DecompositionContext<T> context) {
+  public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task,
+                                                  DecompositionContext<T> context) {
     if (task instanceof TaskNode.LeafTask<T> leaf) {
-      return Uni.createFrom().item(DagPlan.singleton(leaf));
+      return DagPlan.singleton(leaf);
     }
 
     if (!(context instanceof GoapDecompositionContext<T> goapCtx)) {
-      return Uni.createFrom().failure(new IllegalArgumentException(
-          "GoalOrientedDecomposition requires GoapDecompositionContext"));
+      throw new IllegalArgumentException(
+          "GoalOrientedDecomposition requires GoapDecompositionContext");
     }
 
     var compound = (TaskNode.CompoundTask<T>) task;
-    return Uni.createFrom().item(() -> plan(compound.name(), goapCtx));
+    return plan(compound.name(), goapCtx);
   }
 
   private DagPlan<TaskNode.LeafTask<T>> plan(String taskName, GoapDecompositionContext<T> ctx) {

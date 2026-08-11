@@ -52,15 +52,15 @@ class HybridDecompositionTest {
     }
 
     private static DecompositionStrategy<String> staticThatMatches(TaskNode.LeafTask<String> task) {
-        return (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(task));
+        return (compound, ctx) -> DagPlan.singleton(task);
     }
 
     private static DecompositionStrategy<String> staticThatFails() {
-        return (compound, ctx) -> Uni.createFrom().failure(new NoMethodMatchedException("test-task"));
+        return (compound, ctx) -> { throw new NoMethodMatchedException("test-task"); };
     }
 
     private static DecompositionStrategy<String> fallbackReturning(TaskNode.LeafTask<String> task) {
-        return (compound, ctx) -> Uni.createFrom().item(DagPlan.singleton(task));
+        return (compound, ctx) -> DagPlan.singleton(task);
     }
 
     @Nested
@@ -74,7 +74,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.nodes()).hasSize(1);
             assertThat(result.topologicalSort().get(0).task()).isSameAs(staticTask);
         }
@@ -87,13 +87,13 @@ class HybridDecompositionTest {
             var fallback = (DecompositionStrategy<String>) mock(DecompositionStrategy.class);
 
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(
-                    new DecompositionMethod<>(s -> false, (c, x) -> Uni.createFrom().failure(new AssertionError("should not be called")), null),
-                    new DecompositionMethod<>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(prim)), null)));
+                    new DecompositionMethod<>(s -> false, (c, x) -> { throw new AssertionError("should not be called"); }, null),
+                    new DecompositionMethod<>(s -> true, (c, x) -> DagPlan.singleton(prim), null)));
 
             var hybrid = new HybridDecomposition<>(new StaticDecomposition<>(), fallback);
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.topologicalSort().get(0).task()).isSameAs(prim);
             verifyNoInteractions(fallback);
         }
@@ -108,7 +108,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.nodes()).hasSize(1);
             assertThat(result.topologicalSort().get(0).task()).isSameAs(fallbackTask);
         }
@@ -119,17 +119,17 @@ class HybridDecompositionTest {
             DecompositionStrategy<String> capturingFallback = (compound, ctx) -> {
                 captured.set(ctx);
                 var task = new PrimitiveTask<String>("f1", Instant.now(), "planned", dummyAgent(), null, null);
-                return Uni.createFrom().item(DagPlan.singleton(task));
+                return DagPlan.singleton(task);
             };
 
             DecompositionStrategy<String> staticWith3Methods = (compound, ctx) ->
-                                                                       Uni.createFrom().failure(new NoMethodMatchedException("incident-response", 3));
+                                                                       { throw new NoMethodMatchedException("incident-response", 3); };
 
             var hybrid   = new HybridDecomposition<>(staticWith3Methods, capturingFallback);
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx      = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            hybrid.decompose(compound, ctx).await().indefinitely();
+            hybrid.decompose(compound, ctx);
 
             assertThat(captured.get()).isInstanceOf(AgenticDecompositionContext.class);
             var enriched = (AgenticDecompositionContext<String>) captured.get();
@@ -141,13 +141,13 @@ class HybridDecompositionTest {
         @Test
         void staticFails_llmAlsoFails_errorPropagates() {
             DecompositionStrategy<String> failingFallback = (compound, ctx) ->
-                    Uni.createFrom().failure(new IllegalStateException("LLM also failed"));
+                    { throw new IllegalStateException("LLM also failed"); };
 
             var hybrid = new HybridDecomposition<>(staticThatFails(), failingFallback);
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            assertThatThrownBy(() -> hybrid.decompose(compound, ctx).await().indefinitely())
+            assertThatThrownBy(() -> hybrid.decompose(compound, ctx))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("LLM also failed");
         }
@@ -164,7 +164,7 @@ class HybridDecompositionTest {
             var hybrid = new HybridDecomposition<>(static_, fallback);
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            var result = hybrid.decompose(leaf, ctx).await().indefinitely();
+            var result = hybrid.decompose(leaf, ctx);
             assertThat(result.nodes()).hasSize(1);
             assertThat(result.topologicalSort().get(0).task()).isSameAs(leaf);
             verifyNoInteractions(fallback);
@@ -173,7 +173,7 @@ class HybridDecompositionTest {
         @Test
         void nonGuardException_propagatesWithoutFallback() {
             DecompositionStrategy<String> throwing = (compound, ctx) ->
-                    Uni.createFrom().failure(new NullPointerException("bug"));
+                    { throw new NullPointerException("bug"); };
             @SuppressWarnings("unchecked")
             var fallback = (DecompositionStrategy<String>) mock(DecompositionStrategy.class);
 
@@ -181,7 +181,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            assertThatThrownBy(() -> hybrid.decompose(compound, ctx).await().indefinitely())
+            assertThatThrownBy(() -> hybrid.decompose(compound, ctx))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("bug");
             verifyNoInteractions(fallback);
@@ -194,7 +194,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.nodes()).hasSize(1);
         }
     }
@@ -211,7 +211,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", agents, 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.nodes()).hasSize(1);
         }
 
@@ -225,7 +225,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", agents, 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.nodes()).hasSize(1);
         }
 
@@ -241,7 +241,7 @@ class HybridDecompositionTest {
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
             var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-            var result = hybrid.decompose(compound, ctx).await().indefinitely();
+            var result = hybrid.decompose(compound, ctx);
             assertThat(result.topologicalSort().get(0).task()).isSameAs(staticTask);
         }
     }

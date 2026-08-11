@@ -5,7 +5,7 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentProvider;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.Objects;
 import java.util.function.Function;
@@ -43,24 +43,25 @@ public class HybridDecomposition<T> implements DecompositionStrategy<T> {
     }
 
     @Override
-    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> compound,
-                                                        DecompositionContext<T> context) {
-        return primaryStrategy.decompose(compound, context)
-                              .invoke(plan -> LOG.log(System.Logger.Level.DEBUG,
-                                                      "Primary strategy succeeded for ''{0}''", taskName(compound)))
-                              .onFailure(NoMethodMatchedException.class)
-                              .recoverWithUni(failure -> {
-                                  var nmme = (NoMethodMatchedException) failure;
-                                  LOG.log(System.Logger.Level.INFO,
-                                          "No static method matched for ''{0}'' ({1} evaluated) — falling back to LLM",
-                                          nmme.taskName(), nmme.methodCount());
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> compound,
+                                                   DecompositionContext<T> context) {
+        try {
+            var plan = primaryStrategy.decompose(compound, context);
+            LOG.log(System.Logger.Level.DEBUG,
+                    "Primary strategy succeeded for ''{0}''", taskName(compound));
+            return plan;
+        } catch (NoMethodMatchedException nmme) {
+            LOG.log(System.Logger.Level.INFO,
+                    "No static method matched for ''{0}'' ({1} evaluated) — falling back to LLM",
+                    nmme.taskName(), nmme.methodCount());
 
-                                  var fallbackCtx = enrichContext(context, nmme);
-                                  return fallbackStrategy.decompose(compound, fallbackCtx)
-                                                         .invoke(plan -> LOG.log(System.Logger.Level.DEBUG,
-                                                                                 "Fallback produced plan with {0} task(s) for ''{1}''",
-                                                                                 plan.nodes().size(), nmme.taskName()));
-                              });
+            var fallbackCtx = enrichContext(context, nmme);
+            var plan = fallbackStrategy.decompose(compound, fallbackCtx);
+            LOG.log(System.Logger.Level.DEBUG,
+                    "Fallback produced plan with {0} task(s) for ''{1}''",
+                    plan.nodes().size(), nmme.taskName());
+            return plan;
+        }
     }
 
 
