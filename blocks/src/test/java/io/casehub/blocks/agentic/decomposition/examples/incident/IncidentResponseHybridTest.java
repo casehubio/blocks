@@ -58,19 +58,19 @@ class IncidentResponseHybridTest {
         return new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "respond-to-incident", List.of(
                 new DecompositionMethod<>(
                         state -> "DATABASE_OUTAGE".equals(state.type()),
-                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                        (compound, ctx) -> (DagPlan.sequence(List.of(
                                 new PrimitiveTask<>("t1", Instant.now(), "failover-db", failoverAgent, null, null),
                                 new PrimitiveTask<>("t2", Instant.now(), "verify-connectivity", verifyAgent, null, null),
                                 new PrimitiveTask<>("t3", Instant.now(), "notify-stakeholders", notifyAgent, null, null)))), null),
                 new DecompositionMethod<>(
                         state -> "SECURITY_BREACH".equals(state.type()),
-                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                        (compound, ctx) -> (DagPlan.sequence(List.of(
                                 new PrimitiveTask<>("t4", Instant.now(), "isolate-systems", isolateAgent, null, null),
                                 new PrimitiveTask<>("t5", Instant.now(), "forensic-analysis", forensicsAgent, null, null),
                                 new PrimitiveTask<>("t6", Instant.now(), "notify-stakeholders", notifyAgent, null, null)))), null),
                 new DecompositionMethod<>(
                         state -> "NETWORK_FAILURE".equals(state.type()),
-                        (compound, ctx) -> Uni.createFrom().item(DagPlan.sequence(List.of(
+                        (compound, ctx) -> (DagPlan.sequence(List.of(
                                 new PrimitiveTask<>("t7", Instant.now(), "diagnose-network", diagnoseAgent, null, null),
                                 new PrimitiveTask<>("t8", Instant.now(), "reroute-traffic", rerouteAgent, null, null),
                                 new PrimitiveTask<>("t9", Instant.now(), "notify-stakeholders", notifyAgent, null, null)))), null)
@@ -80,11 +80,11 @@ class IncidentResponseHybridTest {
     @Test
     void databaseOutage_staticPlaybook() {
         var hybrid = new HybridDecomposition<>(new StaticDecomposition<IncidentState>(),
-                (compound, ctx) -> Uni.createFrom().failure(new AssertionError("LLM should not be called")));
+                (compound, ctx) -> { throw new AssertionError("LLM should not be called"); });
         var state = new IncidentState("DATABASE_OUTAGE", "HIGH", "DB cluster down");
         var ctx = new AgenticDecompositionContext<>(state, List.of(), 0);
 
-        var plan = hybrid.decompose(incidentTree(), ctx).await().indefinitely();
+        var plan = hybrid.decompose(incidentTree(), ctx);
 
         assertThat(plan.nodes()).hasSize(3);
         var tasks = plan.topologicalSort();
@@ -96,11 +96,11 @@ class IncidentResponseHybridTest {
     @Test
     void securityBreach_staticPlaybook() {
         var hybrid = new HybridDecomposition<>(new StaticDecomposition<IncidentState>(),
-                (compound, ctx) -> Uni.createFrom().failure(new AssertionError("LLM should not be called")));
+                (compound, ctx) -> { throw new AssertionError("LLM should not be called"); });
         var state = new IncidentState("SECURITY_BREACH", "CRITICAL", "Unauthorised access detected");
         var ctx = new AgenticDecompositionContext<>(state, List.of(), 0);
 
-        var plan = hybrid.decompose(incidentTree(), ctx).await().indefinitely();
+        var plan = hybrid.decompose(incidentTree(), ctx);
 
         assertThat(plan.nodes()).hasSize(3);
         var tasks = plan.topologicalSort();
@@ -129,7 +129,7 @@ class IncidentResponseHybridTest {
         var state = new IncidentState("PERFORMANCE_DEGRADATION", "MEDIUM", "API response times elevated");
         var ctx = new AgenticDecompositionContext<>(state, agents, 0);
 
-        var plan = hybrid.decompose(incidentTree(), ctx).await().indefinitely();
+        var plan = hybrid.decompose(incidentTree(), ctx);
 
         assertThat(plan.nodes()).hasSize(2);
         var tasks = plan.topologicalSort();

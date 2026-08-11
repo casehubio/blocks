@@ -38,15 +38,15 @@ class HeuristicDecompositionTest {
         var heuristicCalled = new AtomicBoolean(false);
         DecompositionHeuristic<String> heuristic = (task, methods, context) -> {
             heuristicCalled.set(true);
-            return Uni.createFrom().item(methods.stream()
+            return (methods.stream()
                     .map(m -> new ScoredMethod<>(m, 1.0)).toList());
         };
 
         var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(
-                new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(leaf)), null)));
+                new DecompositionMethod<String>(s -> true, (c, x) -> (DagPlan.singleton(leaf)), null)));
 
         var decomp = new HeuristicDecomposition<>(heuristic);
-        var result = decomp.decompose(compound, ctx("state")).await().indefinitely();
+        var result = decomp.decompose(compound, ctx("state"));
 
         assertThat(result.nodes()).hasSize(1);
         assertThat(result.topologicalSort().get(0).task()).isSameAs(leaf);
@@ -58,17 +58,17 @@ class HeuristicDecompositionTest {
         var lowLeaf = new PrimitiveTask<String>("low", Instant.now(), "low-cost", agent("low"), null, null);
         var highLeaf = new PrimitiveTask<String>("high", Instant.now(), "high-cost", agent("high"), null, null);
 
-        var method1 = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(lowLeaf)), null);
-        var method2 = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(highLeaf)), null);
+        var method1 = new DecompositionMethod<String>(s -> true, (c, x) -> (DagPlan.singleton(lowLeaf)), null);
+        var method2 = new DecompositionMethod<String>(s -> true, (c, x) -> (DagPlan.singleton(highLeaf)), null);
 
         DecompositionHeuristic<String> heuristic = (task, methods, context) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(methods.get(0), 0.3),
                         new ScoredMethod<>(methods.get(1), 0.9)));
 
         var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(method1, method2));
         var decomp = new HeuristicDecomposition<>(heuristic);
-        var result = decomp.decompose(compound, ctx("state")).await().indefinitely();
+        var result = decomp.decompose(compound, ctx("state"));
 
         assertThat(result.topologicalSort().get(0).task().executor().name()).isEqualTo("high");
     }
@@ -77,50 +77,50 @@ class HeuristicDecompositionTest {
     void backtracking_bestMethodFails_triesNext() {
         var fallbackLeaf = new PrimitiveTask<String>("fb", Instant.now(), "fallback", agent("fallback"), null, null);
 
-        var failingMethod = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().failure(new NoMethodMatchedException("inner")), null);
-        var workingMethod = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().item(DagPlan.singleton(fallbackLeaf)), null);
+        var failingMethod = new DecompositionMethod<String>(s -> true, (c, x) -> { throw new NoMethodMatchedException("inner"); }, null);
+        var workingMethod = new DecompositionMethod<String>(s -> true, (c, x) -> (DagPlan.singleton(fallbackLeaf)), null);
 
         DecompositionHeuristic<String> heuristic = (task, methods, context) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(methods.get(0), 0.9),
                         new ScoredMethod<>(methods.get(1), 0.1)));
 
         var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(failingMethod, workingMethod));
         var decomp = new HeuristicDecomposition<>(heuristic);
-        var result = decomp.decompose(compound, ctx("state")).await().indefinitely();
+        var result = decomp.decompose(compound, ctx("state"));
 
         assertThat(result.topologicalSort().get(0).task().executor().name()).isEqualTo("fallback");
     }
 
     @Test
     void allMethodsFail_throwsNoMethodMatchedException() {
-        var failingMethod1 = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().failure(new NoMethodMatchedException("m1")), null);
-        var failingMethod2 = new DecompositionMethod<String>(s -> true, (c, x) -> Uni.createFrom().failure(new NoMethodMatchedException("m2")), null);
+        var failingMethod1 = new DecompositionMethod<String>(s -> true, (c, x) -> { throw new NoMethodMatchedException("m1"); }, null);
+        var failingMethod2 = new DecompositionMethod<String>(s -> true, (c, x) -> { throw new NoMethodMatchedException("m2"); }, null);
 
         DecompositionHeuristic<String> heuristic = (task, methods, context) ->
-                Uni.createFrom().item(List.of(
+                (List.of(
                         new ScoredMethod<>(methods.get(0), 0.5),
                         new ScoredMethod<>(methods.get(1), 0.5)));
 
         var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(failingMethod1, failingMethod2));
         var decomp = new HeuristicDecomposition<>(heuristic);
 
-        assertThatThrownBy(() -> decomp.decompose(compound, ctx("state")).await().indefinitely())
+        assertThatThrownBy(() -> decomp.decompose(compound, ctx("state")))
                 .isInstanceOf(NoMethodMatchedException.class);
     }
 
     @Test
     void noEligibleMethods_throwsNoMethodMatchedException() {
-        var method = new DecompositionMethod<String>(s -> false, (c, x) -> Uni.createFrom().item(DagPlan.singleton(
+        var method = new DecompositionMethod<String>(s -> false, (c, x) -> (DagPlan.singleton(
                         new PrimitiveTask<>("x", Instant.now(), null, agent(), null, null))), null);
 
         DecompositionHeuristic<String> heuristic = (task, methods, context) ->
-                Uni.createFrom().item(List.of());
+                (List.of());
 
         var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(method));
         var decomp = new HeuristicDecomposition<>(heuristic);
 
-        assertThatThrownBy(() -> decomp.decompose(compound, ctx("state")).await().indefinitely())
+        assertThatThrownBy(() -> decomp.decompose(compound, ctx("state")))
                 .isInstanceOf(NoMethodMatchedException.class);
     }
 
@@ -132,19 +132,19 @@ class HeuristicDecompositionTest {
 
         var nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
-                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(expensiveLeaf)), null),
+                        (c, x) -> (DagPlan.singleton(expensiveLeaf)), null),
                 new DecompositionMethod<String>(s -> true,
-                        (c, x) -> Uni.createFrom().item(DagPlan.singleton(cheapLeaf)), null)));
+                        (c, x) -> (DagPlan.singleton(cheapLeaf)), null)));
 
         TaskNode.CompoundTask<String> topCompound = compound("top-level", topLeaf, nestedCompound);
 
         DecompositionHeuristic<String> heuristic = (task, methods, context) ->
-                Uni.createFrom().item(java.util.stream.IntStream.range(0, methods.size())
+                (java.util.stream.IntStream.range(0, methods.size())
                         .mapToObj(i -> new ScoredMethod<>(methods.get(i), (double) i))
                         .toList());
 
         var decomp = new HeuristicDecomposition<>(heuristic);
-        var result = decomp.decompose(topCompound, ctx("state")).await().indefinitely();
+        var result = decomp.decompose(topCompound, ctx("state"));
 
         var sorted = result.topologicalSort();
         assertThat(sorted).hasSize(2);
@@ -160,7 +160,7 @@ class HeuristicDecompositionTest {
         };
 
         var decomp = new HeuristicDecomposition<>(heuristic);
-        var result = decomp.decompose(leaf, ctx("state")).await().indefinitely();
+        var result = decomp.decompose(leaf, ctx("state"));
 
         assertThat(result.nodes()).hasSize(1);
         assertThat(result.topologicalSort().get(0).task()).isSameAs(leaf);

@@ -6,13 +6,12 @@ import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.PlanningConstraints;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
 
 public class StaticDecomposition<T> implements DecompositionStrategy<T> {
 
     @Override
-    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> compound,
-                                                        DecompositionContext<T> context) {
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> compound,
+                                                    DecompositionContext<T> context) {
         if (compound instanceof TaskNode.CompoundTask<T> ct) {
             var constraints = context.constraints();
             for (var method : ct.methods()) {
@@ -23,10 +22,9 @@ public class StaticDecomposition<T> implements DecompositionStrategy<T> {
                     return method.strategy().decompose(compound, context);
                 }
             }
-            return Uni.createFrom().failure(
-                    new NoMethodMatchedException(ct.name(), ct.methods().size()));
+            throw new NoMethodMatchedException(ct.name(), ct.methods().size());
         }
-        return Uni.createFrom().item(DagPlan.singleton((TaskNode.LeafTask<T>) compound));
+        return DagPlan.singleton((TaskNode.LeafTask<T>) compound);
     }
 
     private boolean exceedsConstraints(DecompositionMethod<T> method,

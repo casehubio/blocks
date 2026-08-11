@@ -97,7 +97,7 @@ class GoalOrientedDecompositionTest {
     var ctx = goapCtx(List.of(agent), Set.of("needed-type"), Set.of("input"));
     var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
 
-    assertThatThrownBy(() -> goap.decompose(compound, ctx).await().indefinitely())
+    assertThatThrownBy(() -> goap.decompose(compound, ctx))
         .isInstanceOf(NoMethodMatchedException.class)
         .hasMessageContaining("goal");
   }
@@ -108,7 +108,7 @@ class GoalOrientedDecompositionTest {
     var ctx = goapCtx(List.of(agent), Set.of("needed"), Set.of("input"));
     var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
 
-    assertThatThrownBy(() -> goap.decompose(compound, ctx).await().indefinitely())
+    assertThatThrownBy(() -> goap.decompose(compound, ctx))
         .isInstanceOf(NoMethodMatchedException.class);
   }
 
@@ -118,7 +118,7 @@ class GoalOrientedDecompositionTest {
     var leaf = new PrimitiveTask<String>("id", java.time.Instant.now(), null, agent, null, null);
     var ctx = goapCtx(List.of(), Set.of("x"), Set.of());
 
-    var plan = goap.decompose(leaf, ctx).await().indefinitely();
+    var plan = goap.decompose(leaf, ctx);
 
     assertThat(plan.nodes()).hasSize(1);
     assertThat(plan.topologicalSort().get(0).task()).isSameAs(leaf);
@@ -129,7 +129,7 @@ class GoalOrientedDecompositionTest {
     var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
     var plainCtx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-    assertThatThrownBy(() -> goap.decompose(compound, plainCtx).await().indefinitely())
+    assertThatThrownBy(() -> goap.decompose(compound, plainCtx))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("GoapDecompositionContext");
   }
@@ -141,7 +141,7 @@ class GoalOrientedDecompositionTest {
     var ctx = goapCtx(List.of(agent), Set.of("already-here"), Set.of("already-here"));
     var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "trivial", List.of());
 
-    assertThatThrownBy(() -> goap.decompose(compound, ctx).await().indefinitely())
+    assertThatThrownBy(() -> goap.decompose(compound, ctx))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("already satisfied");
   }
@@ -208,7 +208,7 @@ class GoalOrientedDecompositionTest {
 
   private DagPlan<TaskNode.LeafTask<String>> decompose(GoapDecompositionContext<String> ctx) {
     var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
-    return goap.decompose(compound, ctx).await().indefinitely();
+    return goap.decompose(compound, ctx);
   }
 
   private static PlannedTask<?> soleTask(DagPlan<TaskNode.LeafTask<String>> plan) {

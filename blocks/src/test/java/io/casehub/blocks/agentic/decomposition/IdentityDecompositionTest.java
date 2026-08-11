@@ -20,7 +20,7 @@ class IdentityDecompositionTest {
         var decomp = new IdentityDecomposition<String>();
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(primitive, ctx).await().indefinitely();
+        DagPlan<TaskNode.LeafTask<String>> result = decomp.decompose(primitive, ctx);
         assertThat(result.nodes()).hasSize(1);
         assertThat(result.nodes().values().iterator().next().task()).isSameAs(primitive);
     }
@@ -31,7 +31,7 @@ class IdentityDecompositionTest {
         var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "test", List.of());
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);
 
-        assertThatThrownBy(() -> decomp.decompose(compound, ctx).await().indefinitely())
+        assertThatThrownBy(() -> decomp.decompose(compound, ctx))
             .isInstanceOf(UnsupportedOperationException.class)
             .hasMessageContaining("cannot decompose compound tasks");
     }

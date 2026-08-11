@@ -3,7 +3,7 @@ package io.casehub.blocks.agentic.decomposition;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.List;
 
@@ -21,13 +21,12 @@ public class StructuralCostHeuristic<T> implements DecompositionHeuristic<T> {
     }
 
     @Override
-    public Uni<List<ScoredMethod<T>>> evaluate(TaskNode.CompoundTask<T> task,
-                                                List<DecompositionMethod<T>> methods,
-                                                DecompositionContext<T> context) {
-        var scored = methods.stream()
+    public List<ScoredMethod<T>> evaluate(TaskNode.CompoundTask<T> task,
+                                           List<DecompositionMethod<T>> methods,
+                                           DecompositionContext<T> context) {
+        return methods.stream()
                 .map(m -> new ScoredMethod<>(m, -estimateCost(m)))
                 .toList();
-        return Uni.createFrom().item(scored);
     }
 
     private double estimateCost(DecompositionMethod<T> method) {

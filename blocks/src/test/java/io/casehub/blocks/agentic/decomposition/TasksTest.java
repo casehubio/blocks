@@ -140,7 +140,7 @@ class TasksTest {
             TaskNode.CompoundTask<String> task = compound("process", a1, a2);
 
             var plan = task.methods().get(0).strategy()
-                           .decompose(task, ctx("state")).await().indefinitely();
+                           .decompose(task, ctx("state"));
             assertThat(plan.nodes()).hasSize(2);
             var sorted = plan.topologicalSort();
             assertThat(sorted.get(0).task().executor().name()).isEqualTo("validate");
@@ -154,7 +154,7 @@ class TasksTest {
             TaskNode.CompoundTask<String> outer = compound("outer", leaf1, inner);
 
             var plan = outer.methods().get(0).strategy()
-                            .decompose(outer, ctx("state")).await().indefinitely();
+                            .decompose(outer, ctx("state"));
             assertThat(plan.nodes()).hasSize(2);
             var sorted = plan.topologicalSort();
             assertThat(sorted.get(0).task().executor().name()).isEqualTo("step1");
@@ -184,7 +184,7 @@ class TasksTest {
             DecompositionMethod<String> method = decompose(a1, a2);
 
             var plan = method.strategy()
-                             .decompose(null, ctx("state")).await().indefinitely();
+                             .decompose(null, ctx("state"));
             assertThat(plan.nodes()).hasSize(2);
             var sorted = plan.topologicalSort();
             assertThat(sorted.get(0).task().executor().name()).isEqualTo("first");

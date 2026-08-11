@@ -52,7 +52,7 @@ class ForwardReasoningDecompositionTest {
 
         var state = new MutableState();
         var decomp = new ForwardReasoningDecomposition<>(COPIER);
-        var plan = decomp.decompose(tree, ctx(state)).await().indefinitely();
+        var plan = decomp.decompose(tree, ctx(state));
 
         var sorted = plan.topologicalSort();
         assertThat(sorted).hasSize(2);
@@ -75,7 +75,7 @@ class ForwardReasoningDecompositionTest {
 
         var state = new MutableState();
         var decomp = new StaticDecomposition<MutableState>();
-        var plan = decomp.decompose(tree, ctx(state)).await().indefinitely();
+        var plan = decomp.decompose(tree, ctx(state));
 
         var sorted = plan.topologicalSort();
         assertThat(sorted).hasSize(2);
@@ -90,7 +90,7 @@ class ForwardReasoningDecompositionTest {
 
         TaskNode.CompoundTask<MutableState> tree = compound("process", setType);
         var state = new MutableState();
-        new ForwardReasoningDecomposition<>(COPIER).decompose(tree, ctx(state)).await().indefinitely();
+        new ForwardReasoningDecomposition<>(COPIER).decompose(tree, ctx(state));
 
         assertThat(state.values).isEmpty();
     }
@@ -101,7 +101,7 @@ class ForwardReasoningDecompositionTest {
         TaskNode.CompoundTask<MutableState> tree = compound("process", noEffect);
 
         var plan = new ForwardReasoningDecomposition<>(COPIER)
-                .decompose(tree, ctx(new MutableState())).await().indefinitely();
+                .decompose(tree, ctx(new MutableState()));
         assertThat(plan.nodes()).hasSize(1);
     }
 
@@ -111,7 +111,7 @@ class ForwardReasoningDecompositionTest {
                 decompose(s -> false, primitive(agent("unreachable"))));
 
         assertThatThrownBy(() -> new ForwardReasoningDecomposition<>(COPIER)
-                .decompose(tree, ctx(new MutableState())).await().indefinitely())
+                .decompose(tree, ctx(new MutableState())))
                 .isInstanceOf(NoMethodMatchedException.class);
     }
 
@@ -130,7 +130,7 @@ class ForwardReasoningDecompositionTest {
                                 guarded)));
 
         var plan = new ForwardReasoningDecomposition<>(COPIER)
-                .decompose(tree, ctx(new MutableState())).await().indefinitely();
+                .decompose(tree, ctx(new MutableState()));
         assertThat(plan.topologicalSort()).hasSize(3);
         assertThat(plan.topologicalSort().get(2).task().executor().name()).isEqualTo("guarded");
     }

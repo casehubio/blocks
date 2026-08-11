@@ -69,20 +69,20 @@ class HtnExecutorTest {
         var replanCalled = new AtomicBoolean(false);
         var decomposition = new DecompositionStrategy<Object>() {
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> decompose(
+            public DagPlan<TaskNode.LeafTask<Object>> decompose(
                     TaskNode<Object> task, DecompositionContext<Object> ctx) {
-                return Uni.createFrom().item(originalPlan);
+                return originalPlan;
             }
 
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> replan(
+            public DagPlan<TaskNode.LeafTask<Object>> replan(
                     TaskNode<Object> task, DecompositionContext<Object> ctx,
                     ReplanContext<Object> replanCtx) {
                 replanCalled.set(true);
                 assertThat(replanCtx.failedStep().stepId()).isEqualTo("node-0");
                 assertThat(replanCtx.completedSteps()).isEmpty();
                 assertThat(replanCtx.replanCount()).isEqualTo(0);
-                return Uni.createFrom().item(revisedPlan);
+                return revisedPlan;
             }
         };
 
@@ -109,17 +109,17 @@ class HtnExecutorTest {
         var capturedCtx = new java.util.concurrent.atomic.AtomicReference<ReplanContext<Object>>();
         var decomposition = new DecompositionStrategy<Object>() {
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> decompose(
+            public DagPlan<TaskNode.LeafTask<Object>> decompose(
                     TaskNode<Object> task, DecompositionContext<Object> ctx) {
-                return Uni.createFrom().item(originalPlan);
+                return originalPlan;
             }
 
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> replan(
+            public DagPlan<TaskNode.LeafTask<Object>> replan(
                     TaskNode<Object> task, DecompositionContext<Object> ctx,
                     ReplanContext<Object> replanCtx) {
                 capturedCtx.set(replanCtx);
-                return Uni.createFrom().item(revisedPlan);
+                return revisedPlan;
             }
         };
 
@@ -145,17 +145,17 @@ class HtnExecutorTest {
         var replanCount = new AtomicInteger(0);
         var decomposition = new DecompositionStrategy<Object>() {
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> decompose(
+            public DagPlan<TaskNode.LeafTask<Object>> decompose(
                     TaskNode<Object> task, DecompositionContext<Object> ctx) {
-                return Uni.createFrom().item(failPlan);
+                return (failPlan);
             }
 
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> replan(
+            public DagPlan<TaskNode.LeafTask<Object>> replan(
                     TaskNode<Object> task, DecompositionContext<Object> ctx,
                     ReplanContext<Object> replanCtx) {
                 replanCount.incrementAndGet();
-                return Uni.createFrom().item(failPlan);
+                return (failPlan);
             }
         };
 
@@ -176,16 +176,16 @@ class HtnExecutorTest {
 
         var decomposition = new DecompositionStrategy<Object>() {
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> decompose(
+            public DagPlan<TaskNode.LeafTask<Object>> decompose(
                     TaskNode<Object> task, DecompositionContext<Object> ctx) {
-                return Uni.createFrom().item(failPlan);
+                return (failPlan);
             }
 
             @Override
-            public Uni<DagPlan<TaskNode.LeafTask<Object>>> replan(
+            public DagPlan<TaskNode.LeafTask<Object>> replan(
                     TaskNode<Object> task, DecompositionContext<Object> ctx,
                     ReplanContext<Object> replanCtx) {
-                return Uni.createFrom().item(failPlan);
+                return (failPlan);
             }
         };
 
@@ -233,7 +233,7 @@ class HtnExecutorTest {
 
     private DecompositionStrategy<Object> fixedPlanDecomposition(
             DagPlan<TaskNode.LeafTask<Object>> plan) {
-        return (task, ctx) -> Uni.createFrom().item(plan);
+        return (task, ctx) -> plan;
     }
 
     private ExecutionModel<Object> buildModel(

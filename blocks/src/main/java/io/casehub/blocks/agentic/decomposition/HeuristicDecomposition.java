@@ -5,7 +5,7 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.Comparator;
 import java.util.List;
@@ -27,10 +27,10 @@ public class HeuristicDecomposition<T> implements DecompositionStrategy<T> {
     }
 
     @Override
-    public Uni<DagPlan<TaskNode.LeafTask<T>>> decompose(TaskNode<T> task,
-                                                         DecompositionContext<T> context) {
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task,
+                                                    DecompositionContext<T> context) {
         if (task instanceof TaskNode.LeafTask<T> leaf) {
-            return Uni.createFrom().item(DagPlan.singleton(leaf));
+            return DagPlan.singleton(leaf);
         }
 
         var ct = (TaskNode.CompoundTask<T>) task;
@@ -39,8 +39,7 @@ public class HeuristicDecomposition<T> implements DecompositionStrategy<T> {
                 .toList();
 
         if (eligible.isEmpty()) {
-            return Uni.createFrom().failure(
-                    new NoMethodMatchedException(ct.name(), ct.methods().size()));
+            throw new NoMethodMatchedException(ct.name(), ct.methods().size());
         }
 
         var enrichedCtx = enrichContext(context);
@@ -49,34 +48,25 @@ public class HeuristicDecomposition<T> implements DecompositionStrategy<T> {
             return eligible.get(0).strategy().decompose(ct, enrichedCtx);
         }
 
-        return heuristic.evaluate(ct, eligible, context)
-                .flatMap(scored -> {
-                    var ranked = scored.stream()
-                            .sorted(Comparator.comparingDouble(ScoredMethod<T>::score).reversed())
-                            .map(ScoredMethod::method)
-                            .toList();
-                    return tryRanked(ranked, 0, ct, enrichedCtx);
-                });
-    }
+        var scored = heuristic.evaluate(ct, eligible, context);
+        var ranked = scored.stream()
+                .sorted(Comparator.comparingDouble(ScoredMethod<T>::score).reversed())
+                .map(ScoredMethod::method)
+                .toList();
 
-    private Uni<DagPlan<TaskNode.LeafTask<T>>> tryRanked(List<DecompositionMethod<T>> ranked,
-                                                          int index,
-                                                          TaskNode.CompoundTask<T> ct,
-                                                          DecompositionContext<T> ctx) {
-        if (index >= ranked.size()) {
-            return Uni.createFrom().failure(
-                    new NoMethodMatchedException(ct.name(), ranked.size()));
+        for (int i = 0; i < ranked.size(); i++) {
+            try {
+                return ranked.get(i).strategy().decompose(ct, enrichedCtx);
+            } catch (NoMethodMatchedException e) {
+                LOG.log(System.Logger.Level.DEBUG,
+                        "Method {0}/{1} failed for ''{2}'' — trying next",
+                        i + 1, ranked.size(), ct.name());
+            }
         }
-
-        return ranked.get(index).strategy().decompose(ct, ctx)
-                .onFailure(NoMethodMatchedException.class)
-                .recoverWithUni(failure -> {
-                    LOG.log(System.Logger.Level.DEBUG,
-                            "Method {0}/{1} failed for ''{2}'' — trying next",
-                            index + 1, ranked.size(), ct.name());
-                    return tryRanked(ranked, index + 1, ct, ctx);
-                });
+        throw new NoMethodMatchedException(ct.name(), ranked.size());
     }
+
+
 
     private DecompositionContext<T> enrichContext(DecompositionContext<T> context) {
         if (context instanceof AgenticDecompositionContext<T> ac) {

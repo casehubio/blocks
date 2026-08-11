@@ -15,7 +15,7 @@ import io.casehub.engine.plan.DagNode;
 import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.ReplanContext;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +42,7 @@ public class HtnExecutor<T> {
         }
         var agents = model.candidateSupplier().get();
         var ctx = new AgenticDecompositionContext<>(state, agents, 0);
-        return model.decomposition().decompose(task, ctx).await().indefinitely();
+        return model.decomposition().decompose(task, ctx);
     }
 
     private ExecutionResult executeWithReplan(
@@ -80,8 +80,7 @@ public class HtnExecutor<T> {
             var agents = baseModel.candidateSupplier().get();
             var decompCtx = new AgenticDecompositionContext<>(context, agents, 0);
             var newPlan = baseModel.decomposition()
-                    .replan(rootTask, decompCtx, replanCtx)
-                    .await().indefinitely();
+                    .replan(rootTask, decompCtx, replanCtx);
 
             LOG.log(System.Logger.Level.INFO,
                     "Re-plan {0}/{1} produced {2} steps",
@@ -113,21 +112,24 @@ public class HtnExecutor<T> {
 
     private io.casehub.blocks.agentic.termination.TerminationCondition<T> buildTermination(
             int agentCount, boolean failOnError) {
-        return ctx -> Uni.createFrom().item(() -> {
+        return ctx -> {
             if (failOnError) {
                 var failed = ctx.results().stream()
                         .filter(r -> r.status() != AgentResult.AgentResultStatus.SUCCESS)
                         .findFirst();
                 if (failed.isPresent()) {
-                    return (TerminationDecision) new TerminationDecision.Failed(
-                            "Step failed: " + failed.get().output());
+                    return io.smallrye.mutiny.Uni.createFrom().item(
+                            (TerminationDecision) new TerminationDecision.Failed(
+                                    "Step failed: " + failed.get().output()));
                 }
             }
             if (ctx.iterationCount() >= agentCount) {
-                return (TerminationDecision) new TerminationDecision.Complete(ctx.results());
+                return io.smallrye.mutiny.Uni.createFrom().item(
+                        (TerminationDecision) new TerminationDecision.Complete(ctx.results()));
             }
-            return (TerminationDecision) TerminationDecision.Continue.INSTANCE;
-        });
+            return io.smallrye.mutiny.Uni.createFrom().item(
+                    (TerminationDecision) TerminationDecision.Continue.INSTANCE);
+        };
     }
 
     private ReplanContext<T> buildReplanContext(

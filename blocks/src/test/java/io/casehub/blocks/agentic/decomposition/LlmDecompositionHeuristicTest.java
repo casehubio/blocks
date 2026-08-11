@@ -60,7 +60,7 @@ class LlmDecompositionHeuristicTest {
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                .await().indefinitely();
+                ;
 
         assertThat(scored).hasSize(2);
         assertThat(scored.get(0).score()).isEqualTo(0.8);
@@ -80,7 +80,7 @@ class LlmDecompositionHeuristicTest {
         var methods = List.of(method);
         var scored = heuristic.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                .await().indefinitely();
+                ;
 
         assertThat(scored).hasSize(1);
         assertThat(scored.get(0).score()).isEqualTo(0.6);
@@ -95,7 +95,7 @@ class LlmDecompositionHeuristicTest {
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                .await().indefinitely();
+                ;
 
         assertThat(scored).hasSize(2);
         assertThat(scored.get(0).score()).isEqualTo(0.0);
@@ -117,7 +117,7 @@ class LlmDecompositionHeuristicTest {
         var heuristic = new LlmDecompositionHeuristic<String>(provider, s -> "RENDERED:" + s);
         var methods = List.of(method);
         heuristic.evaluate(new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", methods),
-                methods, ctx("my-state")).await().indefinitely();
+                methods, ctx("my-state"));
 
         assertThat(promptCapture.get()).contains("RENDERED:my-state");
         assertThat(promptCapture.get()).contains("goal");
@@ -133,7 +133,7 @@ class LlmDecompositionHeuristicTest {
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
                 new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                .await().indefinitely();
+                ;
 
         assertThat(scored).hasSize(2);
         assertThat(scored.get(0).score()).isEqualTo(0.9);

@@ -62,14 +62,14 @@ public final class Tasks {
     public static <T> DecompositionMethod<T> decompose(TaskNode.LeafTask<T>... subtasks) {
         var tasks = List.of(subtasks);
         return new DecompositionMethod<>(x -> true,
-                                         (ignored, ctx) -> Uni.createFrom().item(DagPlan.sequence(tasks)), null);
+                                         (ignored, ctx) -> DagPlan.sequence(tasks), null);
     }
 
     @SafeVarargs
     public static <T> DecompositionMethod<T> decompose(Predicate<T> guard, TaskNode.LeafTask<T>... subtasks) {
         var tasks = List.of(subtasks);
         return new DecompositionMethod<>(guard,
-                                         (ignored, ctx) -> Uni.createFrom().item(DagPlan.sequence(tasks)), null);
+                                         (ignored, ctx) -> DagPlan.sequence(tasks), null);
     }
 
     // ── internals ───────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ class LlmDecompositionPromptCustomisationTest {
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null);
 
         try {
-            decomposition.decompose(goal, ctx).await().indefinitely();
+            decomposition.decompose(goal, ctx);
         } catch (Exception ignored) {}
 
         var captor = ArgumentCaptor.forClass(AgentSessionConfig.class);
@@ -80,7 +80,7 @@ class LlmDecompositionPromptCustomisationTest {
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null);
 
         try {
-            decomposition.decompose(goal, ctx).await().indefinitely();
+            decomposition.decompose(goal, ctx);
         } catch (Exception ignored) {}
 
         var captor = ArgumentCaptor.forClass(AgentSessionConfig.class);
@@ -100,7 +100,7 @@ class LlmDecompositionPromptCustomisationTest {
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0, null);
 
         try {
-            decomposition.decompose(goal, ctx).await().indefinitely();
+            decomposition.decompose(goal, ctx);
         } catch (Exception ignored) {}
 
         var captor = ArgumentCaptor.forClass(AgentSessionConfig.class);
