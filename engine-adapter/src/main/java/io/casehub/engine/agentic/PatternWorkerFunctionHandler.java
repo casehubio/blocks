@@ -176,20 +176,17 @@ public class PatternWorkerFunctionHandler implements WorkerFunctionHandler {
     int limit = constraints.resourceLimit();
     var original = model.routing();
     io.casehub.blocks.agentic.routing.RoutingStrategy<T> capped =
-        ctx ->
-            original
-                .route(ctx)
-                .map(
-                    decision -> {
-                      if (decision
-                              instanceof
-                              io.casehub.blocks.agentic.routing.RoutingDecision.Selected selected
-                          && selected.agents().size() > limit) {
-                        return new io.casehub.blocks.agentic.routing.RoutingDecision.Selected(
-                            selected.agents().subList(0, limit));
-                      }
-                      return decision;
-                    });
+        ctx -> {
+          var decision = original.route(ctx);
+          if (decision
+                  instanceof
+                  io.casehub.blocks.agentic.routing.RoutingDecision.Selected selected
+              && selected.agents().size() > limit) {
+            return new io.casehub.blocks.agentic.routing.RoutingDecision.Selected(
+                selected.agents().subList(0, limit));
+          }
+          return decision;
+        };
     return new ExecutionModel<>(
         capped,
         model.decomposition(),

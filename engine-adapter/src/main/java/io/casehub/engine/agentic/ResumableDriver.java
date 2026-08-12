@@ -22,7 +22,7 @@ import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.model.ExecutionState;
 import io.casehub.blocks.agentic.model.OrchestratedDriver;
 import io.casehub.engine.plan.execution.PatternExecutionCheckpoint;
-import io.smallrye.mutiny.Uni;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,30 +40,26 @@ public class ResumableDriver<T> extends OrchestratedDriver<T> {
     this.checkpoint = checkpoint;
   }
 
-  @Override
-  protected Uni<ExecutionResult> runLoop(ExecutionModel<T> model, T context) {
-    return Uni.createFrom()
-        .item(
-            () -> {
-              var start = Instant.now();
-              var allResults = restoreResults(model);
-              int iteration = checkpoint.completedIterations();
+    @Override
+    protected ExecutionResult runLoop(ExecutionModel<T> model, T context) {
+        var start      = Instant.now();
+        var allResults = restoreResults(model);
+        int iteration  = checkpoint.completedIterations();
 
-              restoreDriverState(model);
+        restoreDriverState(model);
 
-              while (!isCancelled()) {
-                transition(model, new ExecutionState.Running(iteration));
-                var result = executeIteration(model, context, iteration, start, allResults);
-                if (result != null) {
-                  return result;
-                }
-                iteration++;
-              }
+        while (!isCancelled()) {
+            transition(model, new ExecutionState.Running(iteration));
+            var result = executeIteration(model, context, iteration, start, allResults);
+            if (result != null) {
+                return result;
+            }
+            iteration++;
+        }
 
-              transition(model, new ExecutionState.Cancelled());
-              return new ExecutionResult.Cancelled();
-            });
-  }
+        transition(model, new ExecutionState.Cancelled());
+        return new ExecutionResult.Cancelled();
+    }
 
   private ArrayList<AgentResult> restoreResults(ExecutionModel<T> model) {
     var candidates = model.candidateSupplier().get();

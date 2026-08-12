@@ -118,4 +118,74 @@ class ExecutionBackendTest {
         assertThat(invokeCount.get()).isGreaterThan(0).isLessThan(100);
     }
 
+    @Test
+    void choreographedBackendExecutesOnEvent() {
+        var callCount = new AtomicInteger(0);
+        var agent = AgentRef.external((Object s) -> {
+            callCount.incrementAndGet();
+            return CompletableFuture.completedFuture(AgentResult.success(null, "done"));
+        });
+
+        var model = new ExecutionModel<>(
+            new FirstMatchRouting<>(c -> true),
+            new IdentityDecomposition<>(),
+            new OnExplicitDispatch<>(),
+            new PassThrough<>(),
+            new MaxIterationsTermination<>(1),
+            () -> List.of(new RoutingCandidate(agent, null)),
+            io.casehub.blocks.agentic.FailurePolicy.defaults(),
+            List.of(), "test", null);
+
+        EventSource trigger = sink -> {
+            sink.accept(DriverEvent.signal("go"));
+            return EventSource.Cancellation.of(() -> {});
+        };
+
+        ExecutionBackend<Object> backend = ExecutionBackend.choreographed(
+            EventConcurrencyPolicy.serialize(), trigger);
+        var result = backend.execute(model, "input").await().indefinitely();
+
+        assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
+        assertThat(callCount.get()).isEqualTo(1);
+    }
+
+    @Test
+    void choreographedBackendCancelStopsExecution() {
+        EventSource trigger = sink -> {
+            sink.accept(DriverEvent.signal("go"));
+            return EventSource.Cancellation.of(() -> {});
+        };
+
+        var agent = AgentRef.external("slow", (Object ctx) -> {
+            var future = new CompletableFuture<AgentResult>();
+            new Thread(() -> {
+                try { Thread.sleep(5000); } catch (InterruptedException ignored) {}
+                future.complete(AgentResult.success(null, "done"));
+            }).start();
+            return future;
+        });
+
+        var model = new ExecutionModel<>(
+                new FirstMatchRouting<>(c -> true),
+                new IdentityDecomposition<>(),
+                new OnExplicitDispatch<>(),
+                new PassThrough<>(),
+                new MaxIterationsTermination<>(100),
+                () -> List.of(new RoutingCandidate(agent, null)),
+                io.casehub.blocks.agentic.FailurePolicy.defaults(),
+                List.of(), "test", null);
+
+        ExecutionBackend<Object> backend = ExecutionBackend.choreographed(
+            EventConcurrencyPolicy.serialize(), trigger);
+
+        var future = CompletableFuture.supplyAsync(() ->
+                backend.execute(model, "input").await().indefinitely());
+
+        try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+        backend.cancel();
+
+        var result = future.join();
+        assertThat(result).isInstanceOf(ExecutionResult.Cancelled.class);
+    }
+
 }

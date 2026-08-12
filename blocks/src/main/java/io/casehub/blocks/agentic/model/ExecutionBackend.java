@@ -26,4 +26,16 @@ public interface ExecutionBackend<T> {
     static <T> ExecutionBackend<T> orchestrated(AgentInvoker<T> invoker) {
         return reactive(invoker);
     }
+
+    static <T> ExecutionBackend<T> choreographed(EventConcurrencyPolicy policy,
+                                                  EventSource... sources) {
+        return new CancellableBackend<>(
+            new ChoreographedDriver<>(AgentInvoker.defaultInvoker(), policy, sources));
+    }
+
+    static <T> ExecutionBackend<T> choreographed(AgentInvoker<T> invoker,
+                                                  EventConcurrencyPolicy policy,
+                                                  EventSource... sources) {
+        return new CancellableBackend<>(new ChoreographedDriver<>(invoker, policy, sources));
+    }
 }
