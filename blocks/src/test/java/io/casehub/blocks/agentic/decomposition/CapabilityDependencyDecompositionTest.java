@@ -11,14 +11,13 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class GoalOrientedDecompositionTest {
+class CapabilityDependencyDecompositionTest {
 
-  private final GoalOrientedDecomposition<String> goap = new GoalOrientedDecomposition<>();
+  private final CapabilityDependencyDecomposition<String> goap = new CapabilityDependencyDecomposition<>();
 
   @Test
   void singleStepPlan() {
@@ -201,12 +200,12 @@ class GoalOrientedDecompositionTest {
 
   @Test
   void idIsGoap() {
-    assertThat(goap.id()).isEqualTo("goap");
+    assertThat(goap.id()).isEqualTo("capability-dependency");
   }
 
   // --- helpers ---
 
-  private DagPlan<TaskNode.LeafTask<String>> decompose(GoapDecompositionContext<String> ctx) {
+  private DagPlan<TaskNode.LeafTask<String>> decompose(CapabilityDependencyContext<String> ctx) {
     var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
     return goap.decompose(compound, ctx);
   }
@@ -215,10 +214,10 @@ class GoalOrientedDecompositionTest {
     return (PlannedTask<?>) plan.topologicalSort().get(0).task();
   }
 
-  private static GoapDecompositionContext<String> goapCtx(List<RoutingCandidate> agents,
-                                                           Set<String> goalTypes,
-                                                           Set<String> availableTypes) {
-    return new GoapDecompositionContext<>("state", agents, 0, goalTypes, availableTypes);
+  private static CapabilityDependencyContext<String> goapCtx(List<RoutingCandidate> agents,
+                                                             Set<String> goalTypes,
+                                                             Set<String> availableTypes) {
+    return new CapabilityDependencyContext<>("state", agents, 0, goalTypes, availableTypes);
   }
 
   private static RoutingCandidate candidate(String name, AgentCapability... caps) {

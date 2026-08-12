@@ -93,7 +93,7 @@ Nine decomposition strategies with increasing sophistication:
 | `ForwardReasoningDecomposition` | SHOP-style forward reasoning -- applies `PrimitiveTask.effect()` to projected state | Uses `UnaryOperator<T> stateCopier` to clone state before effect application |
 | `LlmDecomposition` | Recursive multi-level LLM planning via `maxDepth` | Parses JSON: `[{"agent":..., "task":..., "rationale":...}]` for leaves, `{"subtask":..., "description":...}` for compounds |
 | `HybridDecomposition` | Static-first with LLM fallback on `NoMethodMatchedException` | Passes `staticFailureHint` (failed method's task name + method count) to LLM context |
-| `GoalOrientedDecomposition` | GOAP backward-chaining from goal state | Matches goal types to agent capabilities via preconditions/effects, builds dependency DAG via `GoapDecompositionContext` |
+| `CapabilityDependencyDecomposition` | GOAP backward-chaining from goal state | Matches goal types to agent capabilities via preconditions/effects, builds dependency DAG via `CapabilityDependencyContext` |
 | `HeuristicDecomposition` | Ranked method selection via `DecompositionHeuristic<T>` | Tries methods in score order, backtracks on `NoMethodMatchedException`. Uses `ScoredMethod<T>` |
 | `CompositeHeuristic` | Weighted combination of multiple `DecompositionHeuristic<T>` | Min-max normalisation across delegates. Inner: `WeightedHeuristic<T>(heuristic, weight)` |
 

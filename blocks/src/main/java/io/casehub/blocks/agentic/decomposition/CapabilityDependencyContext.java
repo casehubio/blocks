@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public record GoapDecompositionContext<T>(T state, List<RoutingCandidate> agents, int depth,
-                                          Set<String> goalTypes, Set<String> availableTypes)
+public record CapabilityDependencyContext<T>(T state, List<RoutingCandidate> agents, int depth,
+                                             Set<String> goalTypes, Set<String> availableTypes)
     implements io.casehub.engine.plan.DecompositionContext<T> {
-  public GoapDecompositionContext {
+  public CapabilityDependencyContext {
     agents = List.copyOf(agents);
     Objects.requireNonNull(goalTypes, "goalTypes");
     goalTypes = Set.copyOf(goalTypes);

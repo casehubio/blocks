@@ -22,8 +22,8 @@ public final class Decomposition {
         return new StaticDecomposition<>();
     }
 
-    public static <T> GoalOrientedDecomposition<T> goap() {
-        return new GoalOrientedDecomposition<>();
+    public static <T> CapabilityDependencyDecomposition<T> capabilityDependency() {
+        return new CapabilityDependencyDecomposition<>();
     }
 
 

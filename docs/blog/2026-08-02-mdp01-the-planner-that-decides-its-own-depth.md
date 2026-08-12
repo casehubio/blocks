@@ -45,7 +45,7 @@ Each decomposition level multiplies LLM calls by the branching factor. With a br
 
 ## Where this fits
 
-CaseHub's decomposition package now covers the full spectrum. `StaticDecomposition` handles known task structures with guard predicates — fast, deterministic, no LLM cost. `ForwardReasoningDecomposition` applies effects to projected state during planning (SHOP-style), so downstream guards see what upstream tasks will produce. `GoalOrientedDecomposition` does backward-chaining GOAP from desired capabilities. `HybridDecomposition` tries static methods first and falls back to the LLM when no method matches — the ChatHTN pattern.
+CaseHub's decomposition package now covers the full spectrum. `StaticDecomposition` handles known task structures with guard predicates — fast, deterministic, no LLM cost. `ForwardReasoningDecomposition` applies effects to projected state during planning (SHOP-style), so downstream guards see what upstream tasks will produce. `CapabilityDependencyDecomposition` does backward-chaining GOAP from desired capabilities. `HybridDecomposition` tries static methods first and falls back to the LLM when no method matches — the ChatHTN pattern.
 
 Recursive `LlmDecomposition` fills the remaining gap: goals so novel that no static method exists, complex enough that flat planning produces the wrong granularity. The LLM decides what needs further breakdown. The depth ceiling keeps costs bounded. The result is still a `DagPlan` — same type, same execution drivers, same accountability listeners.
 

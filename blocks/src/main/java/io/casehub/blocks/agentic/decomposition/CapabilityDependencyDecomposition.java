@@ -21,13 +21,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
+public class CapabilityDependencyDecomposition<T> implements DecompositionStrategy<T> {
 
   @Override
   public String id() {
-    return "goap";
+    return "capability-dependency";
   }
 
+<<<<<<<< Updated upstream:blocks/src/main/java/io/casehub/blocks/agentic/decomposition/GoalOrientedDecomposition.java
   @Override
   public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task,
                                                   DecompositionContext<T> context) {
@@ -46,6 +47,26 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
 
   private DagPlan<TaskNode.LeafTask<T>> plan(String taskName, GoapDecompositionContext<T> ctx) {
     List<GoapAction> actions = buildActions(ctx.agents());
+========
+    @Override
+    public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task,
+                                                   DecompositionContext<T> context) {
+        if (task instanceof TaskNode.LeafTask<T> leaf) {
+            return DagPlan.singleton(leaf);
+        }
+
+        if (!(context instanceof CapabilityDependencyContext<T> goapCtx)) {
+            throw new IllegalArgumentException(
+                    "GoalOrientedDecomposition requires GoapDecompositionContext");
+        }
+
+        var compound = (TaskNode.CompoundTask<T>) task;
+        return plan(compound.name(), goapCtx);
+    }
+
+  private DagPlan<TaskNode.LeafTask<T>> plan(String taskName, CapabilityDependencyContext<T> ctx) {
+    List<CapabilityAction> actions = buildActions(ctx.agents());
+>>>>>>>> Stashed changes:blocks/src/main/java/io/casehub/blocks/agentic/decomposition/CapabilityDependencyDecomposition.java
     if (actions.isEmpty()) {
       throw new NoMethodMatchedException(taskName);
     }
@@ -58,9 +79,9 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
           "All goal types already satisfied — no decomposition needed for '" + taskName + "'");
     }
 
-    Map<String, GoapAction> typeProducers = new java.util.HashMap<>();
-    List<GoapAction> selectedActions = new ArrayList<>();
-    Set<GoapAction> alreadyInPlan = new HashSet<>();
+    Map<String, CapabilityAction> typeProducers   = new java.util.HashMap<>();
+    List<CapabilityAction>        selectedActions = new ArrayList<>();
+    Set<CapabilityAction>         alreadyInPlan   = new HashSet<>();
 
     while (!unsatisfied.isEmpty()) {
       String needed = unsatisfied.iterator().next();
@@ -68,7 +89,7 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
 
       if (typeProducers.containsKey(needed)) continue;
 
-      GoapAction producer = findProducer(needed, actions);
+      CapabilityAction producer = findProducer(needed, actions);
       if (producer == null) {
         throw new NoMethodMatchedException(taskName);
       }
@@ -90,8 +111,8 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
     return buildDag(selectedActions, typeProducers, ctx.availableTypes());
   }
 
-  private List<GoapAction> buildActions(List<RoutingCandidate> agents) {
-    var actions = new ArrayList<GoapAction>();
+  private List<CapabilityAction> buildActions(List<RoutingCandidate> agents) {
+    var actions = new ArrayList<CapabilityAction>();
     for (var candidate : agents) {
       if (candidate.descriptor() == null) continue;
       if (candidate.descriptor().capabilities() == null) continue;
@@ -99,14 +120,14 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
         if (cap.outputTypes() == null || cap.outputTypes().isEmpty()) continue;
         var preconditions = cap.inputTypes() != null ? Set.copyOf(cap.inputTypes()) : Set.<String>of();
         var effects = Set.copyOf(cap.outputTypes());
-        actions.add(new GoapAction(candidate, cap, preconditions, effects));
+        actions.add(new CapabilityAction(candidate, cap, preconditions, effects));
       }
     }
     return actions;
   }
 
-  private static @Nullable GoapAction findProducer(String type, List<GoapAction> actions) {
-    GoapAction best = null;
+  private static @Nullable CapabilityAction findProducer(String type, List<CapabilityAction> actions) {
+    CapabilityAction best = null;
     for (var action : actions) {
       if (action.effects.contains(type)) {
         if (best == null) {
@@ -121,10 +142,10 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
     return best;
   }
 
-  private DagPlan<TaskNode.LeafTask<T>> buildDag(List<GoapAction> selectedActions,
-                                                  Map<String, GoapAction> typeProducers,
+  private DagPlan<TaskNode.LeafTask<T>> buildDag(List<CapabilityAction> selectedActions,
+                                                  Map<String, CapabilityAction> typeProducers,
                                                   Set<String> availableTypes) {
-    IdentityHashMap<GoapAction, String> actionIds = new IdentityHashMap<>();
+    IdentityHashMap<CapabilityAction, String> actionIds = new IdentityHashMap<>();
     for (int i = 0; i < selectedActions.size(); i++) {
       actionIds.put(selectedActions.get(i), "goap-" + i);
     }
@@ -135,7 +156,7 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
       Set<String> deps = new HashSet<>();
       for (String pre : action.preconditions) {
         if (!availableTypes.contains(pre)) {
-          GoapAction depAction = typeProducers.get(pre);
+          CapabilityAction depAction = typeProducers.get(pre);
           if (depAction != null && depAction != action) {
             String depId = actionIds.get(depAction);
             if (depId != null) deps.add(depId);
@@ -154,6 +175,6 @@ public class GoalOrientedDecomposition<T> implements DecompositionStrategy<T> {
     return DagPlan.fromNodes(dagNodes);
   }
 
-  private record GoapAction(RoutingCandidate candidate, AgentCapability capability,
-                             Set<String> preconditions, Set<String> effects) {}
+  private record CapabilityAction(RoutingCandidate candidate, AgentCapability capability,
+                                  Set<String> preconditions, Set<String> effects) {}
 }
