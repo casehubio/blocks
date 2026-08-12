@@ -4,7 +4,7 @@ import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import java.util.ArrayList;
+
 import java.util.List;
 
 final class SequenceStrategy<T> implements DecompositionStrategy<T> {
@@ -24,12 +24,12 @@ final class SequenceStrategy<T> implements DecompositionStrategy<T> {
         DecompositionStrategy<T> decomposer =
                 (ctx instanceof AgenticDecompositionContext<T> adc && adc.decomposer() != null)
                 ? adc.decomposer() : new StaticDecomposition<>();
-        
-        var plans = new ArrayList<DagPlan<TaskNode.LeafTask<T>>>();
-        for (var child : children) {
-            plans.add(resolvePlan(child, decomposer, ctx));
+        DagPlan<TaskNode.LeafTask<T>> result = resolvePlan(children.get(0), decomposer, ctx);
+        for (int i = 1; i < children.size(); i++) {
+            var next = resolvePlan(children.get(i), decomposer, ctx);
+            result = DagPlan.sequentialMerge(List.of(result, next));
         }
-        return DagPlan.sequentialMerge(plans);
+        return result;
     }
 
     private static <T> DagPlan<TaskNode.LeafTask<T>> resolvePlan(

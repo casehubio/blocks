@@ -14,16 +14,14 @@ public class ParallelBuilder<T> extends AbstractPatternBuilder<T, ParallelBuilde
     public ParallelBuilder() {
         this.task = "parallel";
         this.patternType = io.casehub.blocks.agentic.model.PatternType.PARALLEL;
-        this.routing = ctx -> Uni.createFrom().item(
-                new RoutingDecision.Selected(
-                        ctx.candidates().stream().map(RoutingCandidate::ref).toList()));
+        this.routing = ctx -> new RoutingDecision.Selected(
+                ctx.candidates().stream().map(RoutingCandidate::ref).toList());
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();
         this.aggregation = new CollectAll<>();
-        this.termination = ctx -> Uni.createFrom().item(
-                ctx.iterationCount() >= 1
-                        ? new TerminationDecision.Complete(ctx.results())
-                        : TerminationDecision.Continue.INSTANCE);
+        this.termination = ctx -> ctx.iterationCount() >= 1
+                ? new TerminationDecision.Complete(ctx.results())
+                : TerminationDecision.Continue.INSTANCE;
     }
 
     @Override

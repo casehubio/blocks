@@ -61,7 +61,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("Review this code", List.of(reviewer, implementor), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
             var selected = (RoutingDecision.Selected) decision;
@@ -77,7 +77,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("Implement feature X", List.of(reviewer, implementor), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
             assertThat(((RoutingDecision.Selected) decision).agents().get(0))
@@ -94,7 +94,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(reviewer), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Unresolvable.class);
             assertThat(((RoutingDecision.Unresolvable) decision).reason())
@@ -108,7 +108,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(reviewer), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Unresolvable.class);
             assertThat(((RoutingDecision.Unresolvable) decision).reason())
@@ -123,7 +123,7 @@ class LlmSelectedRoutingTest {
             var reviewer = candidate("reviewer", "Reviews code");
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(reviewer), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Unresolvable.class);
             assertThat(((RoutingDecision.Unresolvable) decision).reason())
@@ -137,7 +137,7 @@ class LlmSelectedRoutingTest {
             var reviewer = candidate("reviewer", "Reviews code");
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(reviewer), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Unresolvable.class);
         }
@@ -154,7 +154,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(noDescriptor, withDescriptor), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
             assertThat(((RoutingDecision.Selected) decision).agents().get(0))
@@ -169,7 +169,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(noDescriptor), "state");
-            var decision = routing.route(ctx).await().indefinitely();
+            var decision = routing.route(ctx);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
         }
@@ -185,7 +185,7 @@ class LlmSelectedRoutingTest {
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("Review the authentication module",
                     List.of(reviewer), "state");
-            routing.route(ctx).await().indefinitely();
+            routing.route(ctx);
 
             var captor = ArgumentCaptor.forClass(AgentSessionConfig.class);
             verify(agentProvider).invoke(captor.capture());
@@ -200,7 +200,7 @@ class LlmSelectedRoutingTest {
 
             var routing = new LlmSelectedRouting<String>(agentProvider);
             var ctx = new RoutingContext<>("task", List.of(reviewer), "state");
-            routing.route(ctx).await().indefinitely();
+            routing.route(ctx);
 
             var captor = ArgumentCaptor.forClass(AgentSessionConfig.class);
             verify(agentProvider).invoke(captor.capture());
@@ -222,7 +222,7 @@ class LlmSelectedRoutingTest {
             var context = new RoutingContext<>("review code",
                     List.of(candidate), Map.<String, Object>of("done", "static analysis"));
 
-            routing.route(context).await().indefinitely();
+            routing.route(context);
 
             assertThat(promptCapture.get()).contains("Current state:");
             assertThat(promptCapture.get()).contains("completed: static analysis");
@@ -243,7 +243,7 @@ class LlmSelectedRoutingTest {
             var candidate = new RoutingCandidate(AgentRef.worker(worker), null);
             var context = new RoutingContext<>("review PR", List.of(candidate), "state");
 
-            routing.route(context).await().indefinitely();
+            routing.route(context);
 
             assertThat(promptCapture.get()).contains("Reviews code for bugs, style, and security issues");
         }
@@ -262,7 +262,7 @@ class LlmSelectedRoutingTest {
                     AgentDescriptor.builder().agentId("a1").name("reviewer").slot("review").tenancyId("t1").build());
             var context = new RoutingContext<>("task", List.of(candidate), "state");
 
-            var decision = routing.route(context).await().indefinitely();
+            var decision = routing.route(context);
 
             assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
             var selected = (RoutingDecision.Selected) decision;

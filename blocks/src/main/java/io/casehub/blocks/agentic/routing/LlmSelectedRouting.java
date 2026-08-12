@@ -1,12 +1,10 @@
 package io.casehub.blocks.agentic.routing;
 
 import io.casehub.blocks.agentic.AgentCardSupport;
-import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
-import io.smallrye.mutiny.Uni;
 
 import java.util.List;
 import java.util.function.Function;
@@ -61,24 +59,22 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
     }
 
     @Override
-    public Uni<RoutingDecision> route(RoutingContext<T> context) {
-        return Uni.createFrom().item(() -> {
-            try {
-                var userPrompt = buildUserPrompt(context);
-                var config = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
+    public RoutingDecision route(RoutingContext<T> context) {
+        try {
+            var userPrompt = buildUserPrompt(context);
+            var config     = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
 
-                var text = agentProvider.invoke(config)
-                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                        .collect().with(Collectors.joining())
-                        .await().indefinitely();
+            var text = agentProvider.invoke(config)
+                                    .filter(e -> e instanceof AgentEvent.TextDelta)
+                                    .map(e -> ((AgentEvent.TextDelta) e).text())
+                                    .collect().with(Collectors.joining())
+                                    .await().indefinitely();
 
-                return parseSelection(text, context.candidates());
-            } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING, "LLM routing failed", e);
-                return new RoutingDecision.Unresolvable("LLM routing failed: " + e.getMessage());
-            }
-        });
+            return parseSelection(text, context.candidates());
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "LLM routing failed", e);
+            return new RoutingDecision.Unresolvable("LLM routing failed: " + e.getMessage());
+        }
     }
 
     private String buildUserPrompt(RoutingContext<T> context) {

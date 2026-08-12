@@ -1,7 +1,6 @@
 package io.casehub.blocks.agentic.model;
 
 import io.casehub.blocks.agentic.AgentResult;
-import io.smallrye.mutiny.Uni;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -17,23 +16,21 @@ public class OrchestratedDriver<T> extends AbstractExecutionDriver<T> {
     }
 
     @Override
-    protected Uni<ExecutionResult> runLoop(ExecutionModel<T> model, T context) {
-        return Uni.createFrom().item(() -> {
-            var start      = Instant.now();
-            var allResults = new ArrayList<AgentResult>();
-            int iteration  = 0;
+    protected ExecutionResult runLoop(ExecutionModel<T> model, T context) {
+        var start      = Instant.now();
+        var allResults = new ArrayList<AgentResult>();
+        int iteration  = 0;
 
-            while (!isCancelled()) {
-                transition(model, new ExecutionState.Running(iteration));
+        while (!isCancelled()) {
+            transition(model, new ExecutionState.Running(iteration));
 
-                var result = executeIteration(model, context, iteration, start, allResults);
-                if (result != null) {return result;}
+            var result = executeIteration(model, context, iteration, start, allResults);
+            if (result != null) {return result;}
 
-                iteration++;
-            }
+            iteration++;
+        }
 
-            transition(model, new ExecutionState.Cancelled());
-            return new ExecutionResult.Cancelled();
-        });
+        transition(model, new ExecutionState.Cancelled());
+        return new ExecutionResult.Cancelled();
     }
 }

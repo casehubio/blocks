@@ -8,7 +8,6 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.JoinType;
 import io.casehub.engine.plan.TaskNode;
-
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -28,26 +27,6 @@ public class CapabilityDependencyDecomposition<T> implements DecompositionStrate
     return "capability-dependency";
   }
 
-<<<<<<<< Updated upstream:blocks/src/main/java/io/casehub/blocks/agentic/decomposition/GoalOrientedDecomposition.java
-  @Override
-  public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task,
-                                                  DecompositionContext<T> context) {
-    if (task instanceof TaskNode.LeafTask<T> leaf) {
-      return DagPlan.singleton(leaf);
-    }
-
-    if (!(context instanceof GoapDecompositionContext<T> goapCtx)) {
-      throw new IllegalArgumentException(
-          "GoalOrientedDecomposition requires GoapDecompositionContext");
-    }
-
-    var compound = (TaskNode.CompoundTask<T>) task;
-    return plan(compound.name(), goapCtx);
-  }
-
-  private DagPlan<TaskNode.LeafTask<T>> plan(String taskName, GoapDecompositionContext<T> ctx) {
-    List<GoapAction> actions = buildActions(ctx.agents());
-========
     @Override
     public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task,
                                                    DecompositionContext<T> context) {
@@ -57,7 +36,7 @@ public class CapabilityDependencyDecomposition<T> implements DecompositionStrate
 
         if (!(context instanceof CapabilityDependencyContext<T> goapCtx)) {
             throw new IllegalArgumentException(
-                    "GoalOrientedDecomposition requires GoapDecompositionContext");
+                    "CapabilityDependencyDecomposition requires CapabilityDependencyContext");
         }
 
         var compound = (TaskNode.CompoundTask<T>) task;
@@ -66,7 +45,6 @@ public class CapabilityDependencyDecomposition<T> implements DecompositionStrate
 
   private DagPlan<TaskNode.LeafTask<T>> plan(String taskName, CapabilityDependencyContext<T> ctx) {
     List<CapabilityAction> actions = buildActions(ctx.agents());
->>>>>>>> Stashed changes:blocks/src/main/java/io/casehub/blocks/agentic/decomposition/CapabilityDependencyDecomposition.java
     if (actions.isEmpty()) {
       throw new NoMethodMatchedException(taskName);
     }
@@ -79,9 +57,9 @@ public class CapabilityDependencyDecomposition<T> implements DecompositionStrate
           "All goal types already satisfied — no decomposition needed for '" + taskName + "'");
     }
 
-    Map<String, CapabilityAction> typeProducers   = new java.util.HashMap<>();
-    List<CapabilityAction>        selectedActions = new ArrayList<>();
-    Set<CapabilityAction>         alreadyInPlan   = new HashSet<>();
+    Map<String, CapabilityAction> typeProducers = new java.util.HashMap<>();
+    List<CapabilityAction> selectedActions = new ArrayList<>();
+    Set<CapabilityAction> alreadyInPlan = new HashSet<>();
 
     while (!unsatisfied.isEmpty()) {
       String needed = unsatisfied.iterator().next();
@@ -176,5 +154,5 @@ public class CapabilityDependencyDecomposition<T> implements DecompositionStrate
   }
 
   private record CapabilityAction(RoutingCandidate candidate, AgentCapability capability,
-                                  Set<String> preconditions, Set<String> effects) {}
+                             Set<String> preconditions, Set<String> effects) {}
 }

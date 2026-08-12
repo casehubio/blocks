@@ -22,7 +22,7 @@ class StaticDecompositionTest {
         var prim1  = new PrimitiveTask<String>("s1", java.time.Instant.now(), null, agent1, null, null);
 
         DecompositionStrategy<String> strategy1 = (compound, ctx) ->
-                                                          (DagPlan.singleton(prim1));
+                                                          DagPlan.singleton(prim1);
 
         var method1 = new DecompositionMethod<String>(s -> s.equals("match"), strategy1, null);
         var method2 = new DecompositionMethod<String>(s -> true, new IdentityDecomposition<>(), null);
@@ -59,7 +59,7 @@ class StaticDecompositionTest {
             captured.set(ctx);
             var agent = AgentRef.external(s -> java.util.concurrent.CompletableFuture.completedFuture(null));
             var leaf  = new PrimitiveTask<String>("t", java.time.Instant.now(), null, agent, null, null);
-            return (DagPlan.singleton(leaf));
+            return DagPlan.singleton(leaf);
         };
 
         var method   = new DecompositionMethod<String>(s -> true, capturing, null);
@@ -81,9 +81,9 @@ class StaticDecompositionTest {
         var cheap     = new PrimitiveTask<String>("cheap", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> expensiveStrategy = (c, ctx) ->
-                                                                  (DagPlan.singleton(expensive));
+                                                                  DagPlan.singleton(expensive);
         DecompositionStrategy<String> cheapStrategy = (c, ctx) ->
-                                                              (DagPlan.singleton(cheap));
+                                                              DagPlan.singleton(cheap);
 
         var expensiveMethod = new DecompositionMethod<String>(
                 "expensive", s -> true, expensiveStrategy, null,
@@ -110,7 +110,7 @@ class StaticDecompositionTest {
         var prim  = new PrimitiveTask<String>("t", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> strategy = (c, ctx) ->
-                                                         (DagPlan.singleton(prim));
+                                                         DagPlan.singleton(prim);
 
         var method = new DecompositionMethod<String>(s -> true, strategy, null);
 
@@ -131,7 +131,7 @@ class StaticDecompositionTest {
         var prim  = new PrimitiveTask<String>("t", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> strategy = (c, ctx) ->
-                                                         (DagPlan.singleton(prim));
+                                                         DagPlan.singleton(prim);
 
         var method = new DecompositionMethod<String>(
                 "within-budget", s -> true, strategy, null,
@@ -155,9 +155,9 @@ class StaticDecompositionTest {
         var fast  = new PrimitiveTask<String>("fast", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> slowStrategy = (c, ctx) ->
-                                                             (DagPlan.singleton(slow));
+                                                             DagPlan.singleton(slow);
         DecompositionStrategy<String> fastStrategy = (c, ctx) ->
-                                                             (DagPlan.singleton(fast));
+                                                             DagPlan.singleton(fast);
 
         var slowMethod = new DecompositionMethod<String>(
                 "slow", s -> true, slowStrategy, null,

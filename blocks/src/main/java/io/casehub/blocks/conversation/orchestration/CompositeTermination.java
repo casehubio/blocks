@@ -4,7 +4,6 @@ import io.casehub.blocks.agentic.termination.TerminationCondition;
 import io.casehub.blocks.agentic.termination.TerminationContext;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
 import io.casehub.blocks.conversation.ConversationState;
-import io.smallrye.mutiny.Uni;
 
 import java.util.List;
 
@@ -18,18 +17,14 @@ public class CompositeTermination implements TerminationCondition<ConversationSt
     }
 
     @Override
-    public Uni<TerminationDecision> evaluate(
+    public TerminationDecision evaluate(
             TerminationContext<ConversationState> context) {
-        Uni<TerminationDecision> chain = Uni.createFrom()
-                .item(TerminationDecision.Continue.INSTANCE);
         for (var condition : conditions) {
-            chain = chain.flatMap(prev -> {
-                if (prev instanceof TerminationDecision.Continue) {
-                    return condition.evaluate(context);
-                }
-                return Uni.createFrom().item(prev);
-            });
+            var decision = condition.evaluate(context);
+            if (!(decision instanceof TerminationDecision.Continue)) {
+                return decision;
+            }
         }
-        return chain;
+        return TerminationDecision.Continue.INSTANCE;
     }
 }

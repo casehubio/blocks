@@ -9,7 +9,7 @@ public class IdentityDecomposition<T> implements DecompositionStrategy<T> {
 
     @Override
     public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> node,
-                                                    DecompositionContext<T> context) {
+                                                   DecompositionContext<T> context) {
         return switch (node) {
             case TaskNode.LeafTask<T> leaf -> DagPlan.singleton(leaf);
             case TaskNode.CompoundTask<T> compound -> throw new UnsupportedOperationException(

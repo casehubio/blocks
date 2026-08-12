@@ -21,10 +21,9 @@ public class HtnBuilder<T> extends AbstractPatternBuilder<T, HtnBuilder<T>> {
         this.decomposition = new StaticDecomposition<>();
         this.activation    = new OnExplicitDispatch<>();
         this.aggregation   = new CollectAll<>();
-        this.termination   = ctx -> Uni.createFrom().item(
-                ctx.iterationCount() >= 1
+        this.termination   = ctx -> ctx.iterationCount() >= 1
                 ? new TerminationDecision.Complete(ctx.results())
-                : TerminationDecision.Continue.INSTANCE);
+                : TerminationDecision.Continue.INSTANCE;
     }
 
     public HtnBuilder<T> rootTask(TaskNode<T> rootTask) {

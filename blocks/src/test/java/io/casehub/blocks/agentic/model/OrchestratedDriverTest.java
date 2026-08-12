@@ -343,7 +343,7 @@ class OrchestratedDriverTest {
             var agent = AgentRef.external((Object input) -> {
                 int count = callCount.incrementAndGet();
                 if (count >= 2) {
-                    driver.cancel().await().indefinitely();
+                    driver.cancel();
                 }
                 return CompletableFuture.completedFuture(
                         AgentResult.success(null, "iteration-" + count));

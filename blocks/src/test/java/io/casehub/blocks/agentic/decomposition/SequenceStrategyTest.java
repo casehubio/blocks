@@ -6,7 +6,6 @@ import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -29,7 +28,7 @@ class SequenceStrategyTest {
 
         TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
-                        (c, x) -> (DagPlan.singleton(leaf2)), null)));
+                        (c, x) -> DagPlan.singleton(leaf2), null)));
 
         var decomposerCalled = new AtomicBoolean(false);
         DecompositionStrategy<String> customDecomposer = (node, x) -> {
@@ -37,7 +36,7 @@ class SequenceStrategyTest {
                 decomposerCalled.set(true);
                 return ct.methods().get(0).strategy().decompose(ct, x);
             }
-            return (DagPlan.singleton((TaskNode.LeafTask<String>) node));
+            return DagPlan.singleton((TaskNode.LeafTask<String>) node);
         };
 
         var seq = new SequenceStrategy<>(List.<TaskNode<String>>of(leaf1, nestedCompound));
@@ -55,7 +54,7 @@ class SequenceStrategyTest {
 
         TaskNode.CompoundTask<String> nestedCompound = new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "nested", List.of(
                 new DecompositionMethod<String>(s -> true,
-                        (c, x) -> (DagPlan.singleton(leaf2)), null)));
+                        (c, x) -> DagPlan.singleton(leaf2), null)));
 
         var seq = new SequenceStrategy<>(List.<TaskNode<String>>of(leaf1, nestedCompound));
         var ctx = new AgenticDecompositionContext<>("state", List.of(), 0);

@@ -2,7 +2,6 @@ package io.casehub.blocks.agentic.model;
 
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
-import io.smallrye.mutiny.Uni;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,24 +37,22 @@ public class ChoreographedDriver<T> extends AbstractExecutionDriver<T> {
     }
 
     @Override
-    protected Uni<ExecutionResult> runLoop(ExecutionModel<T> model, T context) {
-        return Uni.createFrom().item(() -> {
-            var start = Instant.now();
-            var allResults = new ArrayList<AgentResult>();
-            int iteration = 0;
+    protected ExecutionResult runLoop(ExecutionModel<T> model, T context) {
+        var start      = Instant.now();
+        var allResults = new ArrayList<AgentResult>();
+        int iteration  = 0;
 
+        transition(model, new ExecutionState.WaitingForEvent());
+
+        while (!isCancelled()) {
+            var result = executeIteration(model, context, iteration, start, allResults);
+            if (result != null) {return result;}
+
+            iteration++;
             transition(model, new ExecutionState.WaitingForEvent());
+        }
 
-            while (!isCancelled()) {
-                var result = executeIteration(model, context, iteration, start, allResults);
-                if (result != null) return result;
-
-                iteration++;
-                transition(model, new ExecutionState.WaitingForEvent());
-            }
-
-            transition(model, new ExecutionState.Cancelled());
-            return new ExecutionResult.Cancelled();
-        });
+        transition(model, new ExecutionState.Cancelled());
+        return new ExecutionResult.Cancelled();
     }
 }

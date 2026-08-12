@@ -16,7 +16,6 @@ import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.ReplanContext;
 import io.casehub.engine.plan.TaskNode;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -115,20 +114,17 @@ public class HtnExecutor<T> {
         return ctx -> {
             if (failOnError) {
                 var failed = ctx.results().stream()
-                        .filter(r -> r.status() != AgentResult.AgentResultStatus.SUCCESS)
-                        .findFirst();
+                                .filter(r -> r.status() != AgentResult.AgentResultStatus.SUCCESS)
+                                .findFirst();
                 if (failed.isPresent()) {
-                    return io.smallrye.mutiny.Uni.createFrom().item(
-                            (TerminationDecision) new TerminationDecision.Failed(
-                                    "Step failed: " + failed.get().output()));
+                    return new TerminationDecision.Failed(
+                            "Step failed: " + failed.get().output());
                 }
             }
             if (ctx.iterationCount() >= agentCount) {
-                return io.smallrye.mutiny.Uni.createFrom().item(
-                        (TerminationDecision) new TerminationDecision.Complete(ctx.results()));
+                return new TerminationDecision.Complete(ctx.results());
             }
-            return io.smallrye.mutiny.Uni.createFrom().item(
-                    (TerminationDecision) TerminationDecision.Continue.INSTANCE);
+            return TerminationDecision.Continue.INSTANCE;
         };
     }
 

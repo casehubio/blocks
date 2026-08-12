@@ -4,7 +4,6 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.TaskNode;
 
-
 import java.util.List;
 
 public class StructuralCostHeuristic<T> implements DecompositionHeuristic<T> {
@@ -22,11 +21,11 @@ public class StructuralCostHeuristic<T> implements DecompositionHeuristic<T> {
 
     @Override
     public List<ScoredMethod<T>> evaluate(TaskNode.CompoundTask<T> task,
-                                           List<DecompositionMethod<T>> methods,
-                                           DecompositionContext<T> context) {
+                                          List<DecompositionMethod<T>> methods,
+                                          DecompositionContext<T> context) {
         return methods.stream()
-                .map(m -> new ScoredMethod<>(m, -estimateCost(m)))
-                .toList();
+                      .map(m -> new ScoredMethod<>(m, -estimateCost(m)))
+                      .toList();
     }
 
     private double estimateCost(DecompositionMethod<T> method) {

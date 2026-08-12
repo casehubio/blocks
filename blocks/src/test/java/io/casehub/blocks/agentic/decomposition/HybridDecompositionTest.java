@@ -14,7 +14,6 @@ import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -122,8 +121,7 @@ class HybridDecompositionTest {
                 return DagPlan.singleton(task);
             };
 
-            DecompositionStrategy<String> staticWith3Methods = (compound, ctx) ->
-                                                                       { throw new NoMethodMatchedException("incident-response", 3); };
+            DecompositionStrategy<String> staticWith3Methods = (compound, ctx) -> { throw new NoMethodMatchedException("incident-response", 3); };
 
             var hybrid   = new HybridDecomposition<>(staticWith3Methods, capturingFallback);
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
@@ -140,8 +138,7 @@ class HybridDecompositionTest {
 
         @Test
         void staticFails_llmAlsoFails_errorPropagates() {
-            DecompositionStrategy<String> failingFallback = (compound, ctx) ->
-                    { throw new IllegalStateException("LLM also failed"); };
+            DecompositionStrategy<String> failingFallback = (compound, ctx) -> { throw new IllegalStateException("LLM also failed"); };
 
             var hybrid = new HybridDecomposition<>(staticThatFails(), failingFallback);
             var compound = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "goal", List.of());
@@ -172,8 +169,7 @@ class HybridDecompositionTest {
 
         @Test
         void nonGuardException_propagatesWithoutFallback() {
-            DecompositionStrategy<String> throwing = (compound, ctx) ->
-                    { throw new NullPointerException("bug"); };
+            DecompositionStrategy<String> throwing = (compound, ctx) -> { throw new NullPointerException("bug"); };
             @SuppressWarnings("unchecked")
             var fallback = (DecompositionStrategy<String>) mock(DecompositionStrategy.class);
 

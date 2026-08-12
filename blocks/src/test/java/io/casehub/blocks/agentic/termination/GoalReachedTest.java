@@ -15,7 +15,7 @@ class GoalReachedTest {
         Predicate<String> goalMet = s -> s.equals("done");
         var term = new GoalReached<>(goalMet);
         var ctx = new TerminationContext<>("done", 1, Duration.ZERO, List.of());
-        assertThat(term.evaluate(ctx).await().indefinitely())
+        assertThat(term.evaluate(ctx))
                 .isInstanceOf(TerminationDecision.Complete.class);
     }
 
@@ -24,7 +24,7 @@ class GoalReachedTest {
         Predicate<String> goalMet = s -> s.equals("done");
         var term = new GoalReached<>(goalMet);
         var ctx = new TerminationContext<>("not yet", 1, Duration.ZERO, List.of());
-        assertThat(term.evaluate(ctx).await().indefinitely())
+        assertThat(term.evaluate(ctx))
                 .isInstanceOf(TerminationDecision.Continue.class);
     }
 }

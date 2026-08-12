@@ -18,7 +18,7 @@ class PassThroughTest {
         var agg = new PassThrough<String>();
         var ctx = new AggregationContext<>("state");
 
-        var aggregated = agg.aggregate(List.of(result), ctx).await().indefinitely();
+        var aggregated = agg.aggregate(List.of(result), ctx);
         assertThat(aggregated).isInstanceOf(AggregationResult.Resolved.class);
         assertThat(((AggregationResult.Resolved) aggregated).value()).isEqualTo("output");
     }
@@ -26,8 +26,7 @@ class PassThroughTest {
     @Test
     void returnsNullForEmptyResults() {
         var agg = new PassThrough<String>();
-        var aggregated = agg.aggregate(List.of(), new AggregationContext<>("state"))
-                .await().indefinitely();
+        var aggregated = agg.aggregate(List.of(), new AggregationContext<>("state"));
         assertThat(aggregated).isInstanceOf(AggregationResult.Resolved.class);
         assertThat(((AggregationResult.Resolved) aggregated).value()).isNull();
     }

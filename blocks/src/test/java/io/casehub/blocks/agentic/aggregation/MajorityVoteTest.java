@@ -19,8 +19,7 @@ class MajorityVoteTest {
         var r3 = AgentResult.success(AgentRef.worker(mock(Worker.class)), "yes");
         var agg = new MajorityVote<String>();
 
-        var aggregated = agg.aggregate(List.of(r1, r2, r3), new AggregationContext<>("state"))
-                .await().indefinitely();
+        var aggregated = agg.aggregate(List.of(r1, r2, r3), new AggregationContext<>("state"));
 
         assertThat(aggregated).isInstanceOf(AggregationResult.Resolved.class);
         assertThat(((AggregationResult.Resolved) aggregated).value()).isEqualTo("yes");
@@ -32,8 +31,7 @@ class MajorityVoteTest {
         var r2 = AgentResult.success(AgentRef.worker(mock(Worker.class)), "no");
         var agg = new MajorityVote<String>();
 
-        var aggregated = agg.aggregate(List.of(r1, r2), new AggregationContext<>("state"))
-                .await().indefinitely();
+        var aggregated = agg.aggregate(List.of(r1, r2), new AggregationContext<>("state"));
 
         assertThat(aggregated).isInstanceOf(AggregationResult.Deadlocked.class);
     }

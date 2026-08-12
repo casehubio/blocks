@@ -58,6 +58,6 @@ class SupervisorTerminationTest {
 
     private TerminationDecision evaluate(ConversationState state) {
         var ctx = new TerminationContext<>(state, 1, Duration.ZERO, List.of());
-        return termination.evaluate(ctx).await().indefinitely();
+        return termination.evaluate(ctx);
     }
 }

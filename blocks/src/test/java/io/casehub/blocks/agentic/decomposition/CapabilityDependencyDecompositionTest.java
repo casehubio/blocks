@@ -130,7 +130,7 @@ class CapabilityDependencyDecompositionTest {
 
     assertThatThrownBy(() -> goap.decompose(compound, plainCtx))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("GoapDecompositionContext");
+        .hasMessageContaining("CapabilityDependencyContext");
   }
 
   @Test

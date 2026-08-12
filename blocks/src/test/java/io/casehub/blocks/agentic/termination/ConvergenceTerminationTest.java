@@ -47,7 +47,7 @@ class ConvergenceTerminationTest {
                 10, 0.5, Set.of(ConvergenceState.CONSENSUS));
 
         var ctx = new TerminationContext<>(state, 1, Duration.ZERO, List.of());
-        var decision = termination.evaluate(ctx).await().indefinitely();
+        var decision = termination.evaluate(ctx);
 
         assertThat(decision).isInstanceOf(TerminationDecision.Complete.class);
     }
@@ -65,7 +65,7 @@ class ConvergenceTerminationTest {
                 10, 0.5, Set.of(ConvergenceState.DEADLOCK));
 
         var ctx = new TerminationContext<>(state, 1, Duration.ZERO, List.of());
-        var decision = termination.evaluate(ctx).await().indefinitely();
+        var decision = termination.evaluate(ctx);
 
         assertThat(decision).isInstanceOf(TerminationDecision.Escalate.class);
     }
@@ -85,7 +85,7 @@ class ConvergenceTerminationTest {
                 10, 0.8, Set.of(ConvergenceState.CONSENSUS));
 
         var ctx = new TerminationContext<>(state, 1, Duration.ZERO, List.of());
-        var decision = termination.evaluate(ctx).await().indefinitely();
+        var decision = termination.evaluate(ctx);
 
         assertThat(decision).isInstanceOf(TerminationDecision.Continue.class);
     }
@@ -103,7 +103,7 @@ class ConvergenceTerminationTest {
                 10, 0.5, Set.of(ConvergenceState.DEADLOCK));
 
         var ctx = new TerminationContext<>(state, 1, Duration.ZERO, List.of());
-        var decision = termination.evaluate(ctx).await().indefinitely();
+        var decision = termination.evaluate(ctx);
 
         assertThat(decision).isInstanceOf(TerminationDecision.Continue.class);
     }

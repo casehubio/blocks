@@ -13,7 +13,6 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.ReplanContext;
 import io.casehub.engine.plan.TaskNode;
-import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -147,7 +146,7 @@ class HtnExecutorTest {
             @Override
             public DagPlan<TaskNode.LeafTask<Object>> decompose(
                     TaskNode<Object> task, DecompositionContext<Object> ctx) {
-                return (failPlan);
+                return failPlan;
             }
 
             @Override
@@ -155,7 +154,7 @@ class HtnExecutorTest {
                     TaskNode<Object> task, DecompositionContext<Object> ctx,
                     ReplanContext<Object> replanCtx) {
                 replanCount.incrementAndGet();
-                return (failPlan);
+                return failPlan;
             }
         };
 
@@ -178,14 +177,14 @@ class HtnExecutorTest {
             @Override
             public DagPlan<TaskNode.LeafTask<Object>> decompose(
                     TaskNode<Object> task, DecompositionContext<Object> ctx) {
-                return (failPlan);
+                return failPlan;
             }
 
             @Override
             public DagPlan<TaskNode.LeafTask<Object>> replan(
                     TaskNode<Object> task, DecompositionContext<Object> ctx,
                     ReplanContext<Object> replanCtx) {
-                return (failPlan);
+                return failPlan;
             }
         };
 
@@ -201,8 +200,7 @@ class HtnExecutorTest {
                 decomposition,
                 new io.casehub.blocks.agentic.activation.OnExplicitDispatch<>(),
                 new io.casehub.blocks.agentic.aggregation.CollectAll<>(),
-                ctx -> Uni.createFrom().item(
-                        new io.casehub.blocks.agentic.termination.TerminationDecision.Continue()),
+                ctx -> new io.casehub.blocks.agentic.termination.TerminationDecision.Continue(),
                 () -> List.of(new RoutingCandidate(fail, null)),
                 failurePolicy,
                 List.of(),
@@ -245,8 +243,7 @@ class HtnExecutorTest {
                 decomposition,
                 new io.casehub.blocks.agentic.activation.OnExplicitDispatch<>(),
                 new io.casehub.blocks.agentic.aggregation.CollectAll<>(),
-                ctx -> Uni.createFrom().item(
-                        new io.casehub.blocks.agentic.termination.TerminationDecision.Continue()),
+                ctx -> new io.casehub.blocks.agentic.termination.TerminationDecision.Continue(),
                 () -> candidates,
                 FailurePolicy.defaults(),
                 List.of(),
@@ -267,8 +264,7 @@ class HtnExecutorTest {
                 decomposition,
                 new io.casehub.blocks.agentic.activation.OnExplicitDispatch<>(),
                 new io.casehub.blocks.agentic.aggregation.CollectAll<>(),
-                ctx -> Uni.createFrom().item(
-                        new io.casehub.blocks.agentic.termination.TerminationDecision.Continue()),
+                ctx -> new io.casehub.blocks.agentic.termination.TerminationDecision.Continue(),
                 () -> candidates,
                 failurePolicy,
                 List.of(),

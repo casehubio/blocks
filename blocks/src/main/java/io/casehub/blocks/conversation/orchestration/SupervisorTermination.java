@@ -4,7 +4,6 @@ import io.casehub.blocks.agentic.termination.TerminationCondition;
 import io.casehub.blocks.agentic.termination.TerminationContext;
 import io.casehub.blocks.agentic.termination.TerminationDecision;
 import io.casehub.blocks.conversation.ConversationState;
-import io.smallrye.mutiny.Uni;
 
 public class SupervisorTermination implements TerminationCondition<ConversationState> {
 
@@ -21,16 +20,15 @@ public class SupervisorTermination implements TerminationCondition<ConversationS
     }
 
     @Override
-    public Uni<TerminationDecision> evaluate(TerminationContext<ConversationState> context) {
+    public TerminationDecision evaluate(TerminationContext<ConversationState> context) {
         for (var point : context.state().points().values()) {
             for (var entry : point.thread()) {
                 if (supervisorRole.equals(entry.role())
-                        && signalEntryType.equals(entry.entryType())) {
-                    return Uni.createFrom().item(
-                            new TerminationDecision.Complete(entry.content()));
+                    && signalEntryType.equals(entry.entryType())) {
+                    return new TerminationDecision.Complete(entry.content());
                 }
             }
         }
-        return Uni.createFrom().item(TerminationDecision.Continue.INSTANCE);
+        return TerminationDecision.Continue.INSTANCE;
     }
 }

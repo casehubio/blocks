@@ -6,7 +6,6 @@ import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentProvider;
 
-
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -56,7 +55,7 @@ public class HybridDecomposition<T> implements DecompositionStrategy<T> {
                     nmme.taskName(), nmme.methodCount());
 
             var fallbackCtx = enrichContext(context, nmme);
-            var plan = fallbackStrategy.decompose(compound, fallbackCtx);
+            var plan        = fallbackStrategy.decompose(compound, fallbackCtx);
             LOG.log(System.Logger.Level.DEBUG,
                     "Fallback produced plan with {0} task(s) for ''{1}''",
                     plan.nodes().size(), nmme.taskName());

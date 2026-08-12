@@ -13,7 +13,7 @@ class MaxIterationsTerminationTest {
     void continuesWhenBelowMax() {
         var term = new MaxIterationsTermination<String>(5);
         var ctx = new TerminationContext<>("state", 3, Duration.ZERO, List.of());
-        assertThat(term.evaluate(ctx).await().indefinitely())
+        assertThat(term.evaluate(ctx))
                 .isInstanceOf(TerminationDecision.Continue.class);
     }
 
@@ -21,7 +21,7 @@ class MaxIterationsTerminationTest {
     void completesAtMax() {
         var term = new MaxIterationsTermination<String>(5);
         var ctx = new TerminationContext<>("state", 5, Duration.ZERO, List.of());
-        assertThat(term.evaluate(ctx).await().indefinitely())
+        assertThat(term.evaluate(ctx))
                 .isInstanceOf(TerminationDecision.Complete.class);
     }
 }

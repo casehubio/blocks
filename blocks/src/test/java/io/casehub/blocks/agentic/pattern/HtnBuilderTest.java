@@ -9,7 +9,6 @@ import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
 import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.engine.plan.DagPlan;
-import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -53,10 +52,10 @@ class HtnBuilderTest {
         var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "deploy-app", List.of(
                 new DecompositionMethod<String>(
                         state -> true,
-                        (compound, ctx) -> (DagPlan.sequence(List.of(
+                        (compound, ctx) -> DagPlan.sequence(List.of(
                                 new PrimitiveTask<String>("h1", java.time.Instant.now(), null, build, s -> true, s -> {}),
                                 new PrimitiveTask<String>("h2", java.time.Instant.now(), null, test, s -> true, s -> {}),
-                                new PrimitiveTask<String>("h3", java.time.Instant.now(), null, deploy, s -> true, s -> {})))), null)));
+                                new PrimitiveTask<String>("h3", java.time.Instant.now(), null, deploy, s -> true, s -> {}))), null)));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -83,12 +82,12 @@ class HtnBuilderTest {
         var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "deploy", List.of(
                 new DecompositionMethod<>(
                         (String s) -> s.contains("hotfix"),
-                        (compound, ctx) -> (DagPlan.singleton(
-                                new PrimitiveTask<>("h4", java.time.Instant.now(), null, hotfix, s -> true, s -> {}))), null),
+                        (compound, ctx) -> DagPlan.singleton(
+                                new PrimitiveTask<>("h4", java.time.Instant.now(), null, hotfix, s -> true, s -> {})), null),
                 new DecompositionMethod<>(
                         (String s) -> true,
-                        (compound, ctx) -> (DagPlan.singleton(
-                                new PrimitiveTask<>("h5", java.time.Instant.now(), null, fullDeploy, s -> true, s -> {}))), null)));
+                        (compound, ctx) -> DagPlan.singleton(
+                                new PrimitiveTask<>("h5", java.time.Instant.now(), null, fullDeploy, s -> true, s -> {})), null)));
 
         var result = Patterns.<String>htn()
                 .rootTask(rootTask)
@@ -110,7 +109,7 @@ class HtnBuilderTest {
         var customPlan = new PrimitiveTask<String>("c1", java.time.Instant.now(), null, agent, null, null);
 
         DecompositionStrategy<String> customStrategy = (compound, ctx) ->
-                                                               (DagPlan.singleton(customPlan));
+                                                               DagPlan.singleton(customPlan);
 
         var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of(
                 new DecompositionMethod<>(s -> true,
@@ -137,7 +136,7 @@ class HtnBuilderTest {
         DecompositionStrategy<String> capturing = (compound, ctx) -> {
             captured.set((AgenticDecompositionContext<String>) ctx);
             var leaf = new PrimitiveTask<String>("c1", java.time.Instant.now(), null, agent, null, null);
-            return (DagPlan.singleton(leaf));
+            return DagPlan.singleton(leaf);
         };
 
         var rootTask = new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", List.of());

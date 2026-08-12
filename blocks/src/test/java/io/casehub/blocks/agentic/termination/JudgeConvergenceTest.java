@@ -23,7 +23,7 @@ class JudgeConvergenceTest {
                 AgentResult.success(null, "position A"),
                 AgentResult.success(null, "position B")));
 
-        var decision = termination.evaluate(context).await().indefinitely();
+        var decision = termination.evaluate(context);
         assertThat(decision).isInstanceOf(TerminationDecision.Complete.class);
         assertThat(((TerminationDecision.Complete) decision).result()).isEqualTo("CONVERGED");
     }
@@ -36,7 +36,7 @@ class JudgeConvergenceTest {
         var termination = new JudgeConvergence<String>(judge, 10);
         var context = new TerminationContext<>("state", 1, Duration.ZERO, List.of());
 
-        var decision = termination.evaluate(context).await().indefinitely();
+        var decision = termination.evaluate(context);
         assertThat(decision).isInstanceOf(TerminationDecision.Continue.class);
     }
 
@@ -48,7 +48,7 @@ class JudgeConvergenceTest {
         var termination = new JudgeConvergence<String>(judge, 3);
         var context = new TerminationContext<>("state", 3, Duration.ZERO, List.of());
 
-        var decision = termination.evaluate(context).await().indefinitely();
+        var decision = termination.evaluate(context);
         assertThat(decision).isInstanceOf(TerminationDecision.Complete.class);
     }
 

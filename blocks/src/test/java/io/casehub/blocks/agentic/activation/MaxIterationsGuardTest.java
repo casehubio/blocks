@@ -17,7 +17,7 @@ class MaxIterationsGuardTest {
         var agent = AgentRef.worker(mock(Worker.class));
         var ctx = new ActivationContext<>("event", "state",
                 agent, 3, Optional.empty(), 0);
-        assertThat(rule.shouldActivate(ctx).await().indefinitely()).isTrue();
+        assertThat(rule.shouldActivate(ctx)).isTrue();
     }
 
     @Test
@@ -26,6 +26,6 @@ class MaxIterationsGuardTest {
         var agent = AgentRef.worker(mock(Worker.class));
         var ctx = new ActivationContext<>("event", "state",
                 agent, 5, Optional.empty(), 0);
-        assertThat(rule.shouldActivate(ctx).await().indefinitely()).isFalse();
+        assertThat(rule.shouldActivate(ctx)).isFalse();
     }
 }

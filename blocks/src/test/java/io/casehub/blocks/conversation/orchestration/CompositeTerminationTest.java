@@ -58,6 +58,6 @@ class CompositeTerminationTest {
     private TerminationDecision evaluate(CompositeTermination composite,
                                           ConversationState state, int iterations) {
         var ctx = new TerminationContext<>(state, iterations, Duration.ZERO, List.of());
-        return composite.evaluate(ctx).await().indefinitely();
+        return composite.evaluate(ctx);
     }
 }

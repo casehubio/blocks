@@ -74,6 +74,6 @@ class AllAgreedTerminationTest {
     private TerminationDecision evaluate(ConversationState state,
                                           AllAgreedTermination t) {
         var ctx = new TerminationContext<>(state, 1, Duration.ZERO, List.of());
-        return t.evaluate(ctx).await().indefinitely();
+        return t.evaluate(ctx);
     }
 }

@@ -136,9 +136,9 @@ class ConversationOrchestratorTest {
 
         TerminationCondition<ConversationState> stopAfterTwo = ctx -> {
             if (ctx.iterationCount() >= 2) {
-                return Uni.createFrom().item(new TerminationDecision.Complete("Consensus reached"));
+                return new TerminationDecision.Complete("Consensus reached");
             }
-            return Uni.createFrom().item(TerminationDecision.Continue.INSTANCE);
+            return TerminationDecision.Continue.INSTANCE;
         };
 
         var orchestrator = new ConversationOrchestrator(

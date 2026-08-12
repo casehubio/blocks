@@ -17,6 +17,6 @@ class OnExplicitDispatchTest {
         var agent = AgentRef.worker(mock(Worker.class));
         var ctx = new ActivationContext<>("event", "state", agent,
                 0, Optional.empty(), 0);
-        assertThat(rule.shouldActivate(ctx).await().indefinitely()).isTrue();
+        assertThat(rule.shouldActivate(ctx)).isTrue();
     }
 }

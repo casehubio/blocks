@@ -1,7 +1,13 @@
 package io.casehub.blocks.agentic.termination;
 
-import io.casehub.blocks.conversation.*;
-import io.smallrye.mutiny.Uni;
+import io.casehub.blocks.conversation.CommonGroundAnalyser;
+import io.casehub.blocks.conversation.CommonGroundState;
+import io.casehub.blocks.conversation.ConvergenceAnalyser;
+import io.casehub.blocks.conversation.ConvergencePolicy;
+import io.casehub.blocks.conversation.ConvergenceSignal;
+import io.casehub.blocks.conversation.ConvergenceState;
+import io.casehub.blocks.conversation.ConversationState;
+import io.casehub.blocks.conversation.EpistemicRule;
 
 import java.util.Set;
 import java.util.function.Function;
@@ -30,16 +36,16 @@ public class ConvergenceTermination<T> implements TerminationCondition<T> {
     }
 
     @Override
-    public Uni<TerminationDecision> evaluate(TerminationContext<T> context) {
-        ConversationState state = stateExtractor.apply(context.state());
-        CommonGroundState cg = CommonGroundAnalyser.analyse(state, epistemicRule);
+    public TerminationDecision evaluate(TerminationContext<T> context) {
+        ConversationState state  = stateExtractor.apply(context.state());
+        CommonGroundState cg     = CommonGroundAnalyser.analyse(state, epistemicRule);
         ConvergenceSignal signal = ConvergenceAnalyser.analyse(state, cg, policy, recentWindow);
 
         if (terminateOn.contains(signal.state())
-                && signal.confidence() >= confidenceThreshold) {
-            return Uni.createFrom().item(toDecision(signal));
+            && signal.confidence() >= confidenceThreshold) {
+            return toDecision(signal);
         }
-        return Uni.createFrom().item(TerminationDecision.Continue.INSTANCE);
+        return TerminationDecision.Continue.INSTANCE;
     }
 
     private TerminationDecision toDecision(ConvergenceSignal signal) {

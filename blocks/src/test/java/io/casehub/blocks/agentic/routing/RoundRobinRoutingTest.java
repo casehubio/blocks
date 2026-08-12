@@ -34,9 +34,9 @@ class RoundRobinRoutingTest {
         var routing = new RoundRobinRouting<Object>();
         var ctx = new RoutingContext<>("task", candidates, null);
 
-        var first = (RoutingDecision.Selected) routing.route(ctx).await().indefinitely();
-        var second = (RoutingDecision.Selected) routing.route(ctx).await().indefinitely();
-        var third = (RoutingDecision.Selected) routing.route(ctx).await().indefinitely();
+        var first = (RoutingDecision.Selected) routing.route(ctx);
+        var second = (RoutingDecision.Selected) routing.route(ctx);
+        var third = (RoutingDecision.Selected) routing.route(ctx);
 
         assertThat(first.agents()).containsExactly(agent1);
         assertThat(second.agents()).containsExactly(agent2);
@@ -48,7 +48,7 @@ class RoundRobinRoutingTest {
         var routing = new RoundRobinRouting<Object>();
         var ctx = new RoutingContext<>("task", List.of(), null);
 
-        var decision = routing.route(ctx).await().indefinitely();
+        var decision = routing.route(ctx);
         assertThat(decision).isInstanceOf(RoutingDecision.Unresolvable.class);
     }
 }

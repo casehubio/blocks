@@ -15,7 +15,6 @@ import io.casehub.engine.plan.TaskNode;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
-
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;

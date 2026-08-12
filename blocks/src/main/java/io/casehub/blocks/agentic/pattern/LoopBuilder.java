@@ -36,12 +36,12 @@ public class LoopBuilder<T> extends AbstractPatternBuilder<T, LoopBuilder<T>> {
         var maxIter = this.maxIterations;
         this.termination = ctx -> {
             if (predicate.test(ctx.state())) {
-                return Uni.createFrom().item(new TerminationDecision.Complete(ctx.state()));
+                return new TerminationDecision.Complete(ctx.state());
             }
             if (ctx.iterationCount() >= maxIter) {
-                return Uni.createFrom().item(new TerminationDecision.Complete("Max iterations"));
+                return new TerminationDecision.Complete("Max iterations");
             }
-            return Uni.createFrom().item(TerminationDecision.Continue.INSTANCE);
+            return TerminationDecision.Continue.INSTANCE;
         };
         return this;
     }

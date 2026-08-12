@@ -28,11 +28,10 @@ public class SequenceBuilder<T> extends AbstractPatternBuilder<T, SequenceBuilde
         this.routing = new SequentialRouting<>();
         this.termination = ctx -> {
             if (ctx.iterationCount() >= count) {
-                return Uni.createFrom().item(
-                        new TerminationDecision.Complete(ctx.results().isEmpty() ? null :
-                                ctx.results().get(ctx.results().size() - 1).output()));
+                return new TerminationDecision.Complete(ctx.results().isEmpty() ? null :
+                        ctx.results().get(ctx.results().size() - 1).output());
             }
-            return Uni.createFrom().item(TerminationDecision.Continue.INSTANCE);
+            return TerminationDecision.Continue.INSTANCE;
         };
         return (SequenceBuilder<T>) super.agents(agents);
     }

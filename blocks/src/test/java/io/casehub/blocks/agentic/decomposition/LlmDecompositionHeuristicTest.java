@@ -59,8 +59,7 @@ class LlmDecompositionHeuristicTest {
         var heuristic = new LlmDecompositionHeuristic<String>(providerReturning(json));
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                ;
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"));
 
         assertThat(scored).hasSize(2);
         assertThat(scored.get(0).score()).isEqualTo(0.8);
@@ -79,8 +78,7 @@ class LlmDecompositionHeuristicTest {
         var heuristic = new LlmDecompositionHeuristic<String>(providerReturning(json));
         var methods = List.of(method);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                ;
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"));
 
         assertThat(scored).hasSize(1);
         assertThat(scored.get(0).score()).isEqualTo(0.6);
@@ -94,8 +92,7 @@ class LlmDecompositionHeuristicTest {
         var heuristic = new LlmDecompositionHeuristic<String>(failingProvider());
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                ;
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"));
 
         assertThat(scored).hasSize(2);
         assertThat(scored.get(0).score()).isEqualTo(0.0);
@@ -132,8 +129,7 @@ class LlmDecompositionHeuristicTest {
         var heuristic = new LlmDecompositionHeuristic<String>(providerReturning(json));
         var methods = List.of(method1, method2);
         var scored = heuristic.evaluate(
-                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"))
-                ;
+                new TaskNode.CompoundTask<String>(java.util.UUID.randomUUID().toString(), "root", methods), methods, ctx("state"));
 
         assertThat(scored).hasSize(2);
         assertThat(scored.get(0).score()).isEqualTo(0.9);

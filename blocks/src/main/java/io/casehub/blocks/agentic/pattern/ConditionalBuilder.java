@@ -20,10 +20,9 @@ public class ConditionalBuilder<T> extends AbstractPatternBuilder<T, Conditional
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();
         this.aggregation = new PassThrough<>();
-        this.termination = ctx -> Uni.createFrom().item(
-                ctx.iterationCount() >= 1
-                        ? new TerminationDecision.Complete(ctx.results())
-                        : TerminationDecision.Continue.INSTANCE);
+        this.termination = ctx -> ctx.iterationCount() >= 1
+                ? new TerminationDecision.Complete(ctx.results())
+                : TerminationDecision.Continue.INSTANCE;
     }
 
     public ConditionalBuilder<T> when(Predicate<RoutingCandidate> predicate, AgentRef agent) {

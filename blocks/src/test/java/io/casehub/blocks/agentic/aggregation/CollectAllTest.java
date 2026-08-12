@@ -18,8 +18,7 @@ class CollectAllTest {
         var r2 = AgentResult.success(AgentRef.worker(mock(Worker.class)), "b");
         var agg = new CollectAll<String>();
 
-        var aggregated = agg.aggregate(List.of(r1, r2), new AggregationContext<>("state"))
-                .await().indefinitely();
+        var aggregated = agg.aggregate(List.of(r1, r2), new AggregationContext<>("state"));
 
         assertThat(aggregated).isInstanceOf(AggregationResult.Resolved.class);
         @SuppressWarnings("unchecked")

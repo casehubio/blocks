@@ -33,7 +33,7 @@ class AbstractExecutionDriverTest {
             var capturedContexts = new ArrayList<ActivationContext<String>>();
             ActivationRule<String> capturingActivation = ctx -> {
                 capturedContexts.add(ctx);
-                return Uni.createFrom().item(true);
+                return true;
             };
 
             var agent = AgentRef.external((Object input) ->
@@ -64,7 +64,7 @@ class AbstractExecutionDriverTest {
             var capturedContexts = new ArrayList<ActivationContext<String>>();
             ActivationRule<String> capturingActivation = ctx -> {
                 capturedContexts.add(ctx);
-                return Uni.createFrom().item(true);
+                return true;
             };
 
             var agent = AgentRef.external((Object input) ->
@@ -100,7 +100,7 @@ class AbstractExecutionDriverTest {
                 capturedContexts.add(ctx);
                 boolean activate = callCount[0] != 1;
                 callCount[0]++;
-                return Uni.createFrom().item(activate);
+                return activate;
             };
 
             var agent = AgentRef.external((Object input) ->

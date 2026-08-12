@@ -36,7 +36,7 @@ class FirstMatchRoutingTest {
         var routing = new FirstMatchRouting<Object>(matchSecond);
 
         var decision = routing.route(new RoutingContext<>("task", candidates, null))
-                .await().indefinitely();
+                ;
 
         assertThat(decision).isInstanceOf(RoutingDecision.Selected.class);
         assertThat(((RoutingDecision.Selected) decision).agents()).containsExactly(agent2);
@@ -53,7 +53,7 @@ class FirstMatchRoutingTest {
         var routing = new FirstMatchRouting<Object>(c -> false);
 
         var decision = routing.route(new RoutingContext<>("task", candidates, null))
-                .await().indefinitely();
+                ;
 
         assertThat(decision).isInstanceOf(RoutingDecision.Unresolvable.class);
     }

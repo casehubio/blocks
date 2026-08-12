@@ -128,8 +128,7 @@ public class ConversationOrchestrator {
                             state, dispatchCount,
                             Duration.between(start, Instant.now()),
                             List.copyOf(allResults));
-                    finalDecision = terminationCondition.evaluate(termCtx)
-                            .await().indefinitely();
+                    finalDecision = terminationCondition.evaluate(termCtx);
 
                     if (!(finalDecision instanceof TerminationDecision.Continue)) {
                         break;

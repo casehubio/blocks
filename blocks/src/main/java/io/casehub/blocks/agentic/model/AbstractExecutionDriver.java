@@ -15,7 +15,11 @@ import io.smallrye.mutiny.Uni;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -66,7 +70,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
 
             ExecutionResult result = null;
             try {
-                result = runLoop(model, initialContext).await().indefinitely();
+                result = runLoop(model, initialContext);
             } catch (Exception e) {
                 LOG.log(System.Logger.Level.ERROR, "Execution failed", e);
                 result = new ExecutionResult.Failed(e.getMessage(), e);
@@ -84,7 +88,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
      * Subclass-specific loop structure. OrchestratedDriver uses a while loop;
      * ChoreographedDriver transitions to WaitingForEvent between iterations.
      */
-    protected abstract Uni<ExecutionResult> runLoop(ExecutionModel<T> model, T context);
+    protected abstract ExecutionResult runLoop(ExecutionModel<T> model, T context);
 
     /**
      * Executes one iteration of the five-phase loop. Returns null for Continue,
@@ -97,7 +101,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
         // Phase 1: refresh candidates and route
         var candidates = model.candidateSupplier().get();
         var routingCtx = new RoutingContext<>(model.task(), candidates, context);
-        var decision = model.routing().route(routingCtx).await().indefinitely();
+        var decision = model.routing().route(routingCtx);
 
         notifyRoutingDecision(model, decision, candidates);
 
@@ -107,8 +111,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
             allResults.addAll(results);
 
             var aggCtx = new AggregationContext<>(context);
-            var aggregated = model.aggregation()
-                    .aggregate(results, aggCtx).await().indefinitely();
+            var aggregated = model.aggregation().aggregate(results, aggCtx);
 
             lastAggregationResult = aggregated;
             notifyAggregation(model, aggregated);
@@ -129,8 +132,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
         var elapsed = Duration.between(start, Instant.now());
         var termCtx = new TerminationContext<>(
                 context, iteration + 1, elapsed, List.copyOf(allResults));
-        var termDecision = model.termination()
-                .evaluate(termCtx).await().indefinitely();
+        var termDecision = model.termination().evaluate(termCtx);
 
         notifyTermination(model, termDecision);
 
@@ -160,8 +162,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
                     null, context, agent, activationCount,
                     Optional.ofNullable(lastAggregationResult), consecutiveIdleCount);
 
-            var activated = model.activation()
-                    .shouldActivate(activationCtx).await().indefinitely();
+            var activated = model.activation().shouldActivate(activationCtx);
 
             notifyActivation(model, agent, activated);
 
@@ -265,9 +266,8 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     }
 
     @Override
-    public Uni<Void> cancel() {
+    public void cancel() {
         cancelled = true;
-        return Uni.createFrom().voidItem();
     }
 
     @Override

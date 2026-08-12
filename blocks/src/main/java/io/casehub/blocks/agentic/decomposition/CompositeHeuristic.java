@@ -4,7 +4,6 @@ import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.TaskNode;
 
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,10 +27,9 @@ public class CompositeHeuristic<T> implements DecompositionHeuristic<T> {
 
     @Override
     public List<ScoredMethod<T>> evaluate(TaskNode.CompoundTask<T> task,
-                                           List<DecompositionMethod<T>> methods,
-                                           DecompositionContext<T> context) {
+                                          List<DecompositionMethod<T>> methods,
+                                          DecompositionContext<T> context) {
         var allResults = new ArrayList<List<ScoredMethod<T>>>();
-
         for (var delegate : delegates) {
             var scored = delegate.heuristic().evaluate(task, methods, context);
             if (scored.size() != methods.size()) {
@@ -41,7 +39,6 @@ public class CompositeHeuristic<T> implements DecompositionHeuristic<T> {
             }
             allResults.add(scored);
         }
-
         return combine(methods, allResults);
     }
 

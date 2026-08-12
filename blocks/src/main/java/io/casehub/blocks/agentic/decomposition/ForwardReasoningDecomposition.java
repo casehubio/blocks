@@ -6,7 +6,6 @@ import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
 
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -30,8 +29,8 @@ public class ForwardReasoningDecomposition<T> implements DecompositionStrategy<T
 
     @Override
     public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> task, DecompositionContext<T> ctx) {
-        T projected = stateCopier.apply(ctx.state());
-        List<TaskNode.LeafTask<T>> result = new ArrayList<>();
+        T                          projected = stateCopier.apply(ctx.state());
+        List<TaskNode.LeafTask<T>> result    = new ArrayList<>();
         expand(task, projected, result);
         return DagPlan.sequence(result);
     }

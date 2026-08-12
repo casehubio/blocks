@@ -3,7 +3,6 @@ package io.casehub.blocks.agentic.termination;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
 import io.casehub.blocks.agentic.model.AgentInvoker;
-import io.smallrye.mutiny.Uni;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -64,21 +63,16 @@ public class JudgeConvergence<T> implements TerminationCondition<T> {
     }
 
     @Override
-    public Uni<TerminationDecision> evaluate(TerminationContext<T> context) {
-        // Safety cap: force termination at max iterations
+    public TerminationDecision evaluate(TerminationContext<T> context) {
         if (context.iterationCount() >= maxIterations) {
-            return Uni.createFrom().item(
-                    new TerminationDecision.Complete("Max iterations reached (" + maxIterations + ")"));
+            return new TerminationDecision.Complete("Max iterations reached (" + maxIterations + ")");
         }
 
-        // Invoke the judge with accumulated results
-        return invoker.invoke(judge, context.results())
-                .map(judgeResult -> {
-                    if (convergencePredicate.test(judgeResult)) {
-                        return (TerminationDecision) new TerminationDecision.Complete(
-                                judgeResult.output());
-                    }
-                    return (TerminationDecision) TerminationDecision.Continue.INSTANCE;
-                });
+        var judgeResult = invoker.invoke(judge, context.results())
+                                 .await().indefinitely();
+        if (convergencePredicate.test(judgeResult)) {
+            return new TerminationDecision.Complete(judgeResult.output());
+        }
+        return TerminationDecision.Continue.INSTANCE;
     }
 }

@@ -130,8 +130,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                    ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(result.nodes()).hasSize(1);
         }
@@ -148,8 +147,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                    ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(result.nodes()).hasSize(1);
             assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).agent())
@@ -166,8 +164,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                    ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(result.nodes()).hasSize(1);
             assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).description()).isEqualTo("keep me");
@@ -232,8 +229,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx = new AgenticDecompositionContext<>("my-state", agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                    ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(promptCapture.get()).contains("STATE:my-state");
         }
@@ -246,8 +242,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx = new AgenticDecompositionContext<String>(null, agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                    ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(promptCapture.get()).doesNotContain("Current state");
         }
@@ -260,8 +255,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "investigate-fraud", List.of()), ctx)
-                    ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "investigate-fraud", List.of()), ctx);
 
             assertThat(promptCapture.get()).contains("investigate-fraud");
         }
@@ -274,8 +268,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "expert in data analysis"));
             var ctx = new AgenticDecompositionContext<>("s", agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                    ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(promptCapture.get()).contains("analyst");
             assertThat(promptCapture.get()).contains("expert in data analysis");
@@ -290,8 +283,7 @@ class LlmDecompositionTest {
             var ctx = new AgenticDecompositionContext<>("s", agents, 0,
                                                         "3 static method(s) evaluated, none matched for 'respond-to-incident'");
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                  ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(promptCapture.get()).contains("3 static method(s) evaluated");
             assertThat(promptCapture.get()).contains("respond-to-incident");
@@ -344,8 +336,7 @@ class LlmDecompositionTest {
             var agents   = List.of(candidate("analyst", "a"), candidate("reporter", "r"));
             var ctx      = new AgenticDecompositionContext<>("state", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "goal", List.of()), ctx)
-                               ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "goal", List.of()), ctx);
 
             var sorted = result.topologicalSort();
             assertThat(sorted).hasSize(3);
@@ -370,8 +361,7 @@ class LlmDecompositionTest {
             var agents   = List.of(candidate("analyst", "a"));
             var ctx      = new AgenticDecompositionContext<>("state", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", List.of()), ctx)
-                               ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "root", List.of()), ctx);
 
             assertThat(result.topologicalSort()).hasSize(1);
             assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).description())
@@ -393,8 +383,7 @@ class LlmDecompositionTest {
             var agents   = List.of(candidate("analyst", "a"), candidate("reporter", "r"));
             var ctx      = new AgenticDecompositionContext<>("state", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "goal", List.of()), ctx)
-                               ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "goal", List.of()), ctx);
 
             var sorted = result.topologicalSort();
             assertThat(sorted).hasSize(3);
@@ -417,8 +406,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"), candidate("reporter", "r"));
             var ctx    = new AgenticDecompositionContext<>("s", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                               ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(result.topologicalSort()).hasSize(2);
             assertThat(((PlannedTask<String>) result.topologicalSort().get(0).task()).description())
@@ -448,8 +436,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx    = new AgenticDecompositionContext<>("s", agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                  ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(promptCapture.get()).doesNotContain("subtask");
             assertThat(promptCapture.get()).contains("agent");
@@ -473,8 +460,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx    = new AgenticDecompositionContext<>("s", agents, 0);
 
-            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                               ;
+            var result = decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(result.nodes()).hasSize(1);
         }
@@ -503,8 +489,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx    = new AgenticDecompositionContext<>("s", agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "parent-goal", List.of()), ctx)
-                  ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "parent-goal", List.of()), ctx);
 
             assertThat(promptCapture.get()).contains("parent-goal");
             assertThat(promptCapture.get()).contains("sub-task");
@@ -525,8 +510,7 @@ class LlmDecompositionTest {
             var agents = List.of(candidate("analyst", "a"));
             var ctx    = new AgenticDecompositionContext<>("s", agents, 0);
 
-            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx)
-                  ;
+            decomp.decompose(new TaskNode.CompoundTask<>(java.util.UUID.randomUUID().toString(), "g", List.of()), ctx);
 
             assertThat(promptCapture.get()).contains("subtask");
         }

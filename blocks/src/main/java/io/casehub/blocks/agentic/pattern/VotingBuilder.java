@@ -15,16 +15,14 @@ public class VotingBuilder<T> extends AbstractPatternBuilder<T, VotingBuilder<T>
     public VotingBuilder() {
         this.task = "vote";
         this.patternType = io.casehub.blocks.agentic.model.PatternType.VOTING;
-        this.routing = ctx -> Uni.createFrom().item(
-                new RoutingDecision.Selected(
-                        ctx.candidates().stream().map(RoutingCandidate::ref).toList()));
+        this.routing = ctx -> new RoutingDecision.Selected(
+                ctx.candidates().stream().map(RoutingCandidate::ref).toList());
         this.decomposition = new IdentityDecomposition<>();
         this.activation = new OnExplicitDispatch<>();
         this.aggregation = new MajorityVote<>();
-        this.termination = ctx -> Uni.createFrom().item(
-                ctx.iterationCount() >= 1
-                        ? new TerminationDecision.Complete(ctx.results())
-                        : TerminationDecision.Continue.INSTANCE);
+        this.termination = ctx -> ctx.iterationCount() >= 1
+                ? new TerminationDecision.Complete(ctx.results())
+                : TerminationDecision.Continue.INSTANCE;
     }
 
     public VotingBuilder<T> evaluators(AgentRef... agents) {

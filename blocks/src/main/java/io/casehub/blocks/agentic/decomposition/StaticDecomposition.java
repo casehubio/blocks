@@ -11,7 +11,7 @@ public class StaticDecomposition<T> implements DecompositionStrategy<T> {
 
     @Override
     public DagPlan<TaskNode.LeafTask<T>> decompose(TaskNode<T> compound,
-                                                    DecompositionContext<T> context) {
+                                                   DecompositionContext<T> context) {
         if (compound instanceof TaskNode.CompoundTask<T> ct) {
             var constraints = context.constraints();
             for (var method : ct.methods()) {
