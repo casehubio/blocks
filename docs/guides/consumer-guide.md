@@ -184,6 +184,50 @@ ConversationOutcome outcome = orchestrator.converse(triggeringMessage)
     .await().indefinitely();
 ```
 
+### `io.casehub.blocks.negotiation`
+
+Negotiation channel protocol -- reusable `ChannelProjection<NegotiationState>` for proposal/counter-proposal exchange. Uses the PROPOSE MessageType (commissive speech act, qhorus#395). Supports bilateral (two-party alternating) and mediator-coordinated multilateral (N-party with configurable quorum).
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `NegotiationProjection` | class | Concrete `ChannelProjection<NegotiationState>`. Constructor: `(Set<String> parties, AcceptancePolicy)`. Dispatches on PROPOSE/DONE/DECLINE. Party set required upfront. `apply()` never throws. |
+| `NegotiationFold` | final class | Pure static state transitions: `propose()`, `accept()`, `reject()`, `agree()`, `deadlock()`, `withdraw()`. |
+| `NegotiationState` | record | Immutable state: `proposals` (ordered chain), `parties`, `responses` (per-party to active proposal), `outcome`. |
+| `Proposal` | record | Individual proposal: proposalId, proposer, content, round, createdAt, status. |
+| `Response` | record | Per-party response: party, decision, reason, respondedAt. |
+| `AcceptancePolicy` | interface | `@FunctionalInterface`: `boolean isAccepted(NegotiationState)`. |
+| `UnanimousAcceptance` | record | All non-proposer parties must accept. |
+| `MajorityAcceptance` | record | >50% of non-proposer parties. |
+| `ThresholdAcceptance` | record | At least N acceptances. |
+| `NegotiationRenderer` | class | Renders state as Markdown: current proposal, responses, pending parties, history. |
+| `NegotiationOutcome` | enum | PENDING, AGREED, DEADLOCKED, WITHDRAWN. |
+| `ProposalStatus` | enum | ACTIVE, SUPERSEDED, ACCEPTED, REJECTED. |
+
+**Termination conditions** (implement `TerminationCondition<NegotiationState>` from agentic.termination):
+
+| Class | What it does |
+|-------|-------------|
+| `MaxRoundsTermination` | Complete at max rounds. |
+| `AcceptedTermination` | Complete when outcome == AGREED. |
+| `TerminalOutcomeTermination` | Complete for AGREED, Failed for DEADLOCKED/WITHDRAWN. |
+| `DeadlineTermination` | Complete when latest proposal exceeds deadline. |
+| `NegotiationCompositeTermination` | First-non-Continue-wins composition. |
+
+**Consensus Gate pattern** (composition, not a separate type):
+
+A consensus gate (named M-of-N approval) composes directly from negotiation types -- no dedicated `ConsensusProjection` needed:
+
+```java
+// Consensus gate: 2-of-3 approval
+var consensus = new NegotiationProjection(
+    Set.of("chair", "voter-a", "voter-b", "voter-c"),
+    new ThresholdAcceptance(2)
+);
+// Chair posts PROPOSE with the motion, voters respond DONE (approve) or DECLINE (reject).
+// ThresholdAcceptance fires AGREED when 2 voters accept.
+// For unanimous: use UnanimousAcceptance. For majority: MajorityAcceptance.
+```
+
 ### `io.casehub.blocks.agentic`
 
 Compositional agentic orchestration framework -- ten sub-packages implementing five SPIs for routing, decomposition, activation, aggregation, and termination, plus execution drivers, accountability listeners, and pre-composed pattern builders.
