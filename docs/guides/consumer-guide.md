@@ -264,7 +264,7 @@ Compositional agentic orchestration framework -- ten sub-packages implementing f
 
 | Class | Type | What it does |
 |-------|------|-------------|
-| `TerminationCondition<T>` | interface | SPI: `evaluate(TerminationContext<T>) -> Uni<TerminationDecision>` |
+| `TerminationCondition<T>` | interface | SPI: `evaluate(TerminationContext<T>) -> TerminationDecision`. Composable via `or(other)` (either can terminate) and `and(other)` (both must agree). Priority-aware: Escalate > Failed > Complete > Continue. |
 | `TerminationContext<T>` | record | Context: `state` (T), `iterationCount`, `elapsed` (Duration), `results` (List<AgentResult>) |
 | `TerminationDecision` | sealed interface | Four outcomes: `Continue` (singleton INSTANCE), `Complete(result)`, `Failed(reason)`, `Escalate(reason)` |
 | `Termination` | final class | Factory: `goalReached(Predicate)`, `maxIterations(int)` |
@@ -293,6 +293,16 @@ Compositional agentic orchestration framework -- ten sub-packages implementing f
 | `OrchestratedDriver<T>` | class | Imperative while-loop execution driver |
 | `ChoreographedDriver<T>` | class | Event-reactive execution driver |
 | `PatternType` | enum | `SEQUENCE`, `PARALLEL`, `LOOP`, `CONDITIONAL`, `SUPERVISOR`, `DEBATE`, `VOTING`, `HTN`. Method: `isWorkflowShaped()` (true for first four). |
+
+#### `agentic.channel` -- Inter-Agent Channels + Supervisor Observation
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `ChannelBinding` | record | Binds a channel to execution: `channelId` (UUID), `semantic` (ChannelSemantic). |
+| `ChannelConfig` | record | Channel setup: `channelManager`, `messageDispatcher`, `semantic`, `protocols`. Factory: `of(channelManager, dispatcher, semantic)`. |
+| `ChannelExecutionStrategy<T>` | sealed interface | Execution strategy for channel-based agent communication. Three variants: `Conversation` (wraps ConversationOrchestrator), `FanIn` (parallel dispatch, sequential collection), `Barrier` (parallel dispatch, barrier sync). |
+| `ChannelObserver<S>` | class | Supervisor observation API. Implements both `MessageObserver` (qhorus CDI-based dispatch) and `EventSource` (ChoreographedDriver wake-up). Folds channel messages through `ChannelProjection<S>` via `AtomicReference.updateAndGet()`. `currentState()` returns the projected state. `reset()` clears state between executions. `terminateWhen(Predicate<S>)` and `asTermination(Function<S, TerminationDecision>)` create `TerminationCondition<T>` instances that read from the projection. Factory: `of(projection, channelName)`. Builder: `builder(projection).channel(name1).channel(name2).build()` for multi-channel observation. |
+| `ChannelTeardownListener` | class | Cleans up channels on execution completion. |
 
 #### `agentic.listener` -- Accountability Listeners
 
