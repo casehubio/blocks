@@ -124,6 +124,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/conversation/` | Tests for conversation blocks |
 | `src/main/java/io/casehub/blocks/conversation/orchestration/` | Conversation orchestrator — TurnPolicy SPI, termination conditions, PromptAssembler, ConversationOrchestrator composition root |
 | `src/test/java/io/casehub/blocks/conversation/orchestration/` | Tests for conversation orchestrator |
+| `src/main/java/io/casehub/blocks/negotiation/` | Negotiation channel protocol — `NegotiationProjection`, `NegotiationFold`, `AcceptancePolicy` SPI (unanimous, majority, threshold), `NegotiationRenderer`, termination conditions (`MaxRoundsTermination`, `DeadlineTermination`, `AcceptedTermination`, `TerminalOutcomeTermination`, `NegotiationCompositeTermination`) |
+| `src/test/java/io/casehub/blocks/negotiation/` | Tests for negotiation protocol |
 | `src/main/java/io/casehub/blocks/oversight/` | Oversight gate lifecycle + risk classification — SPIs, classifier chaining, gate outcomes |
 | `src/test/java/io/casehub/blocks/oversight/` | Tests for oversight blocks |
 | `src/main/java/io/casehub/blocks/routing/` | Trust routing utilities — shared preference keys, policy resolver, compliance records |
@@ -258,6 +260,32 @@ Autonomous multi-agent conversation orchestrator — composes `ConversationProje
 | `SupervisorTermination` | `TerminationCondition<ConversationState>` — Complete when supervisor role signals end via configurable entry type. |
 | `ContestedEscalation` | `TerminationCondition<ConversationState>` — Escalate when DISPUTED points exceed threshold. |
 | `CompositeTermination` | `TerminationCondition<ConversationState>` — evaluates conditions in order; first non-Continue wins. |
+
+## Package: `io.casehub.blocks.negotiation`
+
+Negotiation channel protocol — reusable `ChannelProjection<NegotiationState>` for proposal/counter-proposal exchange. Supports bilateral (two-party alternating) and mediator-coordinated multilateral (N-party with configurable quorum). Uses PROPOSE MessageType (qhorus#395) for commissive speech acts. Party set required upfront for AcceptancePolicy correctness.
+
+| Class | What it does |
+|-------|-------------|
+| `NegotiationOutcome` | Enum: PENDING, AGREED, DEADLOCKED, WITHDRAWN. `isTerminal()` for non-PENDING. |
+| `ProposalStatus` | Enum: ACTIVE, SUPERSEDED, ACCEPTED, REJECTED. `isTerminal()` for ACCEPTED/REJECTED. |
+| `PartyDecision` | Enum: ACCEPTED, REJECTED |
+| `Proposal` | Record: proposalId, proposer, content, round (1-based), createdAt, status |
+| `Response` | Record: party, decision, reason (@Nullable), respondedAt |
+| `NegotiationState` | Record: proposals (ordered chain), parties, responses (per-party to active proposal), outcome. `activeProposal()`, `round()`, `hasActiveProposal()`. |
+| `NegotiationFold` | Pure static state transitions: `propose()`, `accept()`, `reject()`, `agree()`, `deadlock()`, `withdraw()`. Counter-proposals supersede active proposal and clear responses. |
+| `NegotiationProjection` | Concrete `ChannelProjection<NegotiationState>`. Constructor: `(Set<String> parties, AcceptancePolicy)`. Dispatches on PROPOSE/DONE/DECLINE. apply() never throws. Unknown senders ignored. |
+| `AcceptancePolicy` | `@FunctionalInterface`: `boolean isAccepted(NegotiationState)`. Pluggable quorum evaluation. |
+| `UnanimousAcceptance` | All non-proposer parties must accept |
+| `MajorityAcceptance` | >50% of non-proposer parties must accept |
+| `ThresholdAcceptance` | At least N acceptances required |
+| `NegotiationRenderer` | Markdown rendering: current proposal, responses, pending parties, proposal history |
+| `MaxRoundsTermination` | `TerminationCondition<NegotiationState>` — Complete at max rounds |
+| `AcceptedTermination` | `TerminationCondition<NegotiationState>` — Complete when AGREED |
+| `TerminalOutcomeTermination` | `TerminationCondition<NegotiationState>` — Complete for AGREED, Failed for DEADLOCKED/WITHDRAWN |
+| `DeadlineTermination` | `TerminationCondition<NegotiationState>` — Complete when latest proposal exceeds deadline |
+| `NegotiationCompositeTermination` | First-non-Continue-wins composition of termination conditions |
+| `NegotiationProtocol` | Constants for negotiation outcome strings |
 
 ## Package: `io.casehub.blocks.oversight`
 
