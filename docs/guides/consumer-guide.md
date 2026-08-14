@@ -184,6 +184,37 @@ ConversationOutcome outcome = orchestrator.converse(triggeringMessage)
     .await().indefinitely();
 ```
 
+### `io.casehub.blocks.normative`
+
+Generic normative conflict resolution — resolves conflicts between competing norm decisions. When multiple norms (e.g., risk classifiers, policy rules) produce contradictory decisions, a `ConflictResolutionStrategy<T>` determines which one wins.
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `ConflictResolutionStrategy<T>` | interface | `@FunctionalInterface`: `NormResolution<T> resolve(List<NormDecision<T>>)`. |
+| `NormDecision<T>` | record | Decision wrapped with norm metadata: source, priority, specificity, establishedAt. |
+| `NormResolution<T>` | record | Resolution outcome: winner, overridden list, reason, method. |
+| `NormSpecificity` | enum | UNIVERSAL → DOMAIN → TENANT → CASE_TYPE → INSTANCE. |
+| `PriorityResolution<T>` | record | Lowest priority value wins. |
+| `SpecificityResolution<T>` | record | Most specific norm wins (lex specialis). |
+| `RecencyResolution<T>` | record | Most recently established norm wins (lex posterior). |
+| `MostRestrictiveResolution` | record | Typed to `RiskDecision` — GateRequired beats Autonomous. |
+| `EscalationResolution<T>` | record | Always escalates when any conflict exists. |
+
+**Usage with oversight:**
+
+```java
+var decisions = List.of(
+    new NormDecision<>(
+        "clinical-classifier", new RiskDecision.GateRequired("AE grade 4", true, null, null, null, null, null),
+        1, NormSpecificity.DOMAIN, Instant.now()),
+    new NormDecision<>(
+        "default-classifier", new RiskDecision.Autonomous(),
+        10, NormSpecificity.UNIVERSAL, Instant.now())
+);
+var resolution = new PriorityResolution<RiskDecision>().resolve(decisions);
+// resolution.winner() = clinical-classifier (priority 1 beats 10)
+```
+
 ### `io.casehub.blocks.negotiation`
 
 Negotiation channel protocol -- reusable `ChannelProjection<NegotiationState>` for proposal/counter-proposal exchange. Uses the PROPOSE MessageType (commissive speech act, qhorus#395). Supports bilateral (two-party alternating) and mediator-coordinated multilateral (N-party with configurable quorum).

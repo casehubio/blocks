@@ -124,6 +124,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/conversation/` | Tests for conversation blocks |
 | `src/main/java/io/casehub/blocks/conversation/orchestration/` | Conversation orchestrator — TurnPolicy SPI, termination conditions, PromptAssembler, ConversationOrchestrator composition root |
 | `src/test/java/io/casehub/blocks/conversation/orchestration/` | Tests for conversation orchestrator |
+| `src/main/java/io/casehub/blocks/normative/` | Normative conflict resolution — `ConflictResolutionStrategy<T>` SPI, `NormDecision<T>`, `NormResolution<T>`, five resolution strategies (priority, specificity, recency, most-restrictive, escalation) |
+| `src/test/java/io/casehub/blocks/normative/` | Tests for normative conflict resolution |
 | `src/main/java/io/casehub/blocks/negotiation/` | Negotiation channel protocol — `NegotiationProjection`, `NegotiationFold`, `AcceptancePolicy` SPI (unanimous, majority, threshold), `NegotiationRenderer`, termination conditions (`MaxRoundsTermination`, `DeadlineTermination`, `AcceptedTermination`, `TerminalOutcomeTermination`, `NegotiationCompositeTermination`) |
 | `src/test/java/io/casehub/blocks/negotiation/` | Tests for negotiation protocol |
 | `src/main/java/io/casehub/blocks/oversight/` | Oversight gate lifecycle + risk classification — SPIs, classifier chaining, gate outcomes |
@@ -260,6 +262,23 @@ Autonomous multi-agent conversation orchestrator — composes `ConversationProje
 | `SupervisorTermination` | `TerminationCondition<ConversationState>` — Complete when supervisor role signals end via configurable entry type. |
 | `ContestedEscalation` | `TerminationCondition<ConversationState>` — Escalate when DISPUTED points exceed threshold. |
 | `CompositeTermination` | `TerminationCondition<ConversationState>` — evaluates conditions in order; first non-Continue wins. |
+
+## Package: `io.casehub.blocks.normative`
+
+Generic normative conflict resolution — resolves conflicts between competing norm decisions from multiple sources. Speculative build (no consumer yet). Primary expected consumer: oversight pipeline composing `NormDecision<RiskDecision>`.
+
+| Class | What it does |
+|-------|-------------|
+| `NormSpecificity` | Enum: UNIVERSAL, DOMAIN, TENANT, CASE_TYPE, INSTANCE. `isMoreSpecificThan()` for lex specialis comparison. |
+| `ResolutionMethod` | Enum: PRIORITY, SPECIFICITY, RECENCY, MOST_RESTRICTIVE, ESCALATION. Identifies which strategy produced a resolution. |
+| `NormDecision<T>` | Record: source, decision (generic T), priority, specificity, establishedAt. Wraps any decision with norm metadata. |
+| `NormResolution<T>` | Record: winner (NormDecision), overridden (List), reason, method. Full audit trail of resolution outcome. |
+| `ConflictResolutionStrategy<T>` | `@FunctionalInterface`: `NormResolution<T> resolve(List<NormDecision<T>>)`. Core SPI. |
+| `PriorityResolution<T>` | Lowest priority int value wins. |
+| `SpecificityResolution<T>` | Most specific norm wins (lex specialis). |
+| `RecencyResolution<T>` | Most recently established norm wins (lex posterior). |
+| `MostRestrictiveResolution` | Typed to `RiskDecision` — GateRequired beats Autonomous. Backward-compatible with ChainedActionRiskClassifier behavior. |
+| `EscalationResolution<T>` | Always escalates to a designated decision when any conflict exists. |
 
 ## Package: `io.casehub.blocks.negotiation`
 
