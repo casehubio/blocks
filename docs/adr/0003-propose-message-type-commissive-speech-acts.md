@@ -1,4 +1,4 @@
-# 0002 — PROPOSE message type for commissive speech acts
+# 0003 — PROPOSE message type for commissive speech acts
 
 Date: 2026-08-14
 Status: Accepted
