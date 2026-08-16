@@ -166,6 +166,83 @@ Six composition patterns identified. Each wires together existing CaseHub capabi
 - Shinn et al. — "Reflexion: Language Agents with Verbal Reinforcement Learning" (NeurIPS 2023)
 - MIRROR — "Cognitive Inner Monologue Between Conversational Turns" (2025, arXiv:2506.00430)
 
+### 2.7 Personality Evolution
+
+**What it does:** Interaction outcomes (trust changes, conversation success/failure, relationship quality signals) nudge personality traits within bounded ranges over time. A character that consistently experiences betrayal becomes slightly more guarded. A character that forms strong friendships becomes slightly more open. Changes are slow, damped, and reversible.
+
+**Why it matters:** Static personality feels artificial over long-running interactions. Research shows agents develop distinct personality differentiation through free social interaction (Takata et al., 2024), but unconstrained drift is dangerous — a few negative interactions can destabilise a character entirely (LLMPTBench, NeurIPS 2025). Bounded evolution with dampening is the balance.
+
+**Composes:**
+- `DispositionEvolution` (eidos) — tracks how disposition changes over time
+- `GoalEvolution` / `GoalOutcomeCounts` (eidos) — goal achievement tracking
+- `BehavioralSignal` / `BehavioralExpectations` (eidos) — behavioural compliance signals
+- `CbrCaseMemoryStore` with outcome weighting (neocortex) — interaction cases with outcomes
+- `TrendAnalyzer` / `TrendProfile` (neocortex CBR) — detects trends in outcomes over time
+
+**Configuration surface:**
+- Drift bounds — maximum displacement from baseline per trait (e.g., ±0.15 on a 0–1 scale)
+- Dampening factor — how much each outcome event affects traits (small per event)
+- Reversion rate — how quickly traits trend back toward baseline without reinforcing signal
+- Update frequency — per-interaction, daily, or weekly
+- Trait sensitivity — which traits are more susceptible to drift (agreeableness drifts more than conscientiousness)
+
+**Key academic references:**
+- Zeng et al. — Dynamic Personality in LLM Agents (ACL Findings 2025)
+- Li et al. — Cognition-Emotion-Growth Architecture (2024) — feedback-loop personality development
+- BFI-Adapt Benchmark (2026) — event-induced personality change
+- Takata et al. — Spontaneous Emergence of Agent Individuality (2024)
+- LLMPTBench (NeurIPS 2025 Workshop) — warning: agentic frameworks exhibit exaggerated shifts
+
+**Issue:** casehubio/blocks#118
+
+### 2.8 Fold-In Mappings
+
+Several scholar-identified gaps fold into the patterns above rather than requiring separate patterns:
+
+| Scholar Gap | Folds into | How |
+|---|---|---|
+| Temporal memory versioning (Graphiti bi-temporal facts) | MemoryHygiene | Consolidation step uses Graphiti backend's temporal validity windows; invalidate-not-delete during hygiene passes |
+| Memory cross-linking (Zettelkasten/A-MEM) | MemoryHygiene | Consolidation step identifies and links related memories during idle-time processing |
+| Memory integrity/safety | MemoryHygiene | Consistency verification and poisoning detection as part of consolidation checks |
+| System 1/System 2 fast path | InnerLife | Fast-path evaluation before full agency loop — routine interactions bypass LLM, novel ones trigger full cycle |
+| Novelty engine (topic staleness) | InnerLife | Topic staleness scoring drives what to initiate about; callback humor and surprising opinions bridge engagement valleys |
+| Communication style adaptation | StrategyLearning | Style parameters (formality, humor, verbosity) are strategy dimensions adjusted by engagement outcomes |
+
+### 2.9 Eidos Extension: Humor/Sarcasm Dimensions
+
+Not a standalone pattern — an extension to the Eidos disposition vocabulary. Structured humor/sarcasm dimensions per agent, following the vocabulary registrar pattern (same as MBTI, BigFive, DISC, Belbin, etc.).
+
+Dimensions from the Sarc7 paper: incongruity, shock value, context dependency, emotional tone. Per-character parameterisation — Dick Dastardly uses cutting sarcasm, Penelope uses gentle irony.
+
+Also includes sarcasm awareness in reception (understanding when users are being sarcastic) as a capability facet.
+
+**Issue:** casehubio/eidos#140
+
+## Scholar Gap Coverage
+
+All 14 scholar-identified gaps mapped to patterns, fold-ins, foundation additions, or Eidos extensions:
+
+| # | Scholar Gap | Priority | Covered by | Status |
+|---|---|---|---|---|
+| 1 | Memory reflection/consolidation | P0 | MemoryHygiene pattern (§2.2) | Pattern class |
+| 2 | Proactive conversation initiation | P0 | InnerLife pattern (§2.1) | Pattern class |
+| 3 | Temporal memory versioning | P0 | MemoryHygiene fold-in (§2.8) — Graphiti backend | Strategy |
+| 4 | Per-user behavioral profiles | P1 | UserModel pattern (§2.4) | Pattern class |
+| 5 | Emotional state tracking | P1 | Mood pattern (§2.3) + MoodState foundation addition | Pattern class + small feature |
+| 6 | Self-reflection on strategy | P1 | StrategyLearning pattern (§2.6) | Pattern class |
+| 7 | Theory of Mind | P1 | MentalModel pattern (§2.5) | Pattern class |
+| 8 | Personality evolution | P2 | PersonalityEvolution pattern (§2.7) | Pattern class (blocks#118) |
+| 9 | Memory cross-linking | P2 | MemoryHygiene fold-in (§2.8) | Strategy |
+| 10 | Communication style adaptation | P2 | StrategyLearning + UserModel fold-in (§2.8) | Strategy |
+| 11 | System 1/System 2 fast path | P2 | InnerLife fold-in (§2.8) | Strategy |
+| 12 | Novelty engine | P3 | InnerLife fold-in (§2.8) | Strategy |
+| 13 | Memory integrity/safety | P3 | MemoryHygiene fold-in (§2.8) | Strategy |
+| 14 | Humor/sarcasm parameterization | P3 | Eidos extension (§2.9) | Vocab extension (eidos#140) |
+
+**Foundation additions required (only 2):**
+- MoodState type + mood-modulated retrieval decorator (neocortex or blocks)
+- Conversational engagement scoring outcome definitions (neocortex experience SPI)
+
 ## 3. Existing Platform Capabilities Audit
 
 ### What already exists (comprehensive)
@@ -398,10 +475,10 @@ These patterns apply across all QuarkMind worlds:
 
 | Platform | Architecture | Key patterns used |
 |---|---|---|
-| quarkmind-sc2 | Sequential tick, omniscient | StrategyLearning, Mood |
-| quarkmind-town | Async clients, Sims-like | All six patterns |
-| quarkmind-minecraft | Async client, embodied | InnerLife, UserModel, MentalModel, Mood |
-| quarkmind-discord | Async observer, social | All six patterns (primary showcase) |
+| quarkmind-sc2 | Sequential tick, omniscient | StrategyLearning, Mood, PersonalityEvolution |
+| quarkmind-town | Async clients, Sims-like | All seven patterns |
+| quarkmind-minecraft | Async client, embodied | InnerLife, UserModel, MentalModel, Mood, PersonalityEvolution |
+| quarkmind-discord | Async observer, social | All seven patterns (primary showcase) |
 
 ### Discord Bot Specifically
 
