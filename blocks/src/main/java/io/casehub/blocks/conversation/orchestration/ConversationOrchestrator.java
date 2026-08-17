@@ -11,6 +11,8 @@ import io.casehub.blocks.summarisation.observation.PartitionedObservationService
 import io.casehub.qhorus.api.message.MessageView;
 import io.smallrye.mutiny.Uni;
 
+import org.jspecify.annotations.Nullable;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -33,6 +35,7 @@ public class ConversationOrchestrator {
     private final ResponseMessageBuilder responseBuilder;
     private final Consumer<MessageView> responseDispatcher;
     private final List<AgentParticipant> participants;
+    private final @Nullable ConversationListener listener;
     private volatile boolean terminated = false;
 
     public ConversationOrchestrator(
@@ -45,6 +48,22 @@ public class ConversationOrchestrator {
             ResponseMessageBuilder responseBuilder,
             Consumer<MessageView> responseDispatcher,
             List<AgentParticipant> participants) {
+        this(projection, observationService, turnPolicy, terminationCondition,
+                agentInvoker, promptAssembler, responseBuilder, responseDispatcher,
+                participants, null);
+    }
+
+    public ConversationOrchestrator(
+            ConversationProjection projection,
+            PartitionedObservationService<MessageView, String> observationService,
+            TurnPolicy turnPolicy,
+            TerminationCondition<ConversationState> terminationCondition,
+            AgentInvoker<String> agentInvoker,
+            PromptAssembler promptAssembler,
+            ResponseMessageBuilder responseBuilder,
+            Consumer<MessageView> responseDispatcher,
+            List<AgentParticipant> participants,
+            @Nullable ConversationListener listener) {
         this.projection = projection;
         this.observationService = observationService;
         this.turnPolicy = turnPolicy;
@@ -54,6 +73,7 @@ public class ConversationOrchestrator {
         this.responseBuilder = responseBuilder;
         this.responseDispatcher = responseDispatcher;
         this.participants = List.copyOf(participants);
+        this.listener = listener;
 
         for (var p : this.participants) {
             observationService.addObserver(p.agentId(), p.agentId());
@@ -124,11 +144,16 @@ public class ConversationOrchestrator {
                     responseDispatcher.accept(responseMessage);
                     queue.add(responseMessage);
 
+                    var elapsed = Duration.between(start, Instant.now());
                     var termCtx = new TerminationContext<>(
-                            state, dispatchCount,
-                            Duration.between(start, Instant.now()),
+                            state, dispatchCount, elapsed,
                             List.copyOf(allResults));
                     finalDecision = terminationCondition.evaluate(termCtx);
+
+                    if (listener != null) {
+                        listener.onDispatch(state, finalDecision,
+                                dispatchCount, elapsed);
+                    }
 
                     if (!(finalDecision instanceof TerminationDecision.Continue)) {
                         break;

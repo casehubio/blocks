@@ -128,12 +128,13 @@ Autonomous multi-agent conversation orchestrator -- composes `ConversationProjec
 | `TurnPolicy` | interface | Determines which agents respond next. Receives `ConversationState`, `TurnContext`, and the participant list. Returns a list (empty = silence). |
 | `PromptAssembler` | @FunctionalInterface | Assembles per-agent prompts from the agent's observation drain and conversation state. Override to inject domain context (document content, selection scope). |
 | `ResponseMessageBuilder` | @FunctionalInterface | Converts an agent's `AgentResult` into a `MessageView` the projection can fold. Override for domain-specific entry type determination. |
+| `ConversationListener` | @FunctionalInterface | Optional per-dispatch callback: `onDispatch(ConversationState, TerminationDecision, int dispatchCount, Duration elapsed)`. Fires after each termination check in the conversation loop. Wire via the 10-arg constructor. Use for progress broadcasting (e.g., WebSocket push of convergence state). |
 
 **Core types:**
 
 | Class | Type | What it does |
 |-------|------|-------------|
-| `ConversationOrchestrator` | class | Composition root. Constructor takes projection, observation service, turn policy, termination condition, agent invoker, prompt assembler, response builder, response dispatcher, and participant list. `converse(MessageView) -> Uni<ConversationOutcome>` runs the full conversation loop. `terminate()` stops from outside. |
+| `ConversationOrchestrator` | class | Composition root. Constructor takes projection, observation service, turn policy, termination condition, agent invoker, prompt assembler, response builder, response dispatcher, participant list, and optional `ConversationListener`. `converse(MessageView) -> Uni<ConversationOutcome>` runs the full conversation loop. `terminate()` stops from outside. |
 | `ConversationOutcome` | record | Result: `finalState`, `terminationDecision`, `agentResults`, `dispatchCount`, `elapsed`. |
 | `AgentParticipant` | record | Agent identity + role + system prompt. `agentId()` delegates to `agentRef.name()`. |
 | `TurnContext` | record | Turn-relevant fields: `senderId`, `targetId` (nullable), `entryType`, `metadata`. Extracted from `MessageView` by the orchestrator. |

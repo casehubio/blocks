@@ -17,6 +17,7 @@ import io.smallrye.mutiny.Uni;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ConversationOrchestratorTest {
+
+    record DispatchEvent(ConversationState state, TerminationDecision decision,
+                         int dispatchCount, Duration elapsed) {}
 
     static class TestProjection extends ConversationProjection {
         @Override protected String sentinel() { return "TEST:"; }
@@ -269,5 +273,203 @@ class ConversationOrchestratorTest {
         orchestrator.converse(trigger).await().indefinitely();
 
         assertThat(dispatched).hasSize(3);
+    }
+
+    @Test
+    void listener_receivesAllDispatches() {
+        var observationService = createObservationService();
+        var dispatched = new ArrayList<MessageView>();
+        var callCount = new AtomicInteger();
+        var events = new ArrayList<DispatchEvent>();
+
+        AgentInvoker<String> invoker = (agent, prompt) -> {
+            callCount.incrementAndGet();
+            return Uni.createFrom().item(AgentResult.success(agent, "resp"));
+        };
+
+        var alice = new AgentParticipant(
+                AgentRef.external("alice", i -> null), "REV", "");
+        var bob = new AgentParticipant(
+                AgentRef.external("bob", i -> null), "IMP", "");
+
+        ResponseMessageBuilder responseBuilder = (agent, result, state) ->
+                mockMessage(agent.agentId(), "TEST:entry_type=COMMENT\nresp",
+                        callCount.get() + 100);
+
+        var orchestrator = new ConversationOrchestrator(
+                projection, observationService,
+                new RoundRobinTurnPolicy(),
+                maxIterations(4),
+                invoker,
+                (agent, drain, state) -> "",
+                responseBuilder,
+                dispatched::add,
+                List.of(alice, bob),
+                (state, decision, count, elapsed) ->
+                        events.add(new DispatchEvent(state, decision, count, elapsed))
+        );
+
+        var trigger = mockMessage("human", "Start", 0);
+        orchestrator.converse(trigger).await().indefinitely();
+
+        assertThat(events).hasSize(4);
+        assertThat(events.stream().map(DispatchEvent::dispatchCount).toList())
+                .containsExactly(1, 2, 3, 4);
+    }
+
+    @Test
+    void listener_receivesFinalTerminationDecision() {
+        var observationService = createObservationService();
+        var callCount = new AtomicInteger();
+        var events = new ArrayList<DispatchEvent>();
+
+        AgentInvoker<String> invoker = (agent, prompt) -> {
+            callCount.incrementAndGet();
+            return Uni.createFrom().item(AgentResult.success(agent, "resp"));
+        };
+
+        var alice = new AgentParticipant(
+                AgentRef.external("alice", i -> null), "REV", "");
+
+        ResponseMessageBuilder responseBuilder = (agent, result, state) ->
+                mockMessage(agent.agentId(), "TEST:entry_type=COMMENT\nresp",
+                        callCount.get() + 100);
+
+        TerminationCondition<ConversationState> stopAfterTwo = ctx -> {
+            if (ctx.iterationCount() >= 2) {
+                return new TerminationDecision.Complete("Done");
+            }
+            return TerminationDecision.Continue.INSTANCE;
+        };
+
+        var orchestrator = new ConversationOrchestrator(
+                projection, observationService,
+                new RoundRobinTurnPolicy(),
+                stopAfterTwo,
+                invoker,
+                (agent, drain, state) -> "",
+                responseBuilder,
+                msg -> {},
+                List.of(alice),
+                (state, decision, count, elapsed) ->
+                        events.add(new DispatchEvent(state, decision, count, elapsed))
+        );
+
+        var trigger = mockMessage("human", "Start", 0);
+        orchestrator.converse(trigger).await().indefinitely();
+
+        assertThat(events).isNotEmpty();
+        var lastEvent = events.getLast();
+        assertThat(lastEvent.decision())
+                .isInstanceOf(TerminationDecision.Complete.class);
+        assertThat(((TerminationDecision.Complete) lastEvent.decision()).result())
+                .isEqualTo("Done");
+    }
+
+    @Test
+    void listener_notCalledOnAgentFailure() {
+        var observationService = createObservationService();
+        var events = new ArrayList<DispatchEvent>();
+
+        var alice = new AgentParticipant(
+                AgentRef.external("alice", i -> null), "REV", "");
+
+        AgentInvoker<String> invoker = (agent, prompt) ->
+                Uni.createFrom().item(AgentResult.failure(agent, "LLM error"));
+
+        var orchestrator = new ConversationOrchestrator(
+                projection, observationService,
+                new FreeTurnPolicy(),
+                maxIterations(10),
+                invoker,
+                (agent, drain, state) -> "",
+                (agent, result, state) -> mockMessage(agent.agentId(), "resp", 999),
+                msg -> {},
+                List.of(alice),
+                (state, decision, count, elapsed) ->
+                        events.add(new DispatchEvent(state, decision, count, elapsed))
+        );
+
+        var trigger = mockMessage("human", "Start", 0);
+        var outcome = orchestrator.converse(trigger).await().indefinitely();
+
+        assertThat(outcome.dispatchCount()).isEqualTo(1);
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    void nullListener_noNPE() {
+        var observationService = createObservationService();
+        var dispatched = new ArrayList<MessageView>();
+        var callCount = new AtomicInteger();
+
+        AgentInvoker<String> invoker = (agent, prompt) -> {
+            callCount.incrementAndGet();
+            return Uni.createFrom().item(AgentResult.success(agent, "resp"));
+        };
+
+        var alice = new AgentParticipant(
+                AgentRef.external("alice", i -> null), "REV", "");
+
+        ResponseMessageBuilder responseBuilder = (agent, result, state) ->
+                mockMessage(agent.agentId(), "TEST:entry_type=COMMENT\nresp",
+                        callCount.get() + 100);
+
+        var orchestrator = new ConversationOrchestrator(
+                projection, observationService,
+                new RoundRobinTurnPolicy(),
+                maxIterations(2),
+                invoker,
+                (agent, drain, state) -> "",
+                responseBuilder,
+                dispatched::add,
+                List.of(alice)
+        );
+
+        var trigger = mockMessage("human", "Start", 0);
+        var outcome = orchestrator.converse(trigger).await().indefinitely();
+
+        assertThat(outcome.dispatchCount()).isEqualTo(2);
+    }
+
+    @Test
+    void listener_elapsedMonotonicallyIncreasing() {
+        var observationService = createObservationService();
+        var callCount = new AtomicInteger();
+        var events = new ArrayList<DispatchEvent>();
+
+        AgentInvoker<String> invoker = (agent, prompt) -> {
+            callCount.incrementAndGet();
+            return Uni.createFrom().item(AgentResult.success(agent, "resp"));
+        };
+
+        var alice = new AgentParticipant(
+                AgentRef.external("alice", i -> null), "REV", "");
+
+        ResponseMessageBuilder responseBuilder = (agent, result, state) ->
+                mockMessage(agent.agentId(), "TEST:entry_type=COMMENT\nresp",
+                        callCount.get() + 100);
+
+        var orchestrator = new ConversationOrchestrator(
+                projection, observationService,
+                new RoundRobinTurnPolicy(),
+                maxIterations(3),
+                invoker,
+                (agent, drain, state) -> "",
+                responseBuilder,
+                msg -> {},
+                List.of(alice),
+                (state, decision, count, elapsed) ->
+                        events.add(new DispatchEvent(state, decision, count, elapsed))
+        );
+
+        var trigger = mockMessage("human", "Start", 0);
+        orchestrator.converse(trigger).await().indefinitely();
+
+        assertThat(events).hasSizeGreaterThanOrEqualTo(2);
+        for (int i = 1; i < events.size(); i++) {
+            assertThat(events.get(i).elapsed())
+                    .isGreaterThanOrEqualTo(events.get(i - 1).elapsed());
+        }
     }
 }

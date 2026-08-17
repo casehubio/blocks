@@ -130,7 +130,7 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/agentic/belief/` | Tests for belief revision |
 | `src/main/java/io/casehub/blocks/conversation/` | Structured conversation protocol — projections, fold state, rendering, point classification, epistemic common ground, convergence detection |
 | `src/test/java/io/casehub/blocks/conversation/` | Tests for conversation blocks |
-| `src/main/java/io/casehub/blocks/conversation/orchestration/` | Conversation orchestrator — TurnPolicy SPI, termination conditions, PromptAssembler, ConversationOrchestrator composition root |
+| `src/main/java/io/casehub/blocks/conversation/orchestration/` | Conversation orchestrator — TurnPolicy SPI, termination conditions, PromptAssembler, ConversationOrchestrator composition root, ConversationListener per-dispatch callback |
 | `src/test/java/io/casehub/blocks/conversation/orchestration/` | Tests for conversation orchestrator |
 | `src/main/java/io/casehub/blocks/normative/` | Normative conflict resolution — `ConflictResolutionStrategy<T>` SPI, `NormDecision<T>`, `NormResolution<T>`, five resolution strategies (priority, specificity, recency, most-restrictive, escalation) |
 | `src/test/java/io/casehub/blocks/normative/` | Tests for normative conflict resolution |
@@ -262,6 +262,7 @@ Autonomous multi-agent conversation orchestrator — composes `ConversationProje
 | `AgentParticipant` | Record: `agentRef` (AgentRef), `role`, `systemPrompt`. `agentId()` delegates to `agentRef.name()`. |
 | `PromptAssembler` | `@FunctionalInterface`: `assemble(AgentParticipant, PartitionedDrain<String>, ConversationState) → String`. Per-agent prompt construction. |
 | `ResponseMessageBuilder` | `@FunctionalInterface`: `build(AgentParticipant, AgentResult, ConversationState) → MessageView`. Converts agent output to foldable message. |
+| `ConversationListener` | `@FunctionalInterface`: `onDispatch(ConversationState, TerminationDecision, int, Duration)`. Per-dispatch callback fired after each termination check in `converse()`. Optional — wire via 10-arg constructor. |
 | `RoundRobinTurnPolicy` | Strict alternation. Stateless — derives next from sender ID in participant order. |
 | `AddressedTurnPolicy` | Respond when `targetId` matches agent role. Null target = silence. |
 | `PointAddressedTurnPolicy` | Respond to unresolved OPEN/ACTIVE points not yet responded to by agent's role. |
