@@ -554,7 +554,7 @@ Epic #28 tracks extraction of shared patterns from domain repos into blocks. Eac
 | #24 | Universal pluggable routing strategy | L | High | **Moved → engine#634** | engine | engine, work | engine, work, qhorus, eidos |
 | #30 | AI routing strategy impls (trust, LLM, CBR) | M | Med | **Done** | blocks | — | engine, domain repos |
 | #25 | Worker data coordination (DataExchange/DataChannel) | L | High | **Moved → engine#633** | engine | engine | engine, workers, desiredstate |
-| #27 | Layered event summarisation | M | Med | Not yet — quarkmind still baking | blocks | quarkmind | quarkmind, iot, aml, clinical |
+| #27 | Layered event summarisation | M | Med | **Done** | blocks | quarkmind | quarkmind, iot, aml, clinical |
 
 ## Cross-Repo Scanning
 
