@@ -128,6 +128,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/agentic/intention/` | Tests for joint intentions |
 | `src/main/java/io/casehub/blocks/agentic/belief/` | Formal belief revision — AGM-style `BeliefSet<T>` with expand/contract/revise, `ConsistencyChecker<T>` SPI, entrenchment ordering |
 | `src/test/java/io/casehub/blocks/agentic/belief/` | Tests for belief revision |
+| `src/main/java/io/casehub/blocks/agentic/personality/` | Personality evolution — signal-driven orchestrator composing eidos JPAF pipeline. `TraitPressureSource<E>` SPI, `PersonalityEvolutionOrchestrator` (tick/record), `EvolutionTick` sealed outcomes, default pressure sources (BehavioralSignal, RelationshipEvent, GoalOutcomeCounts) |
+| `src/test/java/io/casehub/blocks/agentic/personality/` | Tests for personality evolution |
 | `src/main/java/io/casehub/blocks/conversation/` | Structured conversation protocol — projections, fold state, rendering, point classification, epistemic common ground, convergence detection |
 | `src/test/java/io/casehub/blocks/conversation/` | Tests for conversation blocks |
 | `src/main/java/io/casehub/blocks/conversation/orchestration/` | Conversation orchestrator — TurnPolicy SPI, termination conditions, PromptAssembler, ConversationOrchestrator composition root, ConversationListener per-dispatch callback |
