@@ -14,7 +14,7 @@ public class PartitionedObservationService<E, K> {
     private final ObservationRenderer<E> renderer;
     private final VisibilityPolicy<E, K> visibilityPolicy;
     private final Function<E, Long> timestampExtractor;
-    private final EventLevel eventLevel;
+    private final Function<E, EventLevel> levelResolver;
     private final ConcurrentHashMap<String, ObserverState<E, K>> observers
             = new ConcurrentHashMap<>();
 
@@ -23,10 +23,18 @@ public class PartitionedObservationService<E, K> {
             VisibilityPolicy<E, K> visibilityPolicy,
             Function<E, Long> timestampExtractor,
             EventLevel eventLevel) {
+        this(renderer, visibilityPolicy, timestampExtractor, e -> eventLevel);
+    }
+
+    public PartitionedObservationService(
+            ObservationRenderer<E> renderer,
+            VisibilityPolicy<E, K> visibilityPolicy,
+            Function<E, Long> timestampExtractor,
+            Function<E, EventLevel> levelResolver) {
         this.renderer = renderer;
         this.visibilityPolicy = visibilityPolicy;
         this.timestampExtractor = timestampExtractor;
-        this.eventLevel = eventLevel;
+        this.levelResolver = levelResolver;
     }
 
     public void addObserver(String observerId, K initialPartition) {
@@ -36,7 +44,7 @@ public class PartitionedObservationService<E, K> {
     public void publishEvent(E event) {
         Map<String, Set<K>> routing = visibilityPolicy.resolve(event);
         long timestamp = timestampExtractor.apply(event);
-        var levelEvent = new LevelEvent<>(event, timestamp, eventLevel);
+        var levelEvent = new LevelEvent<>(event, timestamp, levelResolver.apply(event));
 
         for (var entry : routing.entrySet()) {
             String observerId = entry.getKey();

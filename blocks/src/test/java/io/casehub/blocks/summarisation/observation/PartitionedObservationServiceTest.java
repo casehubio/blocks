@@ -1,13 +1,14 @@
 package io.casehub.blocks.summarisation.observation;
 
 import io.casehub.blocks.summarisation.EventLevel;
-import io.casehub.blocks.summarisation.LevelEvent;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -121,4 +122,32 @@ class PartitionedObservationServiceTest {
         var drain = service.drain("alice", "room-a", 2000);
         assertThat(drain.currentPartition().eventCount()).isZero();
     }
+
+    @Test
+    void levelResolver_assignsPerEventLevels() {
+        EventLevel high = new EventLevel("high", 10);
+        EventLevel low  = new EventLevel("low", 0);
+
+        List<EventLevel> seenLevels = new ArrayList<>();
+        ObservationRenderer<TestEvent> capturingRenderer = (events, ctx) -> {
+            events.forEach(e -> seenLevels.add(e.level()));
+            return CompletableFuture.completedFuture(new ObservationResult(
+                    "", List.of(), events.size(), ctx.timeSinceLastDrain(), ObservationTier.VERBATIM));
+        };
+
+        Function<TestEvent, EventLevel> resolver = e ->
+                                                           e.text().startsWith("important") ? high : low;
+
+        var service = new PartitionedObservationService<>(
+                capturingRenderer, simplePolicy, TestEvent::ts, resolver);
+        service.addObserver("alice", "room-a");
+
+        service.publishEvent(new TestEvent("alice", "room-a", "important-msg", 1000));
+        service.publishEvent(new TestEvent("alice", "room-a", "routine-msg", 2000));
+
+        service.drain("alice", "room-a", 3000);
+
+        assertThat(seenLevels).containsExactly(high, low);
+    }
+
 }
