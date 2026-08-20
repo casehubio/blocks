@@ -478,6 +478,7 @@ Grounded observation rendering for LLM agents. Per-entity affordance chains (ide
 | `ObservationSection` | Sealed interface: `EntityGroup` (entities with grounding chains), `TextBlock` (contextual prose), `ItemList` (bulleted items). Factory methods: `entities()`, `text()`, `items()` |
 | `ActionDescriptor` | Record: action type in the vocabulary `(String actionType, String description, @Nullable String parameterFormat)` |
 | `AffordanceRenderer` | Concrete class: `renderEntities()` (core grounding chains), `renderObservation()` (section assembly), `renderActionVocabulary()` (action vocabulary). Configurable header formatter via `withHeaderFormatter()` |
+| `WorldObservationProvider` | `@FunctionalInterface` SPI: `List<ObservationSection> worldSections()`. Returns world-specific observation sections (location, exits, objects, characters). Consumers accept a provider instead of a concrete world state, so cognitive sections (goals, plans, memories) become a shared utility. |
 
 ## Sub-package: `io.casehub.blocks.summarisation.llm`
 
