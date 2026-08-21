@@ -205,6 +205,22 @@ Terminal consumer of the summarisation pipeline -- tiered, demand-driven renderi
 
 `ObservationSection` is a sealed interface with three variants: `EntityGroup`, `TextBlock`, `ItemList`. Static factories: `entities()`, `text()`, `items()`.
 
+### Drive Architecture (Compositor Pattern)
+
+The drive sub-package (`agentic.social.drive`) follows a *compositor pattern* that deliberately breaks the universal `record()` + `tick()` contract used by all six social cognition orchestrators. Drives consume derived state from other orchestrators rather than accumulating raw signals, so `record()` has nothing to accumulate.
+
+**Lifecycle:** `DriveOrchestrator.tick(agentId, tenantId, AgentDescriptor)` evaluates four `DriveSource` implementations, delegates modulation and composition to `DriveComposer`, and caches the resulting `DriveProfile`. `currentDrives(agentId, tenantId)` returns the cached state. Per-agent `ReentrantLock` guards `tick()` -- same concurrency model as other orchestrators.
+
+**DriveSource SPI:** `@FunctionalInterface` with `DriveIntensity evaluate(agentId, tenantId)`. Each implementation takes its source orchestrator as a constructor dependency and reads its public accessors. Analogous to `TraitPressureSource<E>` in personality evolution, but pull-based (reads at tick-time) rather than push-based (translates events at record-time).
+
+**Modulation flow:** Raw intensities from four sources → mood modulation (PAD axes from `MoodOrchestrator.currentMood()`) → personality modulation (`AgentDescriptor.disposition()` weights per `DispositionAxis`) → intensity clamping → weighted composition → `DriveProfile`.
+
+**Upstream API additions for drive sources:**
+- `MemoryHygieneOrchestrator.knowledgeGaps()` → `KnowledgeGapSummary` (in `blocks.memory`)
+- `StrategyLearningOrchestrator.engagementTrend()` → `EngagementTrend` (in `blocks.agentic.social`)
+- `UserModelOrchestrator.activeProfiles()` → cross-subject profile aggregation
+- `MentalModelOrchestrator.activeSnapshots()` → cross-subject mental model aggregation
+
 ## Trust Routing Architecture
 
 The trust routing system spans four layers -- blocks owns AI-powered routing strategies and compliance audit types.
