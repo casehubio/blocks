@@ -25,8 +25,8 @@ class NegotiationProjectionTest {
 
     private MessageView msg(MessageType type, String sender, String content,
                             String correlationId, Instant createdAt) {
-        return new MessageView(1L, CHANNEL, sender, type, content, correlationId,
-                null, null, null, List.of(), ActorType.AGENT, createdAt, null, 0);
+        return new MessageView(1L, CHANNEL, sender, type, content, null,
+                correlationId, null, null, null, List.of(), ActorType.AGENT, createdAt, null, 0);
     }
 
     @Nested

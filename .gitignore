@@ -8,3 +8,6 @@ target/
 package-lock.json
 proj
 .mvn/slot-settings.xml
+.worktrees
+.worktrees/
+.claude/
