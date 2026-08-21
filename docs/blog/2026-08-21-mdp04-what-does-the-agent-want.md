@@ -10,73 +10,13 @@ subtype: diary
 
 # What Does the Agent Want?
 
-Seven orchestrators shipped this week — a complete social cognition stack for autonomous agents. Each one handles a distinct cognitive operation:
+Seven orchestrators shipped this week. An agent running the full social cognition stack has personality that evolves, mood that colours its retrieval, memory that forgets on purpose, detailed models of who it's talking to and what they're thinking, and strategies that improve from engagement feedback. By any reasonable measure, it has a rich inner life.
 
-| Orchestrator | Cognitive role | What it does |
-|-------------|---------------|-------------|
-| PersonalityEvolution | Self-model | Bounded trait drift from interaction outcomes via JPAF |
-| InnerLife | Self-expression | Background thought loop — decides when to speak unprompted |
-| MemoryHygiene | Memory lifecycle | Importance scoring, eviction, consolidation, reflection |
-| Mood | Emotion | PAD emotional state with decay toward personality baseline |
-| UserModel | Perception | Per-subject behavioral profile — who is this person |
-| MentalModel | Mind-reading | BDI Theory of Mind — what does this person think/want/plan |
-| StrategyLearning | Self-improvement | Multi-level reflection on what engagement strategies work |
+And it has absolutely no idea what it wants.
 
-Every orchestrator follows the same `record()` + `tick()` pattern. Signals go in, state evolves, consumers read the output. Together they give an agent personality that evolves, mood that colours its retrieval, memory that forgets on purpose, detailed models of who it's talking to and what they're thinking, and strategies that improve from engagement feedback.
+Every goal the agent pursues was given to it by a CaseDefinition. Every action it takes is in service of someone else's objective. It can model your beliefs, desires, and intentions (MentalModel does exactly that), but it has no beliefs, desires, or intentions of its own beyond "complete the assigned task." The irony is precise: the agent has a better theory of your mind than it has of its own.
 
-By any reasonable measure, this agent has a rich inner life. And it has absolutely no idea what it wants.
-
-Every goal it pursues was given to it by a CaseDefinition. Every action it takes is in service of someone else's objective. It can model your beliefs, desires, and intentions (MentalModel does exactly that), but it has no beliefs, desires, or intentions of its own beyond "complete the assigned task." The irony is precise: the agent has a better theory of your mind than it has of its own.
-
-This is where the research goes next. Three layers, each building on the last:
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    LAYER 3: EMERGENCE                               │
-│   NarrativeOrchestrator ──── SocialNormDetector ──── GroupIdentity  │
-│         │                          │                      │         │
-│         │ narrative feeds           │ norms from            │ shared │
-│         │ back into drives          │ interaction            │ story  │
-│         ▼                          ▼                      ▼         │
-├─────────────────────────────────────────────────────────────────────┤
-│                    LAYER 2: AUTONOMOUS GOALS                        │
-│   GoalProposer ──── DriveToGoalMapper ──── GoalPriorityAdjudicator │
-│         │                  ▲                       │                │
-│         │ proposes          │ drives                │ assigned vs    │
-│         │ GoapGoals         │ become goals          │ self-generated │
-│         ▼                  │                       ▼                │
-├─────────────────────────────────────────────────────────────────────┤
-│                    LAYER 1: DRIVE ARCHITECTURE                      │
-│   DriveOrchestrator ──── DriveComposer ──── Four drive sources     │
-│         │                      ▲                                    │
-│         │ synthesises           │ weighted                           │
-│         │ motivation            │ composition                        │
-│         ▼                      │                                    │
-├────────────────────────────────┼────────────────────────────────────┤
-│              FOUNDATION: SOCIAL COGNITION (shipped)                 │
-│                                │                                    │
-│  ┌──────────────┐  ┌──────────┴───────┐  ┌───────────────────┐     │
-│  │ Personality  │  │  MemoryHygiene   │  │   UserModel       │     │
-│  │ Evolution    │  │  (reflections    │  │   (familiarity    │     │
-│  │              │  │   → knowledge    │  │    decay →        │     │
-│  │ InnerLife    │  │     gaps)        │  │    affiliation)   │     │
-│  │              │  │                  │  │                   │     │
-│  │ Mood         │  │  Strategy        │  │   MentalModel     │     │
-│  │              │  │  Learning        │  │   (intention      │     │
-│  │              │  │  (engagement     │  │    misalignment   │     │
-│  │              │  │   trends →       │  │    → autonomy)    │     │
-│  │              │  │   competence)    │  │                   │     │
-│  └──────────────┘  └─────────────────┘  └───────────────────┘     │
-│                                                                     │
-│  Each orchestrator's output feeds a specific drive:                 │
-│    MemoryHygiene reflections ──→ Curiosity drive                    │
-│    StrategyLearning trends  ──→ Competence drive                   │
-│    UserModel familiarity    ──→ Affiliation drive                   │
-│    MentalModel projections  ──→ Autonomy drive                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-## Layer 1: drives from data the agent already has
+This is where the research goes next.
 
 ## Layer 1: drives from data the agent already has
 
