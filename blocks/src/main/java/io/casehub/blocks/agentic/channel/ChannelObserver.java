@@ -127,7 +127,7 @@ public class ChannelObserver<S> implements MessageObserver, EventSource {
     private static MessageView toMessageView(MessageReceivedEvent event) {
         return new MessageView(
             event.messageId(), event.channelId(), event.senderId(),
-            event.messageType(), event.content(), null, event.correlationId(),
+            event.messageType(), event.content(), event.correlationId(),
             null, event.target(), event.topic(),
             List.of(), event.actorType(), event.occurredAt(),
             null, 0);

@@ -196,6 +196,6 @@ class ThreadSummaryObserverTest {
         return new MessageReceivedEvent(
                 1L, CHANNEL_NAME, CHANNEL_ID, TENANCY_ID,
                 type, "sender-1", null, ActorType.AGENT,
-                correlationId, Instant.now(), "content", null, null);
+                correlationId, Instant.now(), "content", null);
     }
 }

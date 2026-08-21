@@ -47,7 +47,7 @@ class ChannelObserverIntegrationTest {
         return new MessageReceivedEvent(
             1L, "test-channel", CHANNEL_ID, "tenant",
             MessageType.STATUS, "agent-1", null, null,
-            null, Instant.now(), content, null, null);
+            null, Instant.now(), content, null);
     }
 
     @Test
