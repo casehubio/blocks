@@ -1,6 +1,5 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.memory.relationship.QualitySignal;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
@@ -98,6 +97,19 @@ public class UserModelOrchestrator {
         var state = states.get(stateKey(agentId, subjectId, tenantId));
         return state != null ? state.currentProfile : null;
     }
+
+    public java.util.List<UserProfile>
+
+    activeProfiles(String agentId, String tenantId) {
+        var prefix = agentId + ":";
+        var suffix = ":" + tenantId;
+        return states.entrySet().stream()
+                     .filter(e -> e.getKey().startsWith(prefix) && e.getKey().endsWith(suffix))
+                     .map(e -> e.getValue().currentProfile)
+                     .filter(java.util.Objects::nonNull)
+                     .toList();
+    }
+
 
     static double computeFamiliarity(int positive, int negative, int neutral,
                                      RelationshipStageConfig stageConfig,

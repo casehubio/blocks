@@ -54,6 +54,9 @@ public class StrategyLearningOrchestrator {
 
     static final List<String> DEFAULT_DIMENSIONS = List.of(
             "verbosity", "formality", "initiative", "directness", "questionRate");
+    static final double       TREND_IMPROVING_THRESHOLD = 0.6;
+    static final double       TREND_DECLINING_THRESHOLD = 0.4;
+
 
     private final StrategyStore strategyStore;
     private final CbrCaseMemoryStore cbrStore;
@@ -142,6 +145,27 @@ public class StrategyLearningOrchestrator {
         }
         return strategyStore.lookup(agentId, tenantId);
     }
+
+    public java.util.Optional<EngagementTrend>
+
+    engagementTrend(String agentId, String tenantId) {
+        var key   = stateKey(agentId, tenantId);
+        var state = states.get(key);
+        if (state == null || state.currentProfile == null) {return java.util.Optional.empty();}
+
+        var profile = state.currentProfile;
+        var trends = new java.util.HashMap<String, EngagementTrend.TrendDirection>();
+        for (var entry : profile.dimensions().entrySet()) {
+            double val = entry.getValue();
+            trends.put(entry.getKey(), val > TREND_IMPROVING_THRESHOLD ? EngagementTrend.TrendDirection.IMPROVING
+                                                 : val < TREND_DECLINING_THRESHOLD ? EngagementTrend.TrendDirection.DECLINING
+                                                             : EngagementTrend.TrendDirection.STABLE);
+        }
+        double responseRate = state.totalSignals > 0
+                              ? (double) state.totalResponded / state.totalSignals : 0.0;
+        return java.util.Optional.of(new EngagementTrend(trends, responseRate, state.totalSignals));
+    }
+
 
     private StrategyLearningTick doTick(AgentLearningState state) {
         var drainedTurns = new ArrayList<TurnEntry>();

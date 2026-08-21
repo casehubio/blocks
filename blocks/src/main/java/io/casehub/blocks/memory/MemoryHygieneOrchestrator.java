@@ -27,6 +27,8 @@ import java.util.logging.Logger;
 public class MemoryHygieneOrchestrator {
 
     private static final Logger LOG = Logger.getLogger(MemoryHygieneOrchestrator.class.getName());
+    static final         double LOW_RETENTION_THRESHOLD = 0.3;
+
 
     private final CbrCaseMemoryStore store;
     private final ImportanceScorer importanceScorer;
@@ -41,6 +43,8 @@ public class MemoryHygieneOrchestrator {
     private final Consumer<HygieneEvent> eventSink;
 
     private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, KnowledgeGapSummary> gapStates = new ConcurrentHashMap<>();
+
 
     public MemoryHygieneOrchestrator(
             CbrCaseMemoryStore store,
@@ -79,6 +83,12 @@ public class MemoryHygieneOrchestrator {
             lock.unlock();
         }
     }
+
+    public KnowledgeGapSummary knowledgeGaps(String agentId, String tenantId) {
+        var summary = gapStates.get(agentId + ":" + tenantId);
+        return summary != null ? summary : KnowledgeGapSummary.empty();
+    }
+
 
     private HygieneTick doTick(String agentId, String tenantId) {
         var now = Instant.now();
@@ -133,6 +143,10 @@ public class MemoryHygieneOrchestrator {
         if (allScores.isEmpty()) {
             return new HygieneTick.Idle("no memories for agent");
         }
+
+        int lowRetention = (int) allScores.stream().filter(s -> s.composite() < LOW_RETENTION_THRESHOLD).count();
+        gapStates.put(agentId + ":" + tenantId,
+                new KnowledgeGapSummary(lowRetention, totalConsolidated, allScores.size()));
 
         return new HygieneTick.Completed(totalConsolidated, totalEvicted, allScores.size(), allScores);
     }
@@ -215,4 +229,6 @@ public class MemoryHygieneOrchestrator {
         }
         return m.caseId();
     }
+
+
 }

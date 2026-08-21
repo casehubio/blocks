@@ -1,8 +1,6 @@
 package io.casehub.blocks.agentic.social;
 
 import io.casehub.blocks.conversation.CommonGroundState;
-import io.casehub.blocks.conversation.EpistemicStatus;
-import io.casehub.blocks.conversation.GroundedFact;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
@@ -18,7 +16,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -143,6 +140,19 @@ public class MentalModelOrchestrator {
             state.lastActivityTimestamp = clock.instant();
         }
     }
+
+    public java.util.List<MentalModelSnapshot>
+
+    activeSnapshots(String agentId, String tenantId) {
+        var prefix = agentId + ":";
+        var suffix = ":" + tenantId;
+        return states.entrySet().stream()
+                     .filter(e -> e.getKey().startsWith(prefix) && e.getKey().endsWith(suffix))
+                     .map(e -> e.getValue().currentSnapshot)
+                     .filter(java.util.Objects::nonNull)
+                     .toList();
+    }
+
 
     // --- private ---
 
