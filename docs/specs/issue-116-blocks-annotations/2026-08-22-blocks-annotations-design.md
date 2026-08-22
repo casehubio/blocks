@@ -97,8 +97,6 @@ Eight annotations, one per `Patterns.*()` builder. All are `@Retention(RUNTIME) 
 @Target(METHOD)
 public @interface Supervisor {
     String name() default "";
-    String description() default "";
-    String outputKey() default "";
     int maxIterations() default 10;
     Class<? extends RoutingStrategy> routing() default FirstMatchRouting.class;
     Class<? extends DecompositionStrategy> decomposition() default IdentityDecomposition.class;
@@ -115,8 +113,6 @@ Maps to `Patterns.supervisor()`. The `routing`, `decomposition`, `aggregation` a
 @Target(METHOD)
 public @interface Debate {
     String name() default "";
-    String description() default "";
-    String outputKey() default "";
     int maxRounds() default 5;
 }
 ```
@@ -130,8 +126,6 @@ Maps to `Patterns.debate().maxRounds(n)`. Participants are defined via `@Debater
 @Target(METHOD)
 public @interface Voting {
     String name() default "";
-    String description() default "";
-    String outputKey() default "";
     Class<? extends AggregationStrategy> strategy() default MajorityVote.class;
 }
 ```
@@ -145,8 +139,6 @@ Maps to `Patterns.voting().strategy(s)`. Evaluators defined via `@Voter` paramet
 @Target(METHOD)
 public @interface Htn {
     String name() default "";
-    String description() default "";
-    String outputKey() default "";
     Class<? extends DecompositionStrategy> decomposition() default StaticDecomposition.class;
 }
 ```
@@ -161,27 +153,22 @@ Follow the same pattern — bare annotation with attributes mapping to the corre
 @Retention(RUNTIME) @Target(METHOD)
 public @interface Sequence {
     String name() default "";
-    String outputKey() default "";
-    // subAgents defined via method parameters
 }
 
 @Retention(RUNTIME) @Target(METHOD)
 public @interface Parallel {
     String name() default "";
-    String outputKey() default "";
 }
 
 @Retention(RUNTIME) @Target(METHOD)
 public @interface Loop {
     String name() default "";
-    String outputKey() default "";
     int maxIterations() default 10;
 }
 
 @Retention(RUNTIME) @Target(METHOD)
 public @interface Conditional {
     String name() default "";
-    String outputKey() default "";
 }
 ```
 
@@ -270,15 +257,15 @@ Generates `ActionRiskClassifier` chain wiring. When the classifier returns `Gate
 @Retention(RUNTIME)
 @Target(METHOD)
 public @interface TrustRouted {
-    double threshold() default 0.0;
-    int minimumObservations() default 0;
+    double threshold() default 0.7;
+    int minimumObservations() default 10;
     double borderlineMargin() default 0.1;
-    double blendFactor() default 0.0;
+    double blendFactor() default 0.6;
     double cbrWeight() default 0.0;
 }
 ```
 
-Generates `TrustRoutingPolicyKeys` configuration for the annotated worker or pattern. Attribute names match `TrustRoutingPolicyKeys` field names exactly (`threshold`, `minimumObservations`, `borderlineMargin`, `blendFactor`, `cbrWeight`). Dynamic floor keys are too dynamic for annotation attributes — configure via a developer-provided `TrustRoutingPolicyKeys` CDI bean that displaces the annotation-generated bean by CDI priority (`@Alternative` / `@Priority`). This is the standard Quarkus pattern for governance configuration escape hatches: `@Customize` targets pattern builders, not governance configuration. When multiple candidate workers compete for a capability, trust scores from the ledger gate selection.
+Generates a `TrustRoutingPolicyProvider` CDI bean for the annotated worker or pattern. Attribute defaults match `TrustRoutingPolicy.DEFAULT` — the platform's standard trust routing behaviour — so `@TrustRouted` with no attributes applies platform defaults. Attribute names match the five configurable fields of `TrustRoutingPolicy` (`threshold`, `minimumObservations`, `borderlineMargin`, `blendFactor`, `cbrWeight`). Dynamic floor keys are too dynamic for annotation attributes — configure via a developer-provided `TrustRoutingPolicyProvider` CDI bean that displaces the annotation-generated bean (non-`@DefaultBean` takes priority). When multiple candidate workers compete for a capability, trust scores from the ledger gate selection.
 
 ### @CbrRouted
 
@@ -329,7 +316,7 @@ Pattern annotations use `Class<? extends SPI>` attributes (e.g., `routing()`, `d
 
 1. **Annotation default value** — the build extension constructs the same default instance as the corresponding builder's no-arg constructor. The annotation default documents which SPI the builder would use; the recorder replicates the builder's construction logic (e.g., `FirstMatchRouting.class` on `@Supervisor` → `new FirstMatchRouting<>(c -> true)`, matching `SupervisorBuilder()`).
 
-2. **Developer-specified value** — CDI-first resolution:
+2. **Developer-specified value** — first check whether the specified class equals the annotation's declared default (e.g., `routing = FirstMatchRouting.class` on `@Supervisor` where the default is already `FirstMatchRouting.class`). If so, treat as path §1 — the developer is restating the default, not requesting CDI/constructor resolution. Otherwise, CDI-first resolution:
    a. If the class is a CDI-managed bean (detected via Jandex — `@ApplicationScoped`, `@Dependent`, etc.), the recorder injects it at `RUNTIME_INIT` via `SyntheticBeanBuildItem`
    b. If the class has a public no-arg constructor and is not CDI-managed, the recorder instantiates it directly
    c. Otherwise, build-time validation error: *"SPI class X must be a CDI bean or have a public no-arg constructor. Use @Customize for SPIs requiring constructor arguments."*
@@ -354,11 +341,23 @@ For each governance annotation found on a method:
 
 1. **Context detection** — is this on a `@Worker` method (engine Layer 1) or a pattern method (blocks Layer 2)?
 2. **Descriptor generation** — create a `GovernanceDescriptor` recording the governance type and configuration
-3. **Wiring generation** — produce the appropriate CDI beans:
+3. **Wiring generation** — produce the appropriate CDI beans (see §Governance wiring mechanisms for details):
    - `@OversightGate` → `@RiskClassifier`-qualified `ActionRiskClassifier` bean
-   - `@TrustRouted` → `TrustRoutingPolicyKeys` configuration
-   - `@CbrRouted` → `CbrOutcomeWeights` configuration
-   - `@Attestation` → `LifecycleAttestationObserver` wiring
+   - `@TrustRouted` → `TrustRoutingPolicyProvider` bean (displaces `DefaultTrustRoutingPolicyProvider`)
+   - `@CbrRouted` → `CbrOutcomeWeights` bean (displaces `DefaultCbrOutcomeWeights`)
+   - `@Attestation` → `LifecycleAttestationObserver` bean + lifecycle event observer
+
+### Governance wiring mechanisms
+
+Each governance annotation produces specific CDI beans that integrate with the engine's runtime pipeline:
+
+**@OversightGate → `@RiskClassifier`-qualified `ActionRiskClassifier` bean.** The blocks build extension produces a `SyntheticBeanBuildItem` for the developer-specified `ActionRiskClassifier` class, qualified with `@RiskClassifier`. The engine's `ChainedActionRiskClassifier` (which is `@ApplicationScoped`) injects `@RiskClassifier Instance<ActionRiskClassifier> classifiers` and aggregates all classifiers via `mostRestrictive()`. Scoping is at the classifier level — the classifier's `classify(PlannedAction, ClassificationContext)` method receives the action and context, so the classifier itself determines whether it applies to a given worker/action. No per-worker CDI qualification is needed; the classifier implementation gates on action type, capability name, or other context fields.
+
+**@TrustRouted → `TrustRoutingPolicyProvider` CDI bean.** The blocks build extension generates a `TrustRoutingPolicyProvider` implementation that returns a `TrustRoutingPolicy` constructed from the annotation attribute values. This bean is NOT `@DefaultBean`, so it displaces `DefaultTrustRoutingPolicyProvider` (which is `@DefaultBean @ApplicationScoped`). The provider's `forCapability(capabilityName)` method returns the annotation-configured policy for capabilities matching the annotated worker/pattern's name, and delegates to `TrustRoutingPolicy.DEFAULT` for others. The `TrustRoutingPolicyResolver` and preference store are bypassed — annotation values are compile-time constants that don't need runtime preference lookup.
+
+**@CbrRouted → `CbrOutcomeWeights` CDI bean.** The blocks build extension generates a `CbrOutcomeWeights` implementation with weights from the annotation attributes. This bean is NOT `@DefaultBean`, so it displaces `DefaultCbrOutcomeWeights` (which is `@DefaultBean @ApplicationScoped`). The four annotation weights (`successWeight`, `gateExpiredWeight`, `gateRejectedWeight`, `failureWeight`) map directly to `RoutingOutcome` keys. The remaining three outcomes (`DECLINED`, `CANCELLED`, `OBSOLETE`) default to 0.0; custom weights for these use `@Customize` with a custom `CbrOutcomeWeights` bean.
+
+**@Attestation → `LifecycleAttestationObserver` CDI bean + lifecycle event wiring.** The blocks build extension resolves the observer's generic type parameter `E` via Jandex type hierarchy inspection. It produces a CDI observer method (via `ObserverBuildItem`) that listens for worker lifecycle completion events of type `E`. When fired, the observer invokes `LifecycleAttestationObserver.observe(event, context)` and writes the resulting `AttestationIntent` list via `AttestationIntentWriter.write()`. The `capabilityTag` attribute scopes the observer to the specific capability, so only matching lifecycle events trigger attestation.
 
 ### @Customize integration
 

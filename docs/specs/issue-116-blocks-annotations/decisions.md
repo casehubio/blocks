@@ -129,11 +129,11 @@ No LC4j annotation migration is needed. Write in LC4j, deploy in CaseHub, get go
 
 | Example | Domain | Engine base | Blocks annotations |
 |---------|--------|------------|-------------------|
-| `incident-response-blocks` | Cybersecurity | engine#945 incident-response | `@Debate` (containment strategy), `@TrustRouted` (triage confidence), `@Attestation` |
+| `incident-response-blocks` | Cybersecurity | engine#945 incident-response | `@Supervisor` (triage), `@Debate` (containment strategy), `@TrustRouted` (triage confidence), `@Attestation` |
 | `aircraft-maintenance-blocks` | Aviation MRO | engine#945 aircraft-maintenance | `@OversightGate` (sign-off), `@Debate` (repair strategy), `@CbrRouted` |
 | `wildfire-response-blocks` | Disaster mgmt | engine#945 wildfire-response | `@Voting` (multi-agency consensus), `@Htn` (multi-phase ops), `@OversightGate` (evacuation) |
 
-Coverage: 3 pattern annotations (`@Debate`, `@Voting`, `@Htn`) + all 4 governance annotations across 3 domains. The 5 base patterns (`@Supervisor`, `@Sequence`, `@Parallel`, `@Loop`, `@Conditional`) are thin builder mappings with straightforward usage — covered by Javadoc examples and the consumer guide, not dedicated example modules.
+Coverage: 4 pattern annotations (`@Supervisor`, `@Debate`, `@Voting`, `@Htn`) + all 4 governance annotations across 3 domains. `@Supervisor` appears in the flagship `incident-response-blocks` example because the governed supervisor (`@Supervisor` + `@OversightGate` + `@TrustRouted` + `@Attestation`) is the primary demonstration of the full annotation model. The 4 remaining base patterns (`@Sequence`, `@Parallel`, `@Loop`, `@Conditional`) are thin builder mappings — covered by Javadoc examples and the consumer guide, not dedicated example modules.
 
 **Alternatives:**
 - 2 examples from issue (debate-annotated + governed-supervisor) — doesn't cover voting/HTN patterns
