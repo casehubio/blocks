@@ -135,8 +135,10 @@ Grounded observation rendering for LLM agents — per-entity affordance chains (
 | `ObservationSection` | Sealed interface: `EntityGroup` (entities with grounding chains), `TextBlock` (contextual prose), `ItemList` (bulleted items). Factory methods: `entities()`, `text()`, `items()`. |
 | `ActionDescriptor` | Record: action type in the vocabulary `(String actionType, String description, @Nullable String parameterFormat)`. |
 | `AffordanceRenderer` | Concrete class: `renderEntities()` (core grounding chains), `renderObservation()` (section assembly), `renderActionVocabulary()` (action vocabulary). Configurable header formatter via `withHeaderFormatter()`. |
+| `WorldObservationProvider` | `@FunctionalInterface` SPI: `List<ObservationSection> worldSections()`. Decouples world-specific perception rendering from observation assembly — each world (manor, SC2, etc.) provides its own implementation. |
+| `CognitiveObservationSections` | Utility class: static factory methods producing `ObservationSection` from platform cognitive types. `goalsSection(List<AgentGoal>)`, `recentActivitySection(PartitionedDrain)`, `pastExperienceSection(List<Memory>)`, `insightsSection(List<Memory>)`, `relationshipNotesSection(String, List<Memory>)`. Reusable across any agent. |
 
-**Implementation issue:** casehubio/blocks#69
+**Implementation issues:** casehubio/blocks#69, casehubio/blocks#127, casehubio/blocks#128
 
 ### Package: `io.casehub.blocks.routing.agent`
 
