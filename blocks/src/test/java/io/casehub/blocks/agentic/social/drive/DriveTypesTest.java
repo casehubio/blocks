@@ -2,6 +2,7 @@ package io.casehub.blocks.agentic.social.drive;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -92,8 +93,17 @@ class DriveTypesTest {
     }
 
     @Test
+    void driveConfig_defaults_includes_drive_source_params() {
+        var config = DriveConfig.defaults();
+        assertThat(config.affiliationDecayThreshold()).isEqualTo(0.5);
+        assertThat(config.affiliationStaleDuration()).isEqualTo(Duration.ofHours(24));
+        assertThat(config.autonomyConfidenceFloor()).isEqualTo(0.6);
+    }
+
+    @Test
     void driveConfig_rejectsInvalidRange() {
-        assertThatThrownBy(() -> new DriveConfig(Map.of(), 0.05, 0.3, 0.2, 0.25, 0.5, 0.8))
+        assertThatThrownBy(() -> new DriveConfig(Map.of(), 0.05, 0.3, 0.2, 0.25, 0.5, 0.8,
+                0.5, Duration.ofHours(24), 0.6))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxIntensity must be >= minIntensity");
     }

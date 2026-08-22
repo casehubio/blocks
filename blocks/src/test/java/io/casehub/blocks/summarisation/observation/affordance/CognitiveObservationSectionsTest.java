@@ -1,5 +1,8 @@
 package io.casehub.blocks.summarisation.observation.affordance;
 
+import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.blocks.agentic.social.drive.DriveIntensity;
+import io.casehub.blocks.agentic.social.drive.DriveProfile;
 import io.casehub.blocks.summarisation.observation.ObservationResult;
 import io.casehub.blocks.summarisation.observation.PartitionedDrain;
 import io.casehub.eidos.api.AgentGoal;
@@ -10,6 +13,7 @@ import io.casehub.neocortex.memory.MemoryDomain;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -100,5 +104,102 @@ class CognitiveObservationSectionsTest {
         var section = CognitiveObservationSections.relationshipNotesSection("Penelope", memories);
         assertThat(((ObservationSection.ItemList) section).header()).isEqualTo("About Penelope");
         assertThat(((ObservationSection.ItemList) section).items()).containsExactly("You recall: Helped me escape the trap");
+    }
+
+    // --- DriveProfile observation section tests ---
+
+    private static DriveProfile profile(Map<DriveAxis, DriveIntensity> drives) {
+        double composite = drives.values().stream()
+                .mapToDouble(DriveIntensity::intensity).average().orElse(0.0);
+        DriveAxis dominant = drives.entrySet().stream()
+                .max(Map.Entry.comparingByValue(
+                        Comparator.comparingDouble(DriveIntensity::intensity)))
+                .map(Map.Entry::getKey).orElse(DriveAxis.CURIOSITY);
+        return new DriveProfile("agent-1", "tenant-1", drives,
+                composite, dominant, Instant.now());
+    }
+
+    @Test
+    void motivationalStateSection_renders_non_zero_axes() {
+        var drives = Map.of(
+                DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 0.6, "5 low-retention memories across 3 groups"),
+                DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.2, "1 declining of 3 dimensions"),
+                DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.8, "2 of 3 relationships neglected"),
+                DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.3, "2 high-confidence intentions across 1 subject"));
+        var section = CognitiveObservationSections.motivationalStateSection(profile(drives));
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(4);
+        assertThat(items.get(0)).isEqualTo("Curiosity: 0.6 — 5 low-retention memories across 3 groups");
+        assertThat(items.get(1)).isEqualTo("Competence: 0.2 — 1 declining of 3 dimensions");
+        assertThat(items.get(2)).isEqualTo("Affiliation: 0.8 — 2 of 3 relationships neglected");
+        assertThat(items.get(3)).isEqualTo("Autonomy: 0.3 — 2 high-confidence intentions across 1 subject");
+        assertThat(((ObservationSection.ItemList) section).header()).isEqualTo("Motivational State");
+    }
+
+    @Test
+    void motivationalStateSection_filters_low_intensity_axes() {
+        var drives = Map.of(
+                DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 0.6, "gaps"),
+                DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.0, "none"),
+                DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.03, "near zero"),
+                DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.0, "none"));
+        var section = CognitiveObservationSections.motivationalStateSection(profile(drives));
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0)).startsWith("Curiosity: 0.6");
+    }
+
+    @Test
+    void motivationalStateSection_all_below_threshold_shows_no_active_drives() {
+        var drives = Map.of(
+                DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 0.0, "none"),
+                DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.0, "none"),
+                DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.02, "trace"),
+                DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.0, "none"));
+        var section = CognitiveObservationSections.motivationalStateSection(profile(drives));
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var il = (ObservationSection.ItemList) section;
+        assertThat(il.items()).isEmpty();
+        assertThat(il.emptyMessage()).isEqualTo("No active drives.");
+    }
+
+    @Test
+    void motivationalStateSection_single_axis_non_zero() {
+        var drives = Map.of(
+                DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 0.0, "none"),
+                DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.0, "none"),
+                DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.0, "none"),
+                DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.9, "high pressure"));
+        var section = CognitiveObservationSections.motivationalStateSection(profile(drives));
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0)).isEqualTo("Autonomy: 0.9 — high pressure");
+    }
+
+    @Test
+    void motivationalStateSection_boundary_at_threshold() {
+        var drives = Map.of(
+                DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 0.05, "just enough"),
+                DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.04, "not enough"),
+                DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.0, "none"),
+                DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.0, "none"));
+        var section = CognitiveObservationSections.motivationalStateSection(profile(drives));
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0)).startsWith("Curiosity: 0.1");
+    }
+
+    @Test
+    void motivationalStateSection_renders_via_affordance_renderer() {
+        var drives = Map.of(
+                DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 0.6, "gaps"),
+                DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.0, "none"),
+                DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.0, "none"),
+                DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.0, "none"));
+        var section = CognitiveObservationSections.motivationalStateSection(profile(drives));
+        var rendered = new AffordanceRenderer().renderObservation(List.of(section));
+        assertThat(rendered).contains("== Motivational State ==");
+        assertThat(rendered).contains("- Curiosity: 0.6");
     }
 }

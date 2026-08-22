@@ -141,15 +141,13 @@ public class MentalModelOrchestrator {
         }
     }
 
-    public java.util.List<MentalModelSnapshot>
-
-    activeSnapshots(String agentId, String tenantId) {
+    public List<MentalModelSnapshot> activeSnapshots(String agentId, String tenantId) {
         var prefix = agentId + ":";
         var suffix = ":" + tenantId;
         return states.entrySet().stream()
                      .filter(e -> e.getKey().startsWith(prefix) && e.getKey().endsWith(suffix))
                      .map(e -> e.getValue().currentSnapshot)
-                     .filter(java.util.Objects::nonNull)
+                     .filter(s -> s != null)
                      .toList();
     }
 

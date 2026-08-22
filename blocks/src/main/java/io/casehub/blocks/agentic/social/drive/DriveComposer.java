@@ -3,12 +3,14 @@ package io.casehub.blocks.agentic.social.drive;
 import io.casehub.eidos.api.AgentDisposition;
 import io.casehub.eidos.api.DispositionAxis;
 import io.casehub.neocortex.memory.mood.MoodState;
+import jakarta.enterprise.context.ApplicationScoped;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
 
+@ApplicationScoped
 public class DriveComposer {
 
     public DriveProfile compose(Map<DriveAxis, DriveIntensity> rawDrives,

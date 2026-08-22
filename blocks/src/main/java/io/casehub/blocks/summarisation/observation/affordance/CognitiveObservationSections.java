@@ -1,5 +1,7 @@
 package io.casehub.blocks.summarisation.observation.affordance;
 
+import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.blocks.agentic.social.drive.DriveProfile;
 import io.casehub.blocks.summarisation.observation.PartitionedDrain;
 import io.casehub.eidos.api.AgentGoal;
 import io.casehub.neocortex.memory.Memory;
@@ -54,5 +56,20 @@ public final class CognitiveObservationSections {
                             .map(m -> "You recall: " + m.text())
                             .toList();
         return ObservationSection.items("About " + characterName, null, items);
+    }
+
+    public static ObservationSection motivationalStateSection(DriveProfile profile) {
+        var items = new ArrayList<String>();
+        for (var axis : DriveAxis.values()) {
+            var intensity = profile.drives().get(axis);
+            if (intensity != null && intensity.intensity() >= 0.05) {
+                String name = axis.name().charAt(0) + axis.name().substring(1).toLowerCase();
+                items.add(String.format("%s: %.1f — %s", name, intensity.intensity(), intensity.trigger()));
+            }
+        }
+        if (items.isEmpty()) {
+            return ObservationSection.items("Motivational State", "No active drives.", List.of());
+        }
+        return ObservationSection.items("Motivational State", null, items);
     }
 }

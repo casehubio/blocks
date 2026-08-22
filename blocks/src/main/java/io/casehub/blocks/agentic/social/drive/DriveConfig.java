@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social.drive;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
@@ -10,9 +11,13 @@ public record DriveConfig(
         double moodArousalModulation,
         double personalityModulationStrength,
         double maxIntensity,
-        double minIntensity) {
+        double minIntensity,
+        double affiliationDecayThreshold,
+        Duration affiliationStaleDuration,
+        double autonomyConfidenceFloor) {
     public DriveConfig {
         Objects.requireNonNull(axisWeights, "axisWeights required");
+        Objects.requireNonNull(affiliationStaleDuration, "affiliationStaleDuration required");
         axisWeights = Map.copyOf(axisWeights);
         if (changeThreshold < 0.0 || changeThreshold > 1.0)
             throw new IllegalArgumentException("changeThreshold must be in [0.0, 1.0]");
@@ -26,6 +31,7 @@ public record DriveConfig(
         return new DriveConfig(
                 Map.of(DriveAxis.CURIOSITY, 1.0, DriveAxis.COMPETENCE, 1.0,
                        DriveAxis.AFFILIATION, 1.0, DriveAxis.AUTONOMY, 1.0),
-                0.05, 0.3, 0.2, 0.25, 1.0, 0.0);
+                0.05, 0.3, 0.2, 0.25, 1.0, 0.0,
+                0.5, Duration.ofHours(24), 0.6);
     }
 }

@@ -46,7 +46,8 @@ class DriveComposerTest {
         var config = new DriveConfig(
                 Map.of(DriveAxis.CURIOSITY, 2.0, DriveAxis.COMPETENCE, 1.0,
                        DriveAxis.AFFILIATION, 1.0, DriveAxis.AUTONOMY, 1.0),
-                0.05, 0.3, 0.2, 0.25, 1.0, 0.0);
+                0.05, 0.3, 0.2, 0.25, 1.0, 0.0,
+                0.5, java.time.Duration.ofHours(24), 0.6);
         var raw = Map.of(
                 DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 1.0, "x"),
                 DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.0, "x"),

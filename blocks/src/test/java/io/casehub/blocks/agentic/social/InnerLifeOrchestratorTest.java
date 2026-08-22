@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social;
 
+import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.summarisation.EventLevel;
 import io.casehub.blocks.summarisation.LevelEvent;
 import io.casehub.eidos.api.AgentDescriptor;
@@ -28,12 +29,14 @@ class InnerLifeOrchestratorTest {
 
     private ReflectionOrchestrator reflectionOrchestrator;
     private AgentProvider agentProvider;
+    private DriveOrchestrator driveOrchestrator;
     private AgentDescriptor descriptor;
 
     @BeforeEach
     void setUp() {
         reflectionOrchestrator = mock(ReflectionOrchestrator.class);
         agentProvider = mock(AgentProvider.class);
+        driveOrchestrator = mock(DriveOrchestrator.class);
         descriptor = mock(AgentDescriptor.class);
         when(descriptor.agentId()).thenReturn("agent-1");
         when(descriptor.tenancyId()).thenReturn("tenant-1");
@@ -50,7 +53,7 @@ class InnerLifeOrchestratorTest {
         when(cdi.stream()).thenReturn(java.util.stream.Stream.of(constraints));
         return new InnerLifeOrchestrator(
                 reflectionOrchestrator, agentProvider, cdi,
-                InnerLifeConfig.defaults());
+                InnerLifeConfig.defaults(), driveOrchestrator);
     }
 
     private LevelEvent<String> event(String text) {
@@ -161,5 +164,15 @@ class InnerLifeOrchestratorTest {
 
         assertThat(result).isInstanceOf(InnerLifeTick.Initiated.class);
         assertThat(((InnerLifeTick.Initiated) result).content()).isEqualTo("Hi!");
+    }
+
+    @Test
+    void tick_calls_drive_orchestrator_tick() {
+        var orch = makeOrchestrator(ctx -> new CivilityCheck.Permitted());
+        orch.observe(event("something happened"), descriptor);
+
+        orch.tick(descriptor, "context");
+
+        verify(driveOrchestrator).tick("agent-1", "tenant-1", descriptor);
     }
 }

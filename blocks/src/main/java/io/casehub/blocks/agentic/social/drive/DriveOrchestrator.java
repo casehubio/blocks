@@ -1,7 +1,14 @@
 package io.casehub.blocks.agentic.social.drive;
 
+import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
+import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
+import io.casehub.blocks.agentic.social.UserModelOrchestrator;
+import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.eidos.api.AgentDescriptor;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
+import jakarta.inject.Inject;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -12,12 +19,13 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
+@ApplicationScoped
 public class DriveOrchestrator {
 
-    private final CuriosityDrive curiosity;
-    private final CompetenceDrive competence;
-    private final AffiliationDrive affiliation;
-    private final AutonomyDrive autonomy;
+    private final DriveSource curiosity;
+    private final DriveSource competence;
+    private final DriveSource affiliation;
+    private final DriveSource autonomy;
     private final MoodOrchestrator moodOrchestrator;
     private final DriveComposer composer;
     private final DriveConfig config;
@@ -26,16 +34,39 @@ public class DriveOrchestrator {
     private final ConcurrentHashMap<String, DriveProfile> profiles = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
 
-    public DriveOrchestrator(CuriosityDrive curiosity, CompetenceDrive competence,
-                             AffiliationDrive affiliation, AutonomyDrive autonomy,
+    @Inject
+    public DriveOrchestrator(
+            Instance<MemoryHygieneOrchestrator> hygieneInstance,
+            StrategyLearningOrchestrator strategy,
+            UserModelOrchestrator userModel,
+            MentalModelOrchestrator mentalModel,
+            MoodOrchestrator moodOrchestrator,
+            DriveComposer composer,
+            DriveConfig config) {
+        this(
+            hygieneInstance.isResolvable()
+                ? new CuriosityDrive(hygieneInstance.get())
+                : (agentId, tenantId) -> new DriveIntensity(
+                        DriveAxis.CURIOSITY, 0.0, "no hygiene orchestrator"),
+            new CompetenceDrive(strategy),
+            new AffiliationDrive(userModel,
+                    config.affiliationDecayThreshold(),
+                    config.affiliationStaleDuration()),
+            new AutonomyDrive(mentalModel, config.autonomyConfidenceFloor()),
+            moodOrchestrator, composer, config
+        );
+    }
+
+    public DriveOrchestrator(DriveSource curiosity, DriveSource competence,
+                             DriveSource affiliation, DriveSource autonomy,
                              MoodOrchestrator moodOrchestrator, DriveComposer composer,
                              DriveConfig config) {
         this(curiosity, competence, affiliation, autonomy, moodOrchestrator,
                 composer, config, Clock.systemUTC());
     }
 
-    DriveOrchestrator(CuriosityDrive curiosity, CompetenceDrive competence,
-                      AffiliationDrive affiliation, AutonomyDrive autonomy,
+    DriveOrchestrator(DriveSource curiosity, DriveSource competence,
+                      DriveSource affiliation, DriveSource autonomy,
                       MoodOrchestrator moodOrchestrator, DriveComposer composer,
                       DriveConfig config, Clock clock) {
         this.curiosity = curiosity;

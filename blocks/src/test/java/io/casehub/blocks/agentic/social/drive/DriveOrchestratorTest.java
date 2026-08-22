@@ -1,15 +1,22 @@
 package io.casehub.blocks.agentic.social.drive;
 
+import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
+import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
+import io.casehub.blocks.agentic.social.UserModelOrchestrator;
+import io.casehub.blocks.memory.KnowledgeGapSummary;
+import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentDisposition;
 import io.casehub.neocortex.memory.mood.MoodState;
+import jakarta.enterprise.inject.Instance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -139,5 +146,56 @@ class DriveOrchestratorTest {
         assertThat(tick2).isInstanceOf(DriveTick.Updated.class);
         var updated = (DriveTick.Updated) tick2;
         assertThat(updated.changed()).contains(DriveAxis.CURIOSITY);
+    }
+
+    // --- CDI constructor tests ---
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void cdiConstructor_with_hygiene_available() {
+        var hygiene = mock(MemoryHygieneOrchestrator.class);
+        when(hygiene.knowledgeGaps("agent-1", "tenant-1"))
+                .thenReturn(new KnowledgeGapSummary(5, 10, 3));
+
+        Instance<MemoryHygieneOrchestrator> hygieneInstance = mock(Instance.class);
+        when(hygieneInstance.isResolvable()).thenReturn(true);
+        when(hygieneInstance.get()).thenReturn(hygiene);
+
+        var strategy = mock(StrategyLearningOrchestrator.class);
+        when(strategy.engagementTrend("agent-1", "tenant-1")).thenReturn(Optional.empty());
+        var userModel = mock(UserModelOrchestrator.class);
+        when(userModel.activeProfiles("agent-1", "tenant-1")).thenReturn(List.of());
+        var mentalModel = mock(MentalModelOrchestrator.class);
+        when(mentalModel.activeSnapshots("agent-1", "tenant-1")).thenReturn(List.of());
+
+        var orch = new DriveOrchestrator(hygieneInstance, strategy, userModel,
+                mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults());
+
+        var tick = orch.tick("agent-1", "tenant-1", descriptor);
+        assertThat(tick).isInstanceOf(DriveTick.Updated.class);
+        var profile = ((DriveTick.Updated) tick).current();
+        assertThat(profile.drives().get(DriveAxis.CURIOSITY).intensity()).isGreaterThan(0.0);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void cdiConstructor_without_hygiene_returns_zero_curiosity() {
+        Instance<MemoryHygieneOrchestrator> hygieneInstance = mock(Instance.class);
+        when(hygieneInstance.isResolvable()).thenReturn(false);
+
+        var strategy = mock(StrategyLearningOrchestrator.class);
+        when(strategy.engagementTrend("agent-1", "tenant-1")).thenReturn(Optional.empty());
+        var userModel = mock(UserModelOrchestrator.class);
+        when(userModel.activeProfiles("agent-1", "tenant-1")).thenReturn(List.of());
+        var mentalModel = mock(MentalModelOrchestrator.class);
+        when(mentalModel.activeSnapshots("agent-1", "tenant-1")).thenReturn(List.of());
+
+        var orch = new DriveOrchestrator(hygieneInstance, strategy, userModel,
+                mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults());
+
+        var tick = orch.tick("agent-1", "tenant-1", descriptor);
+        assertThat(tick).isInstanceOf(DriveTick.Updated.class);
+        var profile = ((DriveTick.Updated) tick).current();
+        assertThat(profile.drives().get(DriveAxis.CURIOSITY).intensity()).isEqualTo(0.0);
     }
 }

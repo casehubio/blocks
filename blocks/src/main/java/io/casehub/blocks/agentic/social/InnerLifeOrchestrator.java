@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social;
 
+import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.summarisation.LevelEvent;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
@@ -46,6 +47,7 @@ public class InnerLifeOrchestrator {
     private final AgentProvider            agentProvider;
     private final List<CivilityConstraint> civilityConstraints;
     private final InnerLifeConfig          config;
+    private final DriveOrchestrator        driveOrchestrator;
 
     private final ConcurrentHashMap<String, AgentState> agentStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
@@ -55,11 +57,13 @@ public class InnerLifeOrchestrator {
             final ReflectionOrchestrator reflectionOrchestrator,
             final AgentProvider agentProvider,
             final Instance<CivilityConstraint> civilityConstraints,
-            final InnerLifeConfig config) {
+            final InnerLifeConfig config,
+            final DriveOrchestrator driveOrchestrator) {
         this.reflectionOrchestrator = reflectionOrchestrator;
         this.agentProvider = agentProvider;
         this.civilityConstraints = civilityConstraints.stream().toList();
         this.config = config;
+        this.driveOrchestrator = driveOrchestrator;
     }
 
     public void observe(final LevelEvent<?> event, final AgentDescriptor descriptor) {
@@ -95,6 +99,8 @@ public class InnerLifeOrchestrator {
     private InnerLifeTick doTick(final AgentDescriptor descriptor,
                                   final String channelContext,
                                   final String agentKey) {
+        driveOrchestrator.tick(descriptor.agentId(), descriptor.tenancyId(), descriptor);
+
         var state = agentStates.computeIfAbsent(agentKey, k -> new AgentState());
         state.lastActivityTimestamp = Instant.now();
 
