@@ -357,6 +357,24 @@ Compositional agentic orchestration framework — eight sub-packages implementin
 | `agentic.listener` | Accountability listeners: `OrchestrationEventType`, `EventLogListener` (operational audit via EventSink), `LedgerExecutionListener` (compliance audit via LedgerSink), `MetricsListener` (OTel metrics via Meter) |
 | `agentic.pattern` | Pattern DSL: `Patterns` entry point, `AbstractPatternBuilder`, 8 builders (Supervisor, Sequence, Loop, Parallel, Voting, Debate, Conditional, HTN) |
 
+## Package: `io.casehub.blocks.agentic.social.drive`
+
+Drive Architecture — intrinsic motivation system that reads existing social cognition orchestrator outputs and synthesises motivational signals along four axes. Follows a *compositor pattern*: `tick()` without `record()`, since drives consume derived state rather than accumulating raw signals. Personality modulation via `AgentDescriptor.disposition()` (eidos); mood modulation via `MoodOrchestrator.currentMood()`.
+
+| Class | What it does |
+|-------|-------------|
+| `DriveAxis` | Enum: CURIOSITY, COMPETENCE, AFFILIATION, AUTONOMY |
+| `DriveIntensity` | Record: per-axis intensity [0,1] with human-readable trigger provenance |
+| `DriveSource` | `@FunctionalInterface` SPI: `DriveIntensity evaluate(agentId, tenantId)`. Four implementations. |
+| `DriveProfile` | Record: composite motivational state — per-axis intensities, weighted composite, dominant drive, timestamp |
+| `DriveTick` | Sealed: `NoChange(reason)`, `Updated(previous, current, changed)` |
+| `DriveConfig` | Record: per-axis weights, change threshold, modulation parameters, intensity bounds. `defaults()` factory. |
+| `DriveOrchestrator` | `@ApplicationScoped` compositor lifecycle: `tick(agentId, tenantId, AgentDescriptor)` evaluates all sources, delegates to `DriveComposer`, caches `DriveProfile`. `currentDrives()` returns cached state. Per-agent `ReentrantLock`. CDI constructor takes `Instance<MemoryHygieneOrchestrator>` (optional), source orchestrators, `DriveComposer`, `DriveConfig`. Drive sources constructed internally. Wired into `InnerLifeOrchestrator.doTick()` for lifecycle tick. |
+| `DriveComposer` | Modulation + composition algebra: mood modulation (PAD axes), personality modulation (disposition weight per axis), weighted composition, intensity clamping. Stateless. |
+| `CuriosityDrive` | `DriveSource` — reads `MemoryHygieneOrchestrator.knowledgeGaps()`. Intensity from low-retention memory count + consolidation group diversity. |
+| `CompetenceDrive` | `DriveSource` — reads `StrategyLearningOrchestrator.engagementTrend()`. Intensity from declining dimension ratio. |
+| `AffiliationDrive` | `DriveSource` — reads `UserModelOrchestrator.activeProfiles()`. Intensity from neglected relationships (low familiarity or stale interaction). |
+| `AutonomyDrive` | `DriveSource` — reads `MentalModelOrchestrator.activeSnapshots()`. Intensity from high-confidence intention count across subjects. |
 ## Package: `io.casehub.blocks.routing`
 
 Shared trust routing utilities — eliminates duplicated preference-to-policy boilerplate across domain repos.
@@ -485,6 +503,7 @@ Grounded observation rendering for LLM agents. Per-entity affordance chains (ide
 | `ActionDescriptor` | Record: action type in the vocabulary `(String actionType, String description, @Nullable String parameterFormat)` |
 | `AffordanceRenderer` | Concrete class: `renderEntities()` (core grounding chains), `renderObservation()` (section assembly), `renderActionVocabulary()` (action vocabulary). Configurable header formatter via `withHeaderFormatter()` |
 | `WorldObservationProvider` | `@FunctionalInterface` SPI: `List<ObservationSection> worldSections()`. Returns world-specific observation sections (location, exits, objects, characters). Consumers accept a provider instead of a concrete world state, so cognitive sections (goals, plans, memories) become a shared utility. |
+| `CognitiveObservationSections` | Static utility: factory methods for cognitive observation sections — `goalsSection(List<AgentGoal>)`, `recentActivitySection(PartitionedDrain)`, `pastExperienceSection(List<Memory>)`, `insightsSection(List<Memory>)`, `relationshipNotesSection(String, List<Memory>)`, `motivationalStateSection(DriveProfile)`. Each returns an `ObservationSection`. |
 
 ## Sub-package: `io.casehub.blocks.summarisation.llm`
 

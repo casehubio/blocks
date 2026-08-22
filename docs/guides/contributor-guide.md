@@ -215,6 +215,12 @@ The drive sub-package (`agentic.social.drive`) follows a *compositor pattern* th
 
 **Modulation flow:** Raw intensities from four sources → mood modulation (PAD axes from `MoodOrchestrator.currentMood()`) → personality modulation (`AgentDescriptor.disposition()` weights per `DispositionAxis`) → intensity clamping → weighted composition → `DriveProfile`.
 
+**CDI management:** `DriveOrchestrator` and `DriveComposer` are `@ApplicationScoped`. DriveOrchestrator's `@Inject` constructor takes `Instance<MemoryHygieneOrchestrator>` (optional -- curiosity drive returns zero when hygiene is not CDI-managed), `StrategyLearningOrchestrator`, `UserModelOrchestrator`, `MentalModelOrchestrator`, `MoodOrchestrator`, `DriveComposer`, and `DriveConfig`. Drive sources are constructed internally -- they are not CDI beans. Per-drive config params (affiliation decay threshold, stale duration, autonomy confidence floor) are in `DriveConfig`.
+
+**Lifecycle wiring:** `InnerLifeOrchestrator` injects `DriveOrchestrator` and calls `tick()` at the start of `doTick()`. This ensures drives are computed before inner life logic runs. Intentional short-term coupling -- Layer 2 (#136, GoalProposer) will extract drive ticks into a dedicated coordinator.
+
+**Observation rendering:** `CognitiveObservationSections.motivationalStateSection(DriveProfile)` renders the drive profile as an `ObservationSection.ItemList`. Per-axis items show intensity (1dp) and trigger provenance. Axes below 0.05 intensity are filtered. Downstream apps include this section in their `WorldObservationProvider` implementation.
+
 **Upstream API additions for drive sources:**
 - `MemoryHygieneOrchestrator.knowledgeGaps()` → `KnowledgeGapSummary` (in `blocks.memory`)
 - `StrategyLearningOrchestrator.engagementTrend()` → `EngagementTrend` (in `blocks.agentic.social`)
