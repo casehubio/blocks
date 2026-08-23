@@ -29,7 +29,7 @@ class CognitiveObservationSectionsTest {
     }
 
     private static AgentGoal goal(String name, String description, GoalPriority priority) {
-        return new AgentGoal(name, description, priority, Visibility.PUBLIC, List.of());
+        return new AgentGoal(name, description, priority, Visibility.PUBLIC, List.of(), null);
     }
 
     @Test
