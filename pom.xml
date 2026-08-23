@@ -20,6 +20,7 @@
   <modules>
     <module>blocks</module>
     <module>engine-adapter</module>
+    <module>speech-api</module>
   </modules>
 
   <repositories>
