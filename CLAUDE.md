@@ -130,6 +130,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/agentic/belief/` | Tests for belief revision |
 | `src/main/java/io/casehub/blocks/agentic/social/` | Agent social cognition — `PersonalityEvolutionOrchestrator` (bounded trait drift via JPAF), `InnerLifeOrchestrator` (background thought loop with proactive initiation), `UserModelOrchestrator` (per-subject profile synthesis with tiered heuristic+LLM), `MentalModelOrchestrator` (per-actor BDI Theory of Mind with confidence decay, GOAP projection via `project()`, epistemic bridge via `observeConversation(CommonGroundState)`), `StrategyLearningOrchestrator` (multi-level reflection on interaction strategies with three-tier engagement analysis: heuristic counters, conversation case storage, LLM-backed periodic reflection via ReflectionOrchestrator + TrendAnalyzer), `MoodOrchestrator` (PAD emotional state with bounded decay toward personality baseline, mood-modulated retrieval support), `TraitPressureSource<E>` + `CivilityConstraint` + `InteractionSignal` + `MentalStateSignal` + `EngagementSignal` + `MoodSignal` SPIs, `UserProfileStore` SPI with `CbrUserProfileStore` `@DefaultBean`, `MentalModelStore` SPI with `CbrMentalModelStore` `@DefaultBean`, `StrategyStore` SPI with `CbrStrategyStore` `@DefaultBean`, `EvolutionTick`/`InnerLifeTick`/`UserModelTick`/`MentalModelTick`/`StrategyLearningTick`/`StrategyReflection`/`MoodTick` sealed outcomes, `UserProfile`/`StrategyProfile`/`MoodConfig`/`RelationshipStageConfig`/`StageTier`/`UserModelConfig`/`StrategyLearningConfig`/`AttributedState`/`MentalProjection`/`BdiDimension`/`CueType`/`MentalModelConfig`/`MentalModelSnapshot` types, default pressure sources and civility constraints |
 | `src/test/java/io/casehub/blocks/agentic/social/` | Tests for social cognition |
+| `src/main/java/io/casehub/blocks/agentic/social/goal/` | Autonomous goal proposal — `GoalProposalOrchestrator` (compositor), `DriveGoalMapper` SPI, four mapper implementations (Curiosity, Competence, Affiliation, Autonomy), `DriveGoalProposal`, `GoalProposalTick`, `GoalProposalConfig` |
+| `src/test/java/io/casehub/blocks/agentic/social/goal/` | Tests for goal proposal |
 | `src/main/java/io/casehub/blocks/agentic/personality/` | Personality evolution — signal-driven orchestrator composing eidos JPAF pipeline. `TraitPressureSource<E>` SPI, `PersonalityEvolutionOrchestrator` (tick/record), `EvolutionTick` sealed outcomes, default pressure sources (BehavioralSignal, RelationshipEvent, GoalOutcomeCounts) |
 | `src/test/java/io/casehub/blocks/agentic/personality/` | Tests for personality evolution |
 | `src/main/java/io/casehub/blocks/memory/` | Memory hygiene — `MemoryHygieneOrchestrator` (tick: importance scoring → eviction → consolidation), `MemoryHygieneScheduler` (maintain: tick + reflection + peer-linking + integrity), `ImportanceScorer` SPI with `ArousalScorer`/`SurpriseScorer`/`CompositeImportanceScorer`, `RetentionScore`/`RetentionConfig` (composite eviction scoring), `DefaultIntegrityChecker` (structural + semantic escalation), `ReflectionEntry`/`ReflectionStore` (reflection persistence SPI), `HygieneTick`/`MaintenanceTick` sealed outcomes, `HygieneEvent` observability |
@@ -375,6 +377,23 @@ Drive Architecture — intrinsic motivation system that reads existing social co
 | `CompetenceDrive` | `DriveSource` — reads `StrategyLearningOrchestrator.engagementTrend()`. Intensity from declining dimension ratio. |
 | `AffiliationDrive` | `DriveSource` — reads `UserModelOrchestrator.activeProfiles()`. Intensity from neglected relationships (low familiarity or stale interaction). |
 | `AutonomyDrive` | `DriveSource` — reads `MentalModelOrchestrator.activeSnapshots()`. Intensity from high-confidence intention count across subjects. |
+
+## Package: `io.casehub.blocks.agentic.social.goal`
+
+Autonomous goal proposal — Layer 2 of the autonomous intelligence stack. Translates intrinsic drive signals (from Drive Architecture, #129) into concrete `AgentGoal` proposals via per-axis heuristic mappers. Follows the *compositor pattern* (ADR-0001): `tick()` evaluates and caches, `currentProposals()` returns cached state, no side effects. The scheduler calls `GoalFormationService` (engine-api) separately to register proposals.
+
+| Class | What it does |
+|-------|-------------|
+| `DriveGoalMapper` | `@FunctionalInterface` SPI: `@Nullable DriveGoalProposal evaluate(agentId, tenantId, DriveIntensity)`. Per-axis goal mapping. |
+| `DriveGoalProposal` | Record: axis, goalName, goalDescription, formationReason, driveIntensity. Blocks-internal type. |
+| `GoalProposalTick` | Sealed: `NoChange(reason)`, `Proposed(newProposals, abandonedGoalNames)` |
+| `GoalProposalConfig` | Record: proposalThreshold, relevanceThreshold, maxDriveGoals, staleAfter, cooldown, failureAbandonmentThreshold. `defaults()` factory. |
+| `GoalProposalOrchestrator` | `@ApplicationScoped` compositor: `tick(agentId, tenantId, AgentDescriptor)` evaluates mappers, ranks by intensity, checks capacity and cooldown. `currentProposals()` returns cached state. Per-agent `ReentrantLock`. |
+| `CuriosityGoalMapper` | Reads `MemoryHygieneOrchestrator.knowledgeGaps()`. Proposes "explore-knowledge-gaps". |
+| `CompetenceGoalMapper` | Reads `StrategyLearningOrchestrator.engagementTrend()`. Proposes "improve-{dimension}" for most declining. |
+| `AffiliationGoalMapper` | Reads `UserModelOrchestrator.activeProfiles()`. Proposes "reconnect-{subjectId}" for most neglected. |
+| `AutonomyGoalMapper` | Reads `MentalModelOrchestrator.activeSnapshots()`. Proposes "reassess-{subjectId}" for most misaligned. |
+
 ## Package: `io.casehub.blocks.routing`
 
 Shared trust routing utilities — eliminates duplicated preference-to-policy boilerplate across domain repos.
