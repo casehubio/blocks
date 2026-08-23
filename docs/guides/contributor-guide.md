@@ -217,7 +217,7 @@ The drive sub-package (`agentic.social.drive`) follows a *compositor pattern* th
 
 **CDI management:** `DriveOrchestrator` and `DriveComposer` are `@ApplicationScoped`. DriveOrchestrator's `@Inject` constructor takes `Instance<MemoryHygieneOrchestrator>` (optional -- curiosity drive returns zero when hygiene is not CDI-managed), `StrategyLearningOrchestrator`, `UserModelOrchestrator`, `MentalModelOrchestrator`, `MoodOrchestrator`, `DriveComposer`, and `DriveConfig`. Drive sources are constructed internally -- they are not CDI beans. Per-drive config params (affiliation decay threshold, stale duration, autonomy confidence floor) are in `DriveConfig`.
 
-**Lifecycle wiring:** `InnerLifeOrchestrator` injects `DriveOrchestrator` and calls `tick()` at the start of `doTick()`. This ensures drives are computed before inner life logic runs. Intentional short-term coupling -- Layer 2 (#136, GoalProposer) will extract drive ticks into a dedicated coordinator.
+**Lifecycle wiring:** `InnerLifeOrchestrator` injects `DriveOrchestrator` and calls `tick()` at the start of `doTick()`. This ensures drives are computed before inner life logic runs. The scheduler owns the full tick ordering: source orchestrators → `DriveOrchestrator` → `GoalProposalOrchestrator`.
 
 **Observation rendering:** `CognitiveObservationSections.motivationalStateSection(DriveProfile)` renders the drive profile as an `ObservationSection.ItemList`. Per-axis items show intensity (1dp) and trigger provenance. Axes below 0.05 intensity are filtered. Downstream apps include this section in their `WorldObservationProvider` implementation.
 
@@ -226,6 +226,20 @@ The drive sub-package (`agentic.social.drive`) follows a *compositor pattern* th
 - `StrategyLearningOrchestrator.engagementTrend()` → `EngagementTrend` (in `blocks.agentic.social`)
 - `UserModelOrchestrator.activeProfiles()` → cross-subject profile aggregation
 - `MentalModelOrchestrator.activeSnapshots()` → cross-subject mental model aggregation
+
+### Goal Proposal (Compositor Pattern)
+
+The goal sub-package (`agentic.social.goal`) is Layer 2 of the autonomous intelligence stack. It translates drive signals into concrete `AgentGoal` proposals that the engine's existing goal lifecycle can decompose and execute.
+
+**Compositor guarantee:** `GoalProposalOrchestrator.tick()` evaluates mappers, caches proposals, and returns the result -- no side effects. The scheduler reads `currentProposals()` (or the tick result) and calls `GoalFormationService.propose()` (engine-api) to register goals. This enables inspection of proposals before registration and aligns with the engine's `autoApprove` governance.
+
+**DriveGoalMapper SPI:** `@FunctionalInterface` with `@Nullable DriveGoalProposal evaluate(agentId, tenantId, DriveIntensity)`. Each implementation injects its source orchestrator (same dependency pattern as `DriveSource`). Returns null when no goal is warranted. Four implementations: `CuriosityGoalMapper`, `CompetenceGoalMapper`, `AffiliationGoalMapper`, `AutonomyGoalMapper`.
+
+**Capacity and lifecycle:** Drive-sourced goals occupy a separate budget (`maxDriveGoals=3` of `MAX_GOALS=10`). Proposals ranked by drive intensity when exceeding capacity. Relevance re-evaluation abandons goals when the originating drive drops below `relevanceThreshold` for longer than `staleAfter`. Failure-abandoned goals (via `GoalSignalStore`) are suppressed from re-proposal.
+
+**Engine integration (Batch 2):** `GoalFormationService` SPI in engine-api extracts case-independent goal registration (validation, deduplication, capacity, audit) from `GoalFormationEvaluator`. `GoalRemovalService` SPI provides reusable goal removal with audit. `ProposedGoal` gains `@Nullable Map<String, String> attributes` for goal provenance. Drive-sourced goals store `{"source": "drive", "driveAxis": "CURIOSITY"}`.
+
+**Consumer integration:** The scheduler (quarkmind, claudony, etc.) wires the full tick loop -- source orchestrators → DriveOrchestrator → GoalProposalOrchestrator → GoalFormationService. See spec §Consumer Integration Example for the complete flow.
 
 ## Trust Routing Architecture
 
