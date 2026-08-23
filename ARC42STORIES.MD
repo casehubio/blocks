@@ -31,7 +31,7 @@ Not infrastructure, not a framework, not a tool library. Blocks are composed wor
 
 ## §4 Solution Strategy
 
-Single Maven module. Depends on `casehub-qhorus-api` + `casehub-work-api` + `casehub-engine-api`. No tiered sub-modules — blocks can freely compose from all three foundations. Every CaseHub app already has the full foundation stack, so transitive deps are not a concern.
+Multi-module reactor. The core module depends on casehub-qhorus-api + casehub-work-api + casehub-engine-api. Speech SPI module (blocks-speech-api) has zero foundation dependencies. Implementation modules (blocks-speech-sherpa) are optional.
 
 ---
 
@@ -161,6 +161,24 @@ AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` im
 |---------|---------------------|----------|
 | `io.casehub.blocks.conversation` | Structured conversation protocol — round-based multi-agent deliberation with point lifecycle, human escalation, sub-task dispatch | P5 |
 | `io.casehub.blocks.gate` | Oversight gate lifecycle — risk classification → approval gate → commitment → decision | P6 (from openclaw) |
+
+### Package: `io.casehub.blocks.speech` (planned)
+
+Speech capability SPIs — provider-agnostic interfaces for speech-to-text and text-to-speech conversion.
+
+| Block | What it does |
+|-------|-------------|
+| `SpeechToTextService` | SPI: transcribes audio file (Path) to text with language detection and confidence score |
+| `TranscriptionResult` | Record: transcription output (text, language, confidence) |
+| `TranscriptionOptions` | Record: audio format, language hint, model size |
+| `TextToSpeechService` | SPI: synthesises text to audio with optional phoneme timing |
+| `SynthesisResult` | Record: audio data, format, phoneme timing list |
+| `PhonemeTiming` | Record: phoneme with start/end millisecond offsets |
+| `SynthesisOptions` | Record: voice, language, audio format, phoneme inclusion flag |
+
+Default implementation: sherpa-onnx via Java FFM/Panama (Whisper for STT, VITS/Piper for TTS). Zero foundation dependencies in the SPI module — pure Java interfaces.
+
+**Implementation issues:** casehubio/blocks#155, casehubio/blocks#157
 
 ---
 
