@@ -51,21 +51,29 @@ class PatternAnnotationStep {
 
     List<PatternDescriptor> scan(IndexView index) {
         Map<MethodInfo, List<AnnotationInstance>> patternMethods = collectPatternMethods(index);
-        List<PatternDescriptor> descriptors = new ArrayList<>();
+        List<PatternDescriptor>                   descriptors    = new ArrayList<>();
+        Set<String>                               seenBeanNames  = new java.util.HashSet<>();
 
         for (var entry : patternMethods.entrySet()) {
-            MethodInfo method = entry.getKey();
+            MethodInfo               method      = entry.getKey();
             List<AnnotationInstance> patternAnns = entry.getValue();
 
             validateSinglePattern(method, patternAnns);
             validateNoWorker(method);
 
-            AnnotationInstance patternAnn = patternAnns.get(0);
-            PatternType patternType = PATTERN_ANNOTATIONS.get(patternAnn.name());
+            AnnotationInstance patternAnn  = patternAnns.get(0);
+            PatternType        patternType = PATTERN_ANNOTATIONS.get(patternAnn.name());
 
             List<PatternDescriptor.AgentParticipant> participants = extractParticipants(method);
-            Map<String, Object> attributes = extractAttributes(patternAnn, patternType);
-            String beanName = resolveBeanName(patternAnn, method);
+            Map<String, Object>                      attributes   = extractAttributes(patternAnn, patternType);
+            String                                   beanName     = resolveBeanName(patternAnn, method);
+
+            if (!seenBeanNames.add(beanName)) {
+                throw new IllegalStateException(
+                        "Method " + method.declaringClass().name() + "." + method.name()
+                        + " produces duplicate bean name '" + beanName
+                        + "' — each pattern must have a unique name");
+            }
 
             descriptors.add(new PatternDescriptor(patternType, attributes, participants, beanName));
         }
