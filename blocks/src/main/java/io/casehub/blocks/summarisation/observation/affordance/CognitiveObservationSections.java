@@ -72,4 +72,28 @@ public final class CognitiveObservationSections {
         }
         return ObservationSection.items("Motivational State", null, items);
     }
+
+    public static ObservationSection narrativeSection(io.casehub.blocks.agentic.social.narrative.NarrativeState state) {
+        var items    = new ArrayList<String>();
+        var dominant = state.dominantTheme();
+        if (dominant != null) {
+            items.add("Core identity: " + dominant.label()
+                      + " (salience: " + String.format("%.1f", dominant.salience()) + ")");
+        }
+        for (var episode : state.episodes()) {
+            if (episode.emotionalValence() > 0.3 || episode.emotionalValence() < -0.3) {
+                items.add("Memory: " + episode.description());
+            }
+        }
+        for (var theme : state.themes()) {
+            if (!theme.equals(dominant) && theme.salience() >= 0.3) {
+                items.add("Theme: " + theme.label());
+            }
+        }
+        if (items.isEmpty()) {
+            return ObservationSection.items("Self-Narrative", "No established identity yet.", List.of());
+        }
+        return ObservationSection.items("Self-Narrative", null, items);
+    }
+
 }

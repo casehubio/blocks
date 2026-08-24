@@ -94,7 +94,7 @@ public class DriveOrchestrator {
             var disposition = descriptor.disposition();
             var now = Instant.now(clock);
 
-            var newProfile = composer.compose(raw, disposition, mood, config,
+            var newProfile = composer.compose(raw, disposition, mood, null, config,
                     agentId, tenantId, now);
 
             var previous = profiles.get(key);

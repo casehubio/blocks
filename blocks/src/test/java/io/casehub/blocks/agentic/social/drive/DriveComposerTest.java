@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 class DriveComposerTest {
 
@@ -31,7 +32,7 @@ class DriveComposerTest {
                 DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.2, "stable"),
                 DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.6, "pressure"));
 
-        var profile = composer.compose(raw, null, null, DriveConfig.defaults(),
+        var profile = composer.compose(raw, null, null, null, DriveConfig.defaults(),
                 "agent-1", "tenant-1", now);
 
         assertThat(profile.agentId()).isEqualTo("agent-1");
@@ -47,14 +48,14 @@ class DriveComposerTest {
                 Map.of(DriveAxis.CURIOSITY, 2.0, DriveAxis.COMPETENCE, 1.0,
                        DriveAxis.AFFILIATION, 1.0, DriveAxis.AUTONOMY, 1.0),
                 0.05, 0.3, 0.2, 0.25, 1.0, 0.0,
-                0.5, java.time.Duration.ofHours(24), 0.6);
+                0.5, java.time.Duration.ofHours(24), 0.6, 0.25);
         var raw = Map.of(
                 DriveAxis.CURIOSITY, new DriveIntensity(DriveAxis.CURIOSITY, 1.0, "x"),
                 DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.0, "x"),
                 DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.0, "x"),
                 DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.0, "x"));
 
-        var profile = composer.compose(raw, null, null, config, "a", "t", now);
+        var profile = composer.compose(raw, null, null, null, config, "a", "t", now);
 
         assertThat(profile.compositeMotivation()).isCloseTo(0.4, within(0.01));
     }
@@ -63,7 +64,7 @@ class DriveComposerTest {
     void compose_moodModulation_highArousalAmplifies() {
         var mood = new MoodState("a", "t", 0.0, 0.8, 0.0, "excited", null, Map.of());
 
-        var profile = composer.compose(uniformRaw(0.5), null, mood, DriveConfig.defaults(),
+        var profile = composer.compose(uniformRaw(0.5), null, mood, null, DriveConfig.defaults(),
                 "a", "t", now);
 
         for (var di : profile.drives().values()) {
@@ -75,7 +76,7 @@ class DriveComposerTest {
     void compose_moodModulation_lowDominanceAmplifiesAutonomy() {
         var mood = new MoodState("a", "t", 0.0, 0.0, -0.8, "controlled", null, Map.of());
 
-        var profile = composer.compose(uniformRaw(0.5), null, mood, DriveConfig.defaults(),
+        var profile = composer.compose(uniformRaw(0.5), null, mood, null, DriveConfig.defaults(),
                 "a", "t", now);
 
         assertThat(profile.drives().get(DriveAxis.AUTONOMY).intensity())
@@ -86,7 +87,7 @@ class DriveComposerTest {
     void compose_moodModulation_negativePleasureDampens() {
         var mood = new MoodState("a", "t", -0.8, 0.0, 0.0, "sad", null, Map.of());
 
-        var profile = composer.compose(uniformRaw(0.5), null, mood, DriveConfig.defaults(),
+        var profile = composer.compose(uniformRaw(0.5), null, mood, null, DriveConfig.defaults(),
                 "a", "t", now);
 
         for (var di : profile.drives().values()) {
@@ -100,7 +101,7 @@ class DriveComposerTest {
                 .socialOrient(DispositionValue.of("collaborative"))
                 .build();
 
-        var profile = composer.compose(uniformRaw(0.5), disposition, null, DriveConfig.defaults(),
+        var profile = composer.compose(uniformRaw(0.5), disposition, null, null, DriveConfig.defaults(),
                 "a", "t", now);
 
         assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity())
@@ -111,7 +112,7 @@ class DriveComposerTest {
     void compose_personalityModulation_noDispositionValues_noEffect() {
         var disposition = AgentDisposition.builder().build();
 
-        var profile = composer.compose(uniformRaw(0.5), disposition, null, DriveConfig.defaults(),
+        var profile = composer.compose(uniformRaw(0.5), disposition, null, null, DriveConfig.defaults(),
                 "a", "t", now);
 
         for (var di : profile.drives().values()) {
@@ -131,16 +132,68 @@ class DriveComposerTest {
                 DriveAxis.COMPETENCE, new DriveIntensity(DriveAxis.COMPETENCE, 0.5, "x"),
                 DriveAxis.AFFILIATION, new DriveIntensity(DriveAxis.AFFILIATION, 0.5, "x"),
                 DriveAxis.AUTONOMY, new DriveIntensity(DriveAxis.AUTONOMY, 0.5, "x")),
-                disposition, mood, DriveConfig.defaults(), "a", "t", now);
+                disposition, mood, null, DriveConfig.defaults(), "a", "t", now);
 
         assertThat(profile.drives().get(DriveAxis.CURIOSITY).intensity()).isLessThanOrEqualTo(1.0);
     }
 
     @Test
     void compose_emptyDrives_zeroComposite() {
-        var profile = composer.compose(Map.of(), null, null, DriveConfig.defaults(),
+        var profile = composer.compose(Map.of(), null, null, null, DriveConfig.defaults(),
                 "a", "t", now);
 
         assertThat(profile.compositeMotivation()).isEqualTo(0.0);
+    }
+
+    @Test
+    void compose_narrativeModulation_amplifiesAxis() {
+        var narrativeMod = Map.of(DriveAxis.AFFILIATION, 0.5);
+
+        var profile = composer.compose(uniformRaw(0.5), null, null, narrativeMod,
+                                       DriveConfig.defaults(), "a", "t", now);
+
+        assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity())
+                .isGreaterThan(0.5);
+        assertThat(profile.drives().get(DriveAxis.CURIOSITY).intensity())
+                .isEqualTo(0.5);
+    }
+
+    @Test
+    void compose_narrativeModulation_dampensAxis() {
+        var narrativeMod = Map.of(DriveAxis.AUTONOMY, -0.6);
+
+        var profile = composer.compose(uniformRaw(0.5), null, null, narrativeMod,
+                                       DriveConfig.defaults(), "a", "t", now);
+
+        assertThat(profile.drives().get(DriveAxis.AUTONOMY).intensity())
+                .isLessThan(0.5);
+    }
+
+    @Test
+    void compose_narrativeModulation_multipleAxes() {
+        var narrativeMod = Map.of(
+                DriveAxis.AFFILIATION, 0.4,
+                DriveAxis.COMPETENCE, 0.3);
+
+        var profile = composer.compose(uniformRaw(0.5), null, null, narrativeMod,
+                                       DriveConfig.defaults(), "a", "t", now);
+
+        assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity())
+                .isGreaterThan(profile.drives().get(DriveAxis.CURIOSITY).intensity());
+        assertThat(profile.drives().get(DriveAxis.COMPETENCE).intensity())
+                .isGreaterThan(profile.drives().get(DriveAxis.CURIOSITY).intensity());
+    }
+
+    @Test
+    void compose_nullNarrativeModulation_noEffect() {
+        var withNull = composer.compose(uniformRaw(0.5), null, null, null,
+                                        DriveConfig.defaults(), "a", "t", now);
+        var withEmpty = composer.compose(uniformRaw(0.5), null, null, Map.of(),
+                                         DriveConfig.defaults(), "a", "t", now);
+
+        for (var axis : DriveAxis.values()) {
+            assertThat(withNull.drives().get(axis).intensity())
+                    .isEqualTo(withEmpty.drives().get(axis).intensity());
+        }
     }
 }

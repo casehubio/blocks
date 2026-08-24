@@ -103,7 +103,7 @@ class DriveTypesTest {
     @Test
     void driveConfig_rejectsInvalidRange() {
         assertThatThrownBy(() -> new DriveConfig(Map.of(), 0.05, 0.3, 0.2, 0.25, 0.5, 0.8,
-                0.5, Duration.ofHours(24), 0.6))
+                0.5, Duration.ofHours(24), 0.6, 0.25))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxIntensity must be >= minIntensity");
     }

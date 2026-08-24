@@ -16,6 +16,7 @@ public class DriveComposer {
     public DriveProfile compose(Map<DriveAxis, DriveIntensity> rawDrives,
                                 @Nullable AgentDisposition disposition,
                                 @Nullable MoodState mood,
+                                @Nullable Map<DriveAxis, Double> narrativeModulation,
                                 DriveConfig config,
                                 String agentId, String tenantId, Instant now) {
         if (rawDrives.isEmpty()) {
@@ -35,6 +36,10 @@ public class DriveComposer {
             }
             if (disposition != null) {
                 intensity = applyPersonalityModulation(intensity, axis, disposition, config);
+            }
+            if (narrativeModulation != null) {
+                intensity += narrativeModulation.getOrDefault(axis, 0.0)
+                             * config.narrativeModulationStrength();
             }
 
             intensity = Math.clamp(intensity, config.minIntensity(), config.maxIntensity());

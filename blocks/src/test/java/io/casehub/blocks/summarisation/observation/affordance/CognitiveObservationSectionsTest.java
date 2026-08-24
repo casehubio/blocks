@@ -202,4 +202,57 @@ class CognitiveObservationSectionsTest {
         assertThat(rendered).contains("== Motivational State ==");
         assertThat(rendered).contains("- Curiosity: 0.6");
     }
+
+    @Test
+    void narrativeSection_rendersIdentity() {
+        var now = java.time.Instant.now();
+        var theme = new io.casehub.blocks.agentic.social.narrative.DerivedTheme(
+                "t1", now, null, java.util.List.of(), "crisis-helper", 0.9,
+                java.util.Map.of(), java.util.List.of());
+        var episode = new io.casehub.blocks.agentic.social.narrative.IndividualEpisode(
+                "e1", now, null, java.util.List.of(), "Helped team through crisis",
+                0.8, java.util.List.of());
+        var state = new io.casehub.blocks.agentic.social.narrative.NarrativeState(
+                "a", "t", io.casehub.blocks.agentic.social.narrative.NarrativeScope.INDIVIDUAL,
+                java.util.List.of(theme, episode), now, 5);
+
+        var section = CognitiveObservationSections.narrativeSection(state);
+
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).anyMatch(i -> i.contains("crisis-helper"));
+        assertThat(items).anyMatch(i -> i.contains("Helped team through crisis"));
+    }
+
+    @Test
+    void narrativeSection_emptyState() {
+        var state = new io.casehub.blocks.agentic.social.narrative.NarrativeState(
+                "a", "t", io.casehub.blocks.agentic.social.narrative.NarrativeScope.INDIVIDUAL,
+                java.util.List.of(), java.time.Instant.now(), 0);
+
+        var section = CognitiveObservationSections.narrativeSection(state);
+
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var itemList = (ObservationSection.ItemList) section;
+        assertThat(itemList.emptyMessage()).isEqualTo("No established identity yet.");
+    }
+
+    @Test
+    void narrativeSection_filtersLowValenceEpisodes() {
+        var now = java.time.Instant.now();
+        var lowValence = new io.casehub.blocks.agentic.social.narrative.IndividualEpisode(
+                "e1", now, null, java.util.List.of(), "Routine interaction",
+                0.1, java.util.List.of());
+        var highValence = new io.casehub.blocks.agentic.social.narrative.IndividualEpisode(
+                "e2", now, null, java.util.List.of(), "Significant event",
+                0.7, java.util.List.of());
+        var state = new io.casehub.blocks.agentic.social.narrative.NarrativeState(
+                "a", "t", io.casehub.blocks.agentic.social.narrative.NarrativeScope.INDIVIDUAL,
+                java.util.List.of(lowValence, highValence), now, 5);
+
+        var section = CognitiveObservationSections.narrativeSection(state);
+        var items   = ((ObservationSection.ItemList) section).items();
+        assertThat(items).noneMatch(i -> i.contains("Routine interaction"));
+        assertThat(items).anyMatch(i -> i.contains("Significant event"));
+    }
 }

@@ -14,7 +14,8 @@ public record DriveConfig(
         double minIntensity,
         double affiliationDecayThreshold,
         Duration affiliationStaleDuration,
-        double autonomyConfidenceFloor) {
+        double autonomyConfidenceFloor,
+        double narrativeModulationStrength) {
     public DriveConfig {
         Objects.requireNonNull(axisWeights, "axisWeights required");
         Objects.requireNonNull(affiliationStaleDuration, "affiliationStaleDuration required");
@@ -32,6 +33,6 @@ public record DriveConfig(
                 Map.of(DriveAxis.CURIOSITY, 1.0, DriveAxis.COMPETENCE, 1.0,
                        DriveAxis.AFFILIATION, 1.0, DriveAxis.AUTONOMY, 1.0),
                 0.05, 0.3, 0.2, 0.25, 1.0, 0.0,
-                0.5, Duration.ofHours(24), 0.6);
+                0.5, Duration.ofHours(24), 0.6, 0.25);
     }
 }
