@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 class NarrativeModulationTest {
 
@@ -105,5 +107,45 @@ class NarrativeModulationTest {
 
         assertThatThrownBy(() -> ((Map<DriveAxis, Double>) mod).put(DriveAxis.CURIOSITY, 1.0))
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void compute_clampsPositiveOverflow() {
+        var theme1 = new DerivedTheme("t1", now, null, List.of(),
+                                      "a", 1.0, Map.of(DriveAxis.CURIOSITY, 0.8), List.of());
+        var theme2 = new DerivedTheme("t2", now, null, List.of(),
+                                      "b", 1.0, Map.of(DriveAxis.CURIOSITY, 0.7), List.of());
+        var state = new NarrativeState("a", "t", NarrativeScope.INDIVIDUAL,
+                                       List.of(theme1, theme2), now, 5);
+
+        var mod = NarrativeModulation.compute(state);
+
+        assertThat(mod.get(DriveAxis.CURIOSITY)).isEqualTo(1.0);
+    }
+
+    @Test
+    void compute_clampsNegativeOverflow() {
+        var theme1 = new DerivedTheme("t1", now, null, List.of(),
+                                      "a", 1.0, Map.of(DriveAxis.AFFILIATION, -0.8), List.of());
+        var theme2 = new DerivedTheme("t2", now, null, List.of(),
+                                      "b", 1.0, Map.of(DriveAxis.AFFILIATION, -0.6), List.of());
+        var state = new NarrativeState("a", "t", NarrativeScope.INDIVIDUAL,
+                                       List.of(theme1, theme2), now, 5);
+
+        var mod = NarrativeModulation.compute(state);
+
+        assertThat(mod.get(DriveAxis.AFFILIATION)).isEqualTo(-1.0);
+    }
+
+    @Test
+    void compute_withinBounds_noClamping() {
+        var theme = new DerivedTheme("t1", now, null, List.of(),
+                                     "helper", 0.5, Map.of(DriveAxis.COMPETENCE, 0.6), List.of());
+        var state = new NarrativeState("a", "t", NarrativeScope.INDIVIDUAL,
+                                       List.of(theme), now, 3);
+
+        var mod = NarrativeModulation.compute(state);
+
+        assertThat(mod.get(DriveAxis.COMPETENCE)).isCloseTo(0.3, within(0.001));
     }
 }

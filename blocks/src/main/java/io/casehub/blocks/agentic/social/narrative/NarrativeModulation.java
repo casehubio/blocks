@@ -14,9 +14,9 @@ public final class NarrativeModulation {
         for (var theme : narrative.themes()) {
             for (var entry : theme.axisModulationWeights().entrySet()) {
                 modulation.merge(entry.getKey(),
-                        theme.salience() * entry.getValue(), Double::sum);
+                                 theme.salience() * entry.getValue(), Double::sum);
             }
         }
-        return Map.copyOf(modulation);
-    }
+        modulation.replaceAll((axis, value) -> Math.clamp(value, -1.0, 1.0));
+        return Map.copyOf(modulation);}
 }

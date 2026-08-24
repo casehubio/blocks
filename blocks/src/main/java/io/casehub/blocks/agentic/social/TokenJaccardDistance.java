@@ -3,11 +3,11 @@ package io.casehub.blocks.agentic.social;
 import java.util.HashSet;
 import java.util.Set;
 
-final class TokenJaccardDistance {
+public final class TokenJaccardDistance {
 
     private TokenJaccardDistance() {}
 
-    static double distance(String a, String b) {
+    public static double distance(String a, String b) {
         Set<String> tokensA = tokenize(a);
         Set<String> tokensB = tokenize(b);
         if (tokensA.isEmpty() && tokensB.isEmpty()) {

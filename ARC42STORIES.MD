@@ -155,12 +155,12 @@ AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` im
 
 **Implementation issues:** casehubio/blocks#30, casehubio/qhorus#361
 
-### Planned packages (per parent#310)
+### Completed packages (originally planned per parent#310)
 
-| Package | What it will contain | Priority |
-|---------|---------------------|----------|
-| `io.casehub.blocks.conversation` | Structured conversation protocol — round-based multi-agent deliberation with point lifecycle, human escalation, sub-task dispatch | P5 |
-| `io.casehub.blocks.gate` | Oversight gate lifecycle — risk classification → approval gate → commitment → decision | P6 (from openclaw) |
+| Package | Status | Implemented as |
+|---------|--------|----------------|
+| `io.casehub.blocks.conversation` | Done | Structured conversation protocol — projections, fold state, rendering, point classification, epistemic common ground, convergence detection. Plus `conversation.orchestration` sub-package. |
+| `io.casehub.blocks.oversight` | Done | Oversight gate lifecycle + risk classification — SPIs, classifier chaining, gate outcomes. (Originally planned as `blocks.gate`.) |
 
 ### Package: `io.casehub.blocks.speech` (planned)
 
