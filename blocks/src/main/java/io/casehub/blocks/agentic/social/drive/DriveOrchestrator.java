@@ -4,17 +4,21 @@ import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
+import io.casehub.blocks.agentic.social.narrative.NarrativeModulation;
+import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.eidos.api.AgentDescriptor;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -30,6 +34,7 @@ public class DriveOrchestrator {
     private final DriveComposer composer;
     private final DriveConfig config;
     private final Clock clock;
+    private final @Nullable NarrativeOrchestrator narrativeOrchestrator;
 
     private final ConcurrentHashMap<String, DriveProfile> profiles = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
@@ -42,7 +47,8 @@ public class DriveOrchestrator {
             MentalModelOrchestrator mentalModel,
             MoodOrchestrator moodOrchestrator,
             DriveComposer composer,
-            DriveConfig config) {
+            DriveConfig config,
+            Instance<NarrativeOrchestrator> narrativeInstance) {
         this(
             hygieneInstance.isResolvable()
                 ? new CuriosityDrive(hygieneInstance.get())
@@ -53,7 +59,8 @@ public class DriveOrchestrator {
                     config.affiliationDecayThreshold(),
                     config.affiliationStaleDuration()),
             new AutonomyDrive(mentalModel, config.autonomyConfidenceFloor()),
-            moodOrchestrator, composer, config
+            moodOrchestrator, composer, config, Clock.systemUTC(),
+            narrativeInstance.isResolvable() ? narrativeInstance.get() : null
         );
     }
 
@@ -62,13 +69,22 @@ public class DriveOrchestrator {
                              MoodOrchestrator moodOrchestrator, DriveComposer composer,
                              DriveConfig config) {
         this(curiosity, competence, affiliation, autonomy, moodOrchestrator,
-                composer, config, Clock.systemUTC());
+                composer, config, Clock.systemUTC(), null);
     }
 
     DriveOrchestrator(DriveSource curiosity, DriveSource competence,
                       DriveSource affiliation, DriveSource autonomy,
                       MoodOrchestrator moodOrchestrator, DriveComposer composer,
                       DriveConfig config, Clock clock) {
+        this(curiosity, competence, affiliation, autonomy, moodOrchestrator,
+                composer, config, clock, null);
+    }
+
+    DriveOrchestrator(DriveSource curiosity, DriveSource competence,
+                      DriveSource affiliation, DriveSource autonomy,
+                      MoodOrchestrator moodOrchestrator, DriveComposer composer,
+                      DriveConfig config, Clock clock,
+                      @Nullable NarrativeOrchestrator narrativeOrchestrator) {
         this.curiosity = curiosity;
         this.competence = competence;
         this.affiliation = affiliation;
@@ -77,6 +93,7 @@ public class DriveOrchestrator {
         this.composer = composer;
         this.config = config;
         this.clock = clock;
+        this.narrativeOrchestrator = narrativeOrchestrator;
     }
 
     public DriveTick tick(String agentId, String tenantId, AgentDescriptor descriptor) {
@@ -94,7 +111,14 @@ public class DriveOrchestrator {
             var disposition = descriptor.disposition();
             var now = Instant.now(clock);
 
-            var newProfile = composer.compose(raw, disposition, mood, null, config,
+            Map<DriveAxis, Double> narrativeMod = null;
+            if (narrativeOrchestrator != null) {
+                narrativeMod = narrativeOrchestrator.currentNarrative(agentId, tenantId)
+                        .map(NarrativeModulation::compute)
+                        .orElse(null);
+            }
+
+            var newProfile = composer.compose(raw, disposition, mood, narrativeMod, config,
                     agentId, tenantId, now);
 
             var previous = profiles.get(key);

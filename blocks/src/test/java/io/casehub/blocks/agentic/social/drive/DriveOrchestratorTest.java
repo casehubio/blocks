@@ -4,6 +4,10 @@ import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
+import io.casehub.blocks.agentic.social.narrative.DerivedTheme;
+import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.narrative.NarrativeScope;
+import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.blocks.memory.KnowledgeGapSummary;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.eidos.api.AgentDescriptor;
@@ -168,8 +172,12 @@ class DriveOrchestratorTest {
         var mentalModel = mock(MentalModelOrchestrator.class);
         when(mentalModel.activeSnapshots("agent-1", "tenant-1")).thenReturn(List.of());
 
+        Instance<NarrativeOrchestrator> narrativeInstance = mock(Instance.class);
+        when(narrativeInstance.isResolvable()).thenReturn(false);
+
         var orch = new DriveOrchestrator(hygieneInstance, strategy, userModel,
-                mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults());
+                mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults(),
+                narrativeInstance);
 
         var tick = orch.tick("agent-1", "tenant-1", descriptor);
         assertThat(tick).isInstanceOf(DriveTick.Updated.class);
@@ -190,12 +198,64 @@ class DriveOrchestratorTest {
         var mentalModel = mock(MentalModelOrchestrator.class);
         when(mentalModel.activeSnapshots("agent-1", "tenant-1")).thenReturn(List.of());
 
+        Instance<NarrativeOrchestrator> narrativeInstance = mock(Instance.class);
+        when(narrativeInstance.isResolvable()).thenReturn(false);
+
         var orch = new DriveOrchestrator(hygieneInstance, strategy, userModel,
-                mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults());
+                mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults(),
+                narrativeInstance);
 
         var tick = orch.tick("agent-1", "tenant-1", descriptor);
         assertThat(tick).isInstanceOf(DriveTick.Updated.class);
         var profile = ((DriveTick.Updated) tick).current();
         assertThat(profile.drives().get(DriveAxis.CURIOSITY).intensity()).isEqualTo(0.0);
+    }
+
+    @Test
+    void tick_withNarrativeModulation_amplifiesDrives() {
+        var narrativeOrch = mock(NarrativeOrchestrator.class);
+        var theme = new DerivedTheme("t1", fixedNow, null,
+                List.of("helper"), "crisis-helper", 0.9,
+                Map.of(DriveAxis.AFFILIATION, 0.8, DriveAxis.COMPETENCE, 0.5),
+                List.of("e1"));
+        var narrative = new NarrativeState("agent-1", "tenant-1",
+                NarrativeScope.INDIVIDUAL, List.of(theme), fixedNow, 5);
+        when(narrativeOrch.currentNarrative("agent-1", "tenant-1"))
+                .thenReturn(Optional.of(narrative));
+
+        var orchestrator = new DriveOrchestrator(curiosity, competence,
+                affiliation, autonomy, moodOrchestrator, composer,
+                DriveConfig.defaults(), clock, narrativeOrch);
+
+        var tick = orchestrator.tick("agent-1", "tenant-1", descriptor);
+        assertThat(tick).isInstanceOf(DriveTick.Updated.class);
+        var profile = ((DriveTick.Updated) tick).current();
+        assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity())
+                .isGreaterThan(0.1);
+    }
+
+    @Test
+    void tick_withoutNarrativeOrchestrator_noModulation() {
+        var orchestrator = createOrchestrator();
+        var tick = orchestrator.tick("agent-1", "tenant-1", descriptor);
+        assertThat(tick).isInstanceOf(DriveTick.Updated.class);
+        var profile = ((DriveTick.Updated) tick).current();
+        assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity()).isEqualTo(0.1);
+    }
+
+    @Test
+    void tick_withNarrativeButNoState_noModulation() {
+        var narrativeOrch = mock(NarrativeOrchestrator.class);
+        when(narrativeOrch.currentNarrative("agent-1", "tenant-1"))
+                .thenReturn(Optional.empty());
+
+        var orchestrator = new DriveOrchestrator(curiosity, competence,
+                affiliation, autonomy, moodOrchestrator, composer,
+                DriveConfig.defaults(), clock, narrativeOrch);
+
+        var tick = orchestrator.tick("agent-1", "tenant-1", descriptor);
+        assertThat(tick).isInstanceOf(DriveTick.Updated.class);
+        var profile = ((DriveTick.Updated) tick).current();
+        assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity()).isEqualTo(0.1);
     }
 }
