@@ -266,7 +266,7 @@ class NarrativeSynthesiserTest {
     @Test
     void synthesise_episodePruning_dropsOldest() {
         var config = new NarrativeConfig(NarrativeSynthesisGate.defaults(),
-                2, 10, 0.1, 20);
+                2, 10, 0.1, 20, "narrative", "narrative");
         synthesiser = new NarrativeSynthesiser(agentProvider, narrativeStore,
                 queryStore, config, CLOCK);
 
@@ -290,7 +290,7 @@ class NarrativeSynthesiserTest {
     @Test
     void synthesise_themePruning_dropsLowestSalience() {
         var config = new NarrativeConfig(NarrativeSynthesisGate.defaults(),
-                50, 1, 0.1, 20);
+                50, 1, 0.1, 20, "narrative", "narrative");
         var twoThemeResponse = """
                 {
                   "newEpisodes": [],
@@ -316,7 +316,7 @@ class NarrativeSynthesiserTest {
     @Test
     void synthesise_themeSalienceFloor() {
         var config = new NarrativeConfig(NarrativeSynthesisGate.defaults(),
-                50, 10, 0.5, 20);
+                50, 10, 0.5, 20, "narrative", "narrative");
         var lowSalienceResponse = """
                 {
                   "newEpisodes": [],
@@ -482,7 +482,7 @@ class NarrativeSynthesiserTest {
     @Test
     void synthesise_maxReflectionsCapped() {
         var config = new NarrativeConfig(NarrativeSynthesisGate.defaults(),
-                50, 10, 0.1, 3);
+                50, 10, 0.1, 3, "narrative", "narrative");
         synthesiser = new NarrativeSynthesiser(agentProvider, narrativeStore,
                 queryStore, config, CLOCK);
         when(narrativeStore.load("agent-1", "tenant-1")).thenReturn(null);
@@ -504,7 +504,7 @@ class NarrativeSynthesiserTest {
     @Test
     void synthesise_cappedReflections_watermarkPreserved() {
         var config = new NarrativeConfig(NarrativeSynthesisGate.defaults(),
-                50, 10, 0.1, 3);
+                50, 10, 0.1, 3, "narrative", "narrative");
         synthesiser = new NarrativeSynthesiser(agentProvider, narrativeStore,
                 queryStore, config, CLOCK);
         when(narrativeStore.load("agent-1", "tenant-1")).thenReturn(null);

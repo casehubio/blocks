@@ -6,7 +6,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class NarrativeConfigTest {
 
@@ -50,33 +52,34 @@ class NarrativeConfigTest {
         assertThat(config.themeSalienceFloor()).isEqualTo(0.1);
         assertThat(config.maxReflectionsPerSynthesis()).isEqualTo(20);
         assertThat(config.synthesisGate()).isNotNull();
-    }
+        assertThat(config.memoryDomain()).isEqualTo("narrative");
+        assertThat(config.caseType()).isEqualTo("narrative");}
 
     @Test
     void config_rejectsInvalidMaxEpisodes() {
         assertThatThrownBy(() -> new NarrativeConfig(
-                NarrativeSynthesisGate.defaults(), 0, 10, 0.1, 20))
+                NarrativeSynthesisGate.defaults(), 0, 10, 0.1, 20, "narrative", "narrative"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void config_rejectsInvalidMaxThemes() {
         assertThatThrownBy(() -> new NarrativeConfig(
-                NarrativeSynthesisGate.defaults(), 50, 0, 0.1, 20))
+                NarrativeSynthesisGate.defaults(), 50, 0, 0.1, 20, "narrative", "narrative"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void config_rejectsInvalidSalienceFloor() {
         assertThatThrownBy(() -> new NarrativeConfig(
-                NarrativeSynthesisGate.defaults(), 50, 10, 1.5, 20))
+                NarrativeSynthesisGate.defaults(), 50, 10, 1.5, 20, "narrative", "narrative"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void config_rejectsInvalidMaxReflections() {
         assertThatThrownBy(() -> new NarrativeConfig(
-                NarrativeSynthesisGate.defaults(), 50, 10, 0.1, 0))
+                NarrativeSynthesisGate.defaults(), 50, 10, 0.1, 0, "narrative", "narrative"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
