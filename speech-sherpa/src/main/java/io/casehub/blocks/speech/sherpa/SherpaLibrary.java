@@ -34,6 +34,19 @@ final class SherpaLibrary {
     final MethodHandle destroyTts;
     final MethodHandle ttsGenerate;
     final MethodHandle destroyGeneratedAudio;
+    // Online STT (streaming)
+    final MethodHandle createOnlineRecognizer;
+    final MethodHandle destroyOnlineRecognizer;
+    final MethodHandle createOnlineStream;
+    final MethodHandle destroyOnlineStream;
+    final MethodHandle onlineStreamAcceptWaveform;
+    final MethodHandle isOnlineStreamReady;
+    final MethodHandle decodeOnlineStream;
+    final MethodHandle isEndpoint;
+    final MethodHandle resetOnlineStream;
+    final MethodHandle getOnlineStreamResult;
+    final MethodHandle destroyOnlineRecognizerResult;
+
 
     private SherpaLibrary(SymbolLookup lookup) {
         this.lookup = lookup;
@@ -65,6 +78,30 @@ final class SherpaLibrary {
         ttsGenerate = downcall(linker, "SherpaOnnxOfflineTtsGenerate",
                 FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_INT, JAVA_FLOAT));
         destroyGeneratedAudio = downcall(linker, "SherpaOnnxDestroyOfflineTtsGeneratedAudio",
+                FunctionDescriptor.ofVoid(ADDRESS));
+
+        // Online STT handles (streaming)
+        createOnlineRecognizer = downcall(linker, "SherpaOnnxCreateOnlineRecognizer",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        destroyOnlineRecognizer = downcall(linker, "SherpaOnnxDestroyOnlineRecognizer",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        createOnlineStream = downcall(linker, "SherpaOnnxCreateOnlineStream",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        destroyOnlineStream = downcall(linker, "SherpaOnnxDestroyOnlineStream",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        onlineStreamAcceptWaveform = downcall(linker, "SherpaOnnxOnlineStreamAcceptWaveform",
+                FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT));
+        isOnlineStreamReady = downcall(linker, "SherpaOnnxIsOnlineStreamReady",
+                FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS));
+        decodeOnlineStream = downcall(linker, "SherpaOnnxDecodeOnlineStream",
+                FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+        isEndpoint = downcall(linker, "SherpaOnnxOnlineStreamIsEndpoint",
+                FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS));
+        resetOnlineStream = downcall(linker, "SherpaOnnxOnlineStreamReset",
+                FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+        getOnlineStreamResult = downcall(linker, "SherpaOnnxGetOnlineStreamResult",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS));
+        destroyOnlineRecognizerResult = downcall(linker, "SherpaOnnxDestroyOnlineRecognizerResult",
                 FunctionDescriptor.ofVoid(ADDRESS));
     }
 

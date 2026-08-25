@@ -29,6 +29,27 @@ final class SherpaLayouts {
     static final long MODEL_NUM_THREADS = 112;
     // debug at 116
     static final long MODEL_PROVIDER    = 120;
+    // === SherpaOnnxOnlineRecognizerConfig offsets ===
+    // feat_config at offset 0 (8 bytes)
+    // model_config at offset 8:
+    //   transducer (24), paraformer (16), zipformer2_ctc (8) = sub-structs end at 48
+    //   tokens(8), num_threads(4), pad(4), provider(8), debug(4), pad(4),
+    //   model_type(8), modeling_unit(8), bpe_vocab(8), tokens_buf(8),
+    //   tokens_buf_size(4), pad(4), nemo_ctc(8), t_one_ctc(8) = model_config total ~136
+    static final long ONLINE_TRANSDUCER_ENCODER = 8;
+    static final long ONLINE_TRANSDUCER_DECODER = 16;
+    static final long ONLINE_TRANSDUCER_JOINER = 24;
+    static final long ONLINE_MODEL_TOKENS = 56;
+    static final long ONLINE_MODEL_NUM_THREADS = 64;
+    static final long ONLINE_MODEL_PROVIDER = 72;
+    // After model_config (8 + 136 = 144):
+    // decoding_method(8), max_active_paths(4), enable_endpoint(4),
+    // rule1(4), rule2(4), rule3(4)
+    static final long ONLINE_ENABLE_ENDPOINT = 156;
+    static final long ONLINE_RULE1_MIN_TRAILING_SILENCE = 160;
+    static final long ONLINE_RULE2_MIN_TRAILING_SILENCE = 164;
+    static final long ONLINE_RULE3_MIN_UTTERANCE_LENGTH = 168;
+
 
     // === SherpaOnnxOfflineTtsConfig offsets ===
     // model.vits at offset 0
