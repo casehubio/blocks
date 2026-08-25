@@ -46,6 +46,11 @@ final class SherpaLibrary {
     final MethodHandle resetOnlineStream;
     final MethodHandle getOnlineStreamResult;
     final MethodHandle destroyOnlineRecognizerResult;
+    // Online punctuation
+    final MethodHandle createOnlinePunctuation;
+    final MethodHandle destroyOnlinePunctuation;
+    final MethodHandle onlinePunctuationAddPunct;
+    final MethodHandle onlinePunctuationFreeText;
 
 
     private SherpaLibrary(SymbolLookup lookup) {
@@ -102,6 +107,16 @@ final class SherpaLibrary {
         getOnlineStreamResult = downcall(linker, "SherpaOnnxGetOnlineStreamResult",
                 FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS));
         destroyOnlineRecognizerResult = downcall(linker, "SherpaOnnxDestroyOnlineRecognizerResult",
+                FunctionDescriptor.ofVoid(ADDRESS));
+
+        // Online punctuation handles
+        createOnlinePunctuation = downcall(linker, "SherpaOnnxCreateOnlinePunctuation",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        destroyOnlinePunctuation = downcall(linker, "SherpaOnnxDestroyOnlinePunctuation",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        onlinePunctuationAddPunct = downcall(linker, "SherpaOnnxOnlinePunctuationAddPunct",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS));
+        onlinePunctuationFreeText = downcall(linker, "SherpaOnnxOnlinePunctuationFreeText",
                 FunctionDescriptor.ofVoid(ADDRESS));
     }
 

@@ -1,5 +1,6 @@
 package io.casehub.blocks.speech.sherpa;
 
+import io.casehub.blocks.speech.CleanupConfig;
 import io.casehub.blocks.speech.RecognitionStream;
 import io.casehub.blocks.speech.StreamingSpeechToTextService;
 import io.casehub.blocks.speech.TranscriptionOptions;
@@ -17,6 +18,7 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     private final SherpaLibrary lib;
     private final MemorySegment recognizer;
     private final Arena recognizerArena;
+    private final @org.jspecify.annotations.Nullable CleanupConfig cleanupConfig;
 
     public SherpaOnnxStreamingSpeechToText(SherpaConfig config) {
         this(config, SherpaLibrary.load());
@@ -27,6 +29,7 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
         this.lib = lib;
         this.recognizerArena = Arena.ofShared();
         this.recognizer = createRecognizer();
+        this.cleanupConfig = resolveCleanup(config, lib);
     }
 
     @Override
@@ -36,14 +39,43 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     }
 
     public void close() {
+        if (cleanupConfig != null) {
+            cleanupConfig.filters().forEach(f -> {
+                if (f instanceof AutoCloseable ac) {
+                    try { ac.close(); } catch (Exception e) { /* cleanup */ }
+                }
+            });
+        }
         if (recognizer != null && !recognizer.equals(MemorySegment.NULL)) {
             try {
                 lib.destroyOnlineRecognizer.invokeExact(recognizer);
             } catch (Throwable t) {
-                // cleanup
+                // native cleanup
             }
         }
         recognizerArena.close();
+    }
+
+    public static CleanupConfig defaultFilters(Path punctuationModelDir) {
+        return defaultFilters(punctuationModelDir, SherpaLibrary.load());
+    }
+
+    static CleanupConfig defaultFilters(Path punctuationModelDir, SherpaLibrary lib) {
+        return CleanupConfig.of(
+                new CasingFilter(),
+                new FillerRemovalFilter(),
+                new PunctuationFilter(punctuationModelDir, lib));
+    }
+
+    private static CleanupConfig resolveCleanup(SherpaConfig config, SherpaLibrary lib) {
+        if (config.cleanupConfig() != null) return config.cleanupConfig();
+        if (config.punctuationModelDir() != null) return defaultFilters(config.punctuationModelDir(), lib);
+        return null;
+    }
+
+    private String applyCleanup(String raw) {
+        if (cleanupConfig == null || raw.isBlank()) return raw;
+        return cleanupConfig.apply(raw);
     }
 
     private MemorySegment createRecognizer() {
@@ -85,12 +117,16 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
 
     private String findModel(Path modelDir, String component) {
         try (var files = java.nio.file.Files.list(modelDir)) {
-            return files
-                    .filter(p -> p.getFileName().toString().contains(component))
-                    .filter(p -> p.toString().endsWith(".onnx"))
-                    .findFirst()
-                    .orElseThrow(() -> new SherpaException("No " + component + " model found in " + modelDir))
-                    .toString();
+            var candidates = files
+                                     .filter(p -> p.getFileName().toString().contains(component))
+                                     .filter(p -> p.toString().endsWith(".onnx"))
+                                     .sorted(java.util.Comparator.<Path, Boolean>comparing(
+                                             p -> p.getFileName().toString().contains("int8")).reversed())
+                                     .toList();
+            if (candidates.isEmpty()) {
+                throw new SherpaException("No " + component + " model found in " + modelDir);
+            }
+            return candidates.getFirst().toString();
         } catch (java.io.IOException e) {
             throw new SherpaException("Failed to scan model directory: " + modelDir, e);
         }
@@ -135,12 +171,12 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
 
         @Override
         public String partialResult() {
-            return readResult();
+            return applyCleanup(readResult());
         }
 
         @Override
         public TranscriptionResult finalResult() {
-            String text = readResult();
+            String text = applyCleanup(readResult());
             return new TranscriptionResult(text, text.isEmpty() ? "" : "en", 1.0);
         }
 
@@ -151,7 +187,7 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
             try {
                 lib.destroyOnlineStream.invokeExact(stream);
             } catch (Throwable t) {
-                // cleanup
+                // native cleanup
             }
             streamArena.close();
         }
