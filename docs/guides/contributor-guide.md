@@ -241,6 +241,29 @@ The goal sub-package (`agentic.social.goal`) is Layer 2 of the autonomous intell
 
 **Consumer integration:** The scheduler (quarkmind, claudony, etc.) wires the full tick loop -- source orchestrators → DriveOrchestrator → GoalProposalOrchestrator → GoalFormationService. See spec §Consumer Integration Example for the complete flow.
 
+### Narrative Identity (Compositor + Effectful Split)
+
+Layer 3a of the autonomous intelligence stack. Agents construct a first-person autobiography from accumulated reflections. The architecture splits into effectful synthesis and side-effect-free orchestration:
+
+- **NarrativeSynthesiser** (`@ApplicationScoped`, effectful) -- composite gate evaluation (count + novelty + quiet period), LLM synthesis via `AgentProvider`, writes `NarrativeState` to `NarrativeStore`. Called by the consumer's scheduler before the compositor ticks.
+- **NarrativeOrchestrator** (`@ApplicationScoped`, compositor) -- reads `NarrativeStore`, caches `NarrativeState` per agent, returns `NarrativeTick` (Updated/NoChange). No LLM, no side effects.
+- **GroupNarrativeOrchestrator** (compositor, not CDI-managed) -- GROUP-scoped mirror of NarrativeOrchestrator. Consumer constructs with `Set<String> memberIds`. `tick(groupId, tenantId)` detects new `GroupEpisode`s and themes.
+
+**Persistence:** `NarrativeStore` SPI with `CbrNarrativeStore` `@DefaultBean`. `NarrativeStateSchema` handles polymorphic `NarrativeFragment` serialization (type discriminators for `IndividualEpisode`/`GroupEpisode`/`DerivedTheme`). `ReflectionQueryStore` SPI provides read access to stored reflections for synthesis.
+
+**Drive modulation:** `NarrativeModulation.compute(NarrativeState)` converts themes to per-axis drive coefficients. `DriveOrchestrator` reads from `NarrativeOrchestrator` via `Instance<>` (optional) and passes modulation to `DriveComposer`. Works identically for individual and group narratives.
+
+**Tick ordering:** Source orchestrators → NarrativeSynthesiser → NarrativeOrchestrator → DriveOrchestrator → GoalProposalOrchestrator.
+
+### Social Emergence
+
+Layer 3b -- collective behaviors emerging from multi-agent interaction.
+
+- **SocialNormDetector** (`@ApplicationScoped`, compositor) -- reads `NormObservation` cases from CBR, groups by `behavioralPattern`, computes adherence rates, classifies strength (EMERGING/ESTABLISHED/DECLINING). Per-tenant caching with prior-state tracking for decline detection. `NormObservationSchema` for CBR serialization.
+- **CollectiveGoalFormation** (compositor, not CDI-managed) -- reads N agents' `DriveProfile`s, computes pairwise alignment (`1 - |diff|` per axis), forms groups via connected components, proposes `CollectiveGoalProposal`s when composite alignment exceeds threshold. Per-group cooldown. `toJointIntention()` bridges proposals to `JointIntention.form()`.
+
+**Consumer construction:** `CollectiveGoalFormation` takes `DriveOrchestrator`, `List<String> agentIds`, and `CollectiveGoalConfig` at construction. The agent set is deployment-time configuration -- consumers produce the bean via `@Produces` or construct directly.
+
 ## Trust Routing Architecture
 
 The trust routing system spans four layers -- blocks owns AI-powered routing strategies and compliance audit types.
