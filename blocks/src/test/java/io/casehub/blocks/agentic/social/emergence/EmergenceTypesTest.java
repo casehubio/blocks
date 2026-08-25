@@ -94,17 +94,21 @@ class EmergenceTypesTest {
         assertThat(config.establishedThreshold()).isEqualTo(0.7);
         assertThat(config.decliningThreshold()).isEqualTo(0.4);
         assertThat(config.minAgentsForNorm()).isEqualTo(2);
+        assertThat(config.memoryDomain()).isEqualTo("norm-detection");
+        assertThat(config.caseType()).isEqualTo("norm-observation");
     }
 
     @Test
     void normDetectionConfig_rejectsZeroObservations() {
-        assertThatThrownBy(() -> new NormDetectionConfig(0, 0.7, 0.4, 2))
+        assertThatThrownBy(() -> new NormDetectionConfig(0, 0.7, 0.4, 2,
+                "norm-detection", "norm-observation"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void normDetectionConfig_rejectsThresholdOutOfRange() {
-        assertThatThrownBy(() -> new NormDetectionConfig(10, 1.5, 0.4, 2))
+        assertThatThrownBy(() -> new NormDetectionConfig(10, 1.5, 0.4, 2,
+                "norm-detection", "norm-observation"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
