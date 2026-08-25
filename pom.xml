@@ -21,9 +21,20 @@
     <module>blocks</module>
     <module>engine-adapter</module>
     <module>speech-api</module>
-    <module>speech-sherpa</module>
     <module>annotations</module>
   </modules>
+
+  <profiles>
+    <profile>
+      <id>jdk22+</id>
+      <activation>
+        <jdk>[22,)</jdk>
+      </activation>
+      <modules>
+        <module>speech-sherpa</module>
+      </modules>
+    </profile>
+  </profiles>
 
   <repositories>
     <repository>
