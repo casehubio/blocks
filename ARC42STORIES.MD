@@ -162,9 +162,9 @@ AI-powered `AgentRoutingStrategy` implementations and `RoutingSignalProvider` im
 | `io.casehub.blocks.conversation` | Done | Structured conversation protocol — projections, fold state, rendering, point classification, epistemic common ground, convergence detection. Plus `conversation.orchestration` sub-package. |
 | `io.casehub.blocks.oversight` | Done | Oversight gate lifecycle + risk classification — SPIs, classifier chaining, gate outcomes. (Originally planned as `blocks.gate`.) |
 
-### Package: `io.casehub.blocks.speech` (planned)
+### Module: `blocks-speech-api` — Speech SPIs
 
-Speech capability SPIs — provider-agnostic interfaces for speech-to-text and text-to-speech conversion.
+Speech capability SPIs — provider-agnostic interfaces for speech-to-text and text-to-speech conversion. Zero foundation dependencies — pure Java interfaces.
 
 | Block | What it does |
 |-------|-------------|
@@ -176,9 +176,20 @@ Speech capability SPIs — provider-agnostic interfaces for speech-to-text and t
 | `PhonemeTiming` | Record: phoneme with start/end millisecond offsets |
 | `SynthesisOptions` | Record: voice, language, audio format, phoneme inclusion flag |
 
-Default implementation: sherpa-onnx via Java FFM/Panama (Whisper for STT, VITS/Piper for TTS). Zero foundation dependencies in the SPI module — pure Java interfaces.
+### Module: `blocks-speech-sherpa` — sherpa-onnx FFM Implementation
 
-**Implementation issues:** casehubio/blocks#155, casehubio/blocks#157
+Default `SpeechToTextService` and `TextToSpeechService` implementation via sherpa-onnx native library using Java FFM/Panama (JDK 22+). Whisper for STT, VITS/Piper for TTS. Apple Silicon Metal acceleration via provider config.
+
+| Block | What it does |
+|-------|-------------|
+| `SherpaOnnxSpeechToText` | STT implementation — reads WAV, feeds PCM to sherpa-onnx offline recognizer |
+| `SherpaOnnxTextToSpeech` | TTS implementation — generates audio via VITS, encodes to WAV |
+| `SherpaLibrary` | FFM native library loading + MethodHandle resolution |
+| `SherpaLayouts` | C struct layouts (StructLayout/VarHandle) targeting sherpa-onnx 1.10.x |
+| `WavReader` / `WavWriter` | 16-bit PCM WAV I/O (pure Java, no javax.sound dependency) |
+| `SherpaConfig` | Configuration record (modelDir, numThreads, provider) |
+
+**Issues:** casehubio/blocks#155 (restructuring — done), casehubio/blocks#157 (implementation)
 
 ---
 

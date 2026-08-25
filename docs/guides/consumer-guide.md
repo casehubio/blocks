@@ -9,7 +9,7 @@
 
 ## What This Module Does
 
-Packages recurring cross-application patterns that require LLM integration, classical AI, or foundational API composition. Single module, single artifact: `casehub-blocks`.
+Packages recurring cross-application patterns that require LLM integration, classical AI, or foundational API composition. Multi-module reactor with four artifacts: `casehub-blocks` (core), `casehub-blocks-speech-api` (speech SPIs, zero foundation deps), `casehub-blocks-speech-sherpa` (sherpa-onnx FFM implementation, JDK 22+), `casehub-blocks-engine-adapter` (engine integration).
 
 Includes a full agentic orchestration framework with DAG-based execution plans, hybrid (static + LLM) task decomposition, composable routing/aggregation/termination strategies, and a pattern DSL for common multi-agent topologies.
 
@@ -485,6 +485,35 @@ Affordance grounding -- per-entity observation rendering for LLM agents.
 | `ActionDescriptor` | record | Action type metadata: `actionType`, `description`, `parameterFormat` (nullable) |
 | `ObservationSection` | sealed interface | Document structure: `EntityGroup(header, emptyMessage, entities)`, `TextBlock(header, content)`, `ItemList(header, emptyMessage, items)`. Static factories: `entities()`, `text()`, `items()`. |
 | `AffordanceRenderer` | class | Renders `ObservableEntity` lists and `ObservationSection` trees into plain text. Methods: `renderEntities()`, `renderObservation()`, `renderActionVocabulary()`, `withHeaderFormatter()`. |
+
+### `io.casehub.blocks.speech` (module: `blocks-speech-api`)
+
+Speech capability SPIs — provider-agnostic interfaces for audio-to-text and text-to-audio. Zero foundation dependencies.
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `SpeechToTextService` | interface | `transcribe(Path audioFile, TranscriptionOptions) → TranscriptionResult` |
+| `TextToSpeechService` | interface | `synthesise(String text, SynthesisOptions) → SynthesisResult` |
+| `TranscriptionResult` | record | `text`, `language`, `confidence` |
+| `SynthesisResult` | record | `audioData` (byte[]), `audioFormat`, `phonemes` (List<PhonemeTiming>) |
+| `PhonemeTiming` | record | `phoneme`, `startMs`, `endMs` — for downstream lip-sync |
+
+### `io.casehub.blocks.speech.sherpa` (module: `blocks-speech-sherpa`)
+
+Default speech implementation via sherpa-onnx FFM/Panama (JDK 22+). Optional — consumers that only need the SPI depend on `blocks-speech-api`.
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `SherpaOnnxSpeechToText` | class | Whisper-based STT via FFM downcalls to sherpa-onnx offline recognizer |
+| `SherpaOnnxTextToSpeech` | class | VITS/Piper-based TTS via FFM downcalls to sherpa-onnx offline TTS |
+| `SherpaConfig` | record | `modelDir`, `numThreads`, `provider` (cpu/coreml/cuda) |
+
+**Quick start:**
+```java
+var config = SherpaConfig.defaults(Path.of("/path/to/models"));
+var stt = new SherpaOnnxSpeechToText(config);
+TranscriptionResult result = stt.transcribe(audioFile, TranscriptionOptions.defaults());
+```
 
 ## Key Integration Patterns
 

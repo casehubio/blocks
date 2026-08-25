@@ -170,6 +170,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/summarisation/observation/affordance/` | Tests for affordance rendering |
 | `src/test/java/io/casehub/blocks/summarisation/examples/clinical/` | Clinical temporal abstraction example (L1-L4 pipeline) |
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
+| `speech-sherpa/src/main/java/io/casehub/blocks/speech/sherpa/` | sherpa-onnx FFM/Panama implementation — `SherpaOnnxSpeechToText`, `SherpaOnnxTextToSpeech`, `SherpaLibrary` (native binding via FFM SymbolLookup), `SherpaLayouts` (C struct layouts for sherpa-onnx 1.10.x), `WavReader`/`WavWriter` (PCM audio I/O), `SherpaConfig`, `SherpaException` |
+| `speech-sherpa/src/test/java/io/casehub/blocks/speech/sherpa/` | Tests for sherpa-onnx implementation |
 
 ## Package: `io.casehub.blocks.attestation`
 
@@ -536,6 +538,22 @@ LLM-backed content summarisation. Separated from the pure-Java `blocks.summarisa
 |-------|-------------|
 | `LlmContentSummariser<T>` | Generic `ContentSummariser<T>` backed by `AgentProvider`. EDIT/APPEND modes via `SummaryMode`. Optional `preamble` for static context (e.g., channel name). Propagates previous annotations. |
 
+## Package: `io.casehub.blocks.speech.sherpa`
+
+sherpa-onnx speech implementation via Java FFM/Panama (JDK 22+). Provides `SpeechToTextService` and `TextToSpeechService` implementations backed by sherpa-onnx native library. Zero foundation dependencies — only depends on `casehub-blocks-speech-api`.
+
+| Class | What it does |
+|-------|-------------|
+| `SherpaOnnxSpeechToText` | `SpeechToTextService` implementation — Whisper-based transcription via FFM downcalls. Reads WAV files, feeds PCM samples to sherpa-onnx offline recognizer, returns `TranscriptionResult`. |
+| `SherpaOnnxTextToSpeech` | `TextToSpeechService` implementation — VITS/Piper-based synthesis via FFM downcalls. Generates audio from text, encodes to WAV, returns `SynthesisResult`. |
+| `SherpaLibrary` | Native library loading via `SymbolLookup.libraryLookup()`. Resolves all STT and TTS function handles. Singleton with explicit path override. `isAvailable()` for runtime detection. |
+| `SherpaLayouts` | `StructLayout` definitions for sherpa-onnx 1.10.x C API structs — `OFFLINE_RECOGNIZER_CONFIG`, `TTS_CONFIG`, `GENERATED_AUDIO`. VarHandles for field access. |
+| `SherpaConfig` | Record: `modelDir`, `numThreads`, `provider`. `defaults(Path)` factory. |
+| `WavData` | Record: `float[] samples`, `sampleRate`, `channels` — decoded PCM audio. |
+| `WavReader` | WAV file parser — reads RIFF/WAV headers, extracts 16-bit PCM samples as float[]. |
+| `WavWriter` | WAV encoder — encodes float[] samples to 16-bit PCM WAV bytes. |
+| `SherpaException` | Unchecked exception for native binding failures. |
+
 ## Dependencies
 
 **Compile:** `casehub-qhorus-api`, `casehub-work-api`, `casehub-engine-api`, `casehub-eidos-api`, `casehub-worker-api`, `org.jspecify:jspecify`
@@ -548,6 +566,12 @@ quarkus.index-dependency.casehub-blocks.group-id=io.casehub
 quarkus.index-dependency.casehub-blocks.artifact-id=casehub-blocks
 ```
 Consumers that only use blocks' pure types (records, sealed interfaces, plain classes) need no configuration.
+
+**speech-sherpa module:**
+**Compile:** `casehub-blocks-speech-api`, `org.jspecify:jspecify`
+**Runtime:** sherpa-onnx native library (`sherpa-onnx-c-api`) — must be on `java.library.path`
+**Compiler target:** Java 22 (stable FFM/Panama API)
+**Test:** JUnit 5, AssertJ
 
 ## Consumers
 

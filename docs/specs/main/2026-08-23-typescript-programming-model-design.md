@@ -41,7 +41,9 @@ JavaParser gives richer type information than JSON Schema can express:
 
 **Current state:** Schema came first historically (jsonschema2pojo generates Java POJOs from CaseDefinition.yaml). The proposal reverses the flow — model types become the source, JSON Schema becomes a generated artifact. The hand-written 1882-line CaseDefinitionYamlMapper and the two-CaseDefinition-class problem (generated POJOs vs hand-written API model) collapse over time.
 
-**Drift prevention:** CI regenerates schema and TS types from Java model source. Diff against committed artifacts. Non-empty diff = build failure. No manual sync needed.
+**Incremental generation:** On every build that installs, the generator checks whether Java model source files have changed (whitespace-normalized content hash vs cached hash). Unchanged files skip JavaParser entirely — generated outputs are already correct in git. Only changed model files trigger regeneration. Generated outputs are deterministic and git-committed.
+
+**Drift prevention:** CI regenerates schema and TS types from Java model source. `git diff --exit-code` on generated files. Non-zero = someone changed a model type without regenerating — build fails.
 
 ## Cross-Foundation Principle
 
@@ -149,19 +151,64 @@ These patterns are inherently procedural, stateful, or require custom logic that
 | `summarisation` | Custom Summariser implementations | Domain-specific summarisation logic |
 | `summarisation` | Custom Compactor | Domain-specific event compaction |
 
+## Codegen Migration: Schema-First → Model-Canonical
+
+### Current Infrastructure (to be retired)
+
+| Component | Location | What it does |
+|-----------|----------|-------------|
+| `casehub-engine-codegen` module | `engine/codegen/` (2 files) | `CasehubCodegen` CLI + `CasehubRuleFactory` wrapping jsonschema2pojo |
+| exec-maven-plugin | `engine/schema/pom.xml` | Runs `CasehubCodegen` at `generate-sources` |
+| build-helper-maven-plugin | `engine/schema/pom.xml` | Adds generated sources directory |
+| ~41 generated POJOs | `io.casehub.model.*` | Flat Jackson-annotated POJOs generated from schema |
+
+### Domain Logic to Preserve
+
+`CasehubRuleFactory` encodes two rules that the new generator must reproduce:
+1. **Worker type reuse** — `$ref` to Worker resolves to hand-written `io.casehub.model.Worker` (custom Jackson marshaller) instead of generating a duplicate
+2. **Typed additionalProperties** — `CaseCompletion` uses `additionalProperties: { $ref: GoalExpression }` which must generate `Map<String, GoalExpression>` not `Map<String, Object>`
+
+### Migration Sequence
+
+**No deletion until equivalence is proven.** The old and new pipelines run in parallel until the generated schema is validated.
+
+1. **Build the JavaParser SchemaWriter** — walks `io.casehub.api.model.*` types and emits JSON Schema. Must handle records, sealed interfaces, enums, nested types, validation annotations (patterns, min/max, enums), `oneOf` for sealed variants, and the two `CasehubRuleFactory` domain rules above.
+
+2. **Structural equivalence test** — parse both the existing hand-crafted `CaseDefinition.yaml` and the newly generated schema as JSON Schema trees. Compare structurally (not textually): same properties, same types, same validation constraints, same `oneOf`/`additionalProperties` structure. This is the gate — no further steps until this passes.
+
+3. **YAML example validation** — run all existing YAML test fixtures (document-processing.yaml, agent-worker-example.yaml, minimal.yaml, cbr-routing-test.yaml, etc.) against the generated schema using the existing `json-schema-validator` (networknt) tests. All must pass.
+
+4. **Mapper test compatibility** — run the full `CaseDefinitionYamlMapper` test suite (routing, decomposition, CBR, signals, recovery, monitoring, memory, adaptation, lifecycle scope, quorum, labels, expressions, inbound, JSON node) using the generated schema's types. All must pass.
+
+5. **Parallel run** — both pipelines active in CI. Old codegen still runs. New generator runs alongside. CI compares outputs. This phase catches edge cases the structural test misses.
+
+6. **Retire old codegen** — only after sustained green CI with the new generator:
+   - Remove `engine/codegen` module
+   - Remove exec-maven-plugin and build-helper-maven-plugin from `engine/schema/pom.xml`
+   - Delete generated `io.casehub.model.*` POJOs (replaced by `io.casehub.api.model.*` as canonical)
+   - `json-schema-validator` tests remain — now validate the generated schema
+
+### What Stays
+
+- `json-schema-validator` (networknt) — test-time validation of YAML against schema. More valuable than before: validates the *generated* schema is correct.
+- Hand-written `Worker.java` + `WorkerMarshaller.java` in schema module — custom Jackson serialisation.
+- `CaseDefinitionYamlMapper` — remains until the two-class problem is collapsed (longer-term simplification).
+
 ## Immediate Next Steps
 
-1. **YAML expansion** — Extend CaseDefinition.yaml schema to cover the "fully expressible" patterns above. This is the highest-value work: it benefits YAML authors, TS CDK, LLM generation, and tooling/visualisation simultaneously.
+1. **JavaParser generator with SchemaWriter** — build the walker + schema writer. Gate: structural equivalence with existing `CaseDefinition.yaml`. Migration sequence above.
 
-2. **GraphQL audit** — Assess current GraphQL schema coverage. Identify gaps for L1 (type-safe TS client).
+2. **YAML expansion** — extend the model types to cover the "fully expressible" patterns above. Each new field on the model types automatically appears in the generated schema and TS types. This is the highest-value work: benefits YAML authors, TS CDK, LLM generation, and tooling/visualisation simultaneously.
 
-3. **JavaParser-based generator** — Build or configure a JavaParser tool that walks Java source and emits both TS types/builders and JSON Schema. Retire the jsonschema2pojo flow. Evaluate victools/jsonschema-generator for the Java→schema direction.
+3. **JavaParser TypeScriptWriter** — add the TS writer to the same walker. Generates TS interfaces, discriminated unions, and builder functions from the model types.
 
-4. **Pages DSL as template** — Use pages-ui/src/dsl/builders.ts as the reference implementation for the TS CDK builder pattern. Design the engine CDK builder API following the same conventions.
+4. **GraphQL audit** — assess current GraphQL schema coverage. Identify gaps for L1 (type-safe TS client).
 
-5. **TSJ evaluation** — Track TSJ maturity. Placeholder for L3, same as desiredstate #108. Evaluate when TSJ reaches sufficient maturity for the constrained DSL use case.
+5. **Pages DSL as template** — use pages-ui/src/dsl/builders.ts as the reference implementation for the TS CDK builder pattern.
 
-6. **Pattern mapping document** — Maintain the mapping table above as a living reference. Update as YAML expressiveness expands and patterns evolve.
+6. **TSJ evaluation** — track TSJ maturity. Placeholder for L3, same as desiredstate #108.
+
+7. **Pattern mapping document** — maintain the mapping table above as a living reference.
 
 ## Platform-Wide YAML Coverage Audit
 
