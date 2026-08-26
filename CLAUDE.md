@@ -545,13 +545,15 @@ sherpa-onnx speech implementation via Java FFM/Panama (JDK 22+). Provides `Speec
 | Class | What it does |
 |-------|-------------|
 | `SherpaOnnxSpeechToText` | `SpeechToTextService` implementation — Whisper-based transcription via FFM downcalls. Reads WAV files, feeds PCM samples to sherpa-onnx offline recognizer, returns `TranscriptionResult`. |
-| `SherpaOnnxTextToSpeech` | `TextToSpeechService` implementation — VITS/Piper-based synthesis via FFM downcalls. Generates audio from text, encodes to WAV, returns `SynthesisResult`. |
+| `SherpaOnnxTextToSpeech` | `TextToSpeechService` implementation — VITS/Piper-based synthesis via FFM downcalls. Generates audio from text, encodes to WAV, returns `SynthesisResult`. Auto-detects TTS model filename via `findTtsModel()` directory scan. |
 | `SherpaLibrary` | Native library loading via `SymbolLookup.libraryLookup()`. Resolves all STT and TTS function handles. Singleton with explicit path override. `isAvailable()` for runtime detection. |
 | `SherpaLayouts` | `StructLayout` definitions for sherpa-onnx 1.10.x C API structs — `OFFLINE_RECOGNIZER_CONFIG`, `TTS_CONFIG`, `GENERATED_AUDIO`. VarHandles for field access. |
 | `SherpaConfig` | Record: `modelDir`, `numThreads`, `provider`. `defaults(Path)` factory. |
 | `WavData` | Record: `float[] samples`, `sampleRate`, `channels` — decoded PCM audio. |
 | `WavReader` | WAV file parser — reads RIFF/WAV headers, extracts 16-bit PCM samples as float[]. |
 | `WavWriter` | WAV encoder — encodes float[] samples to 16-bit PCM WAV bytes. |
+| `MicrophoneCapture` | Audio capture utility — bridges `javax.sound.sampled.TargetDataLine` to `RecognitionStream.acceptSamples()`. Background platform daemon thread reads 100ms PCM chunks. Injectable `TargetDataLine` for testability, `openDefault()` factory for convenience. |
+| `SpeechCli` | CLI entry point — `transcribe` (offline Whisper), `synthesise` (VITS/Piper), `stream` (streaming Zipformer from WAV), `listen` (live microphone streaming STT). |
 | `SherpaException` | Unchecked exception for native binding failures. |
 
 ## Dependencies

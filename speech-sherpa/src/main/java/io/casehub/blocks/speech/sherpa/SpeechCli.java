@@ -22,6 +22,7 @@ public final class SpeechCli {
             case "transcribe" -> transcribe(args);
             case "synthesise", "synthesize" -> synthesise(args);
             case "stream" -> stream(args);
+            case "listen" -> listen(args);
             default -> usage();
         }
     }
@@ -109,6 +110,52 @@ public final class SpeechCli {
         stt.close();
     }
 
+    private static void listen(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.err.println("Usage: listen <model-dir>");
+            System.exit(1);
+        }
+        Path modelDir = Path.of(args[1]);
+
+        var config = SherpaConfig.defaults(modelDir);
+        var stt    = new SherpaOnnxStreamingSpeechToText(config);
+
+        System.err.println("Listening... (press Enter to stop)");
+
+        try (RecognitionStream rs = stt.startStream(TranscriptionOptions.defaults());
+             MicrophoneCapture mic = MicrophoneCapture.openDefault(rs)) {
+
+            mic.start();
+            String last = "";
+
+            while (System.in.available() == 0) {
+                String partial = rs.partialResult().trim();
+                if (!partial.equals(last) && !partial.isEmpty()) {
+                    System.out.printf("\r> %s", partial);
+                    System.out.flush();
+                    last = partial;
+                }
+                if (rs.isEndpointDetected()) {
+                    if (!last.isEmpty()) {
+                        System.out.println();
+                        last = "";
+                    }
+                }
+                Thread.sleep(100);
+            }
+            System.in.read();
+
+            mic.stop();
+            String finalText = rs.finalResult().text().trim();
+            if (!finalText.isEmpty()) {
+                System.out.println();
+                System.out.println(finalText);
+            }
+        }
+        stt.close();
+    }
+
+
     private static float[] readWavSamples(Path path) throws IOException {
         byte[] data = Files.readAllBytes(path);
         var buf = java.nio.ByteBuffer.wrap(data).order(java.nio.ByteOrder.LITTLE_ENDIAN);
@@ -134,6 +181,7 @@ public final class SpeechCli {
         System.err.println("  transcribe <model-dir> <audio.wav> [lang]   Offline STT (Whisper)");
         System.err.println("  synthesise <model-dir> <text> [output.wav]  TTS (VITS/Piper)");
         System.err.println("  stream     <model-dir> <audio.wav>          Streaming STT (Zipformer)");
+        System.err.println("  listen     <model-dir>                      Live microphone STT (Zipformer)");
         System.err.println();
         System.err.println("Example:");
         System.err.println("  java --enable-native-access=ALL-UNNAMED -cp speech-sherpa.jar \\");

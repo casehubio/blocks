@@ -98,7 +98,7 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
 
         Path modelDir = config.modelDir();
         seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.VITS_MODEL_PATH,
-                arena.allocateFrom(modelDir.resolve("model.onnx").toString()));
+                arena.allocateFrom(findTtsModel(modelDir)));
         seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.VITS_TOKENS,
                 arena.allocateFrom(modelDir.resolve("tokens.txt").toString()));
         seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.VITS_DATA_DIR,
@@ -111,6 +111,24 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
 
         return seg;
     }
+
+    static String findTtsModel(java.nio.file.Path modelDir) {
+        try (var files = java.nio.file.Files.list(modelDir)) {
+            var candidates = files
+                                     .filter(p -> p.getFileName().toString().endsWith(".onnx"))
+                                     .sorted(java.util.Comparator.<java.nio.file.Path, Boolean>comparing(
+                                                         p -> !p.getFileName().toString().equals("model.onnx"))
+                                                                 .thenComparing(java.nio.file.Path::getFileName))
+                                     .toList();
+            if (candidates.isEmpty()) {
+                throw new SherpaException("No TTS model (.onnx) found in " + modelDir);
+            }
+            return candidates.getFirst().toString();
+        } catch (java.io.IOException e) {
+            throw new SherpaException("Failed to scan model directory: " + modelDir, e);
+        }
+    }
+
 
     private static void destroyQuietly(DestroyAction action) {
         try {

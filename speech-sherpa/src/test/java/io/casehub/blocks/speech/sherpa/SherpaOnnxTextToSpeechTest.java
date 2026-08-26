@@ -31,6 +31,34 @@ class SherpaOnnxTextToSpeechTest {
     }
 
     @Test
+    void findTtsModel_singleOnnxFile() throws Exception {
+        java.nio.file.Files.createFile(tempDir.resolve("en_US-amy-low.onnx"));
+        assertThat(SherpaOnnxTextToSpeech.findTtsModel(tempDir)).isEqualTo(tempDir.resolve("en_US-amy-low.onnx").toString());
+    }
+
+    @Test
+    void findTtsModel_prefersModelOnnx() throws Exception {
+        java.nio.file.Files.createFile(tempDir.resolve("en_US-amy-low.onnx"));
+        java.nio.file.Files.createFile(tempDir.resolve("model.onnx"));
+        assertThat(SherpaOnnxTextToSpeech.findTtsModel(tempDir)).isEqualTo(tempDir.resolve("model.onnx").toString());
+    }
+
+    @Test
+    void findTtsModel_multipleWithoutModelOnnx() throws Exception {
+        java.nio.file.Files.createFile(tempDir.resolve("b-model.onnx"));
+        java.nio.file.Files.createFile(tempDir.resolve("a-model.onnx"));
+        assertThat(SherpaOnnxTextToSpeech.findTtsModel(tempDir)).isEqualTo(tempDir.resolve("a-model.onnx").toString());
+    }
+
+    @Test
+    void findTtsModel_noOnnxFiles() {
+        assertThatThrownBy(() -> SherpaOnnxTextToSpeech.findTtsModel(tempDir))
+                .isInstanceOf(SherpaException.class)
+                .hasMessageContaining("No TTS model");
+    }
+
+
+    @Test
     @EnabledIf("hasTtsModels")
     void synthesisesWithSherpa() {
         Path modelDir = Path.of(System.getProperty("sherpa.tts.model.dir", "/tmp/sherpa-onnx/vits-model"));
@@ -44,8 +72,13 @@ class SherpaOnnxTextToSpeechTest {
     }
 
     static boolean hasTtsModels() {
-        return SherpaLibrary.isAvailable()
-                && java.nio.file.Files.exists(Path.of(System.getProperty("sherpa.tts.model.dir",
-                        "/tmp/sherpa-onnx/vits-model")).resolve("model.onnx"));
+        if (!SherpaLibrary.isAvailable()) {return false;}
+        java.nio.file.Path modelDir = java.nio.file.Path.of(System.getProperty("sherpa.tts.model.dir",
+                                                                               "/tmp/sherpa-onnx/vits-model"));
+        try (var files = java.nio.file.Files.list(modelDir)) {
+            return files.anyMatch(p -> p.getFileName().toString().endsWith(".onnx"));
+        } catch (java.io.IOException e) {
+            return false;
+        }
     }
 }

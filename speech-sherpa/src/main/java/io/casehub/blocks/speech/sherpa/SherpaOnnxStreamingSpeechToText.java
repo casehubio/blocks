@@ -133,12 +133,13 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     }
 
     private final class SherpaRecognitionStream implements RecognitionStream {
-        private final MemorySegment stream;
-        private final Arena streamArena;
-        private volatile boolean closed;
+        private final    MemorySegment                            stream;
+        private final    Arena                                    streamArena;
+        private final    java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
+        private volatile boolean                                  closed;
 
         SherpaRecognitionStream() {
-            this.streamArena = Arena.ofConfined();
+            this.streamArena = Arena.ofShared();
             try {
                 this.stream = (MemorySegment) lib.createOnlineStream.invokeExact(recognizer);
             } catch (Throwable t) {
@@ -149,23 +150,31 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
 
         @Override
         public void acceptSamples(float[] samples, int sampleRate) {
-            if (closed) throw new IllegalStateException("Stream is closed");
+            if (closed) {throw new IllegalStateException("Stream is closed");}
+            lock.lock();
             try (Arena temp = Arena.ofConfined()) {
                 MemorySegment samplesSeg = temp.allocateFrom(ValueLayout.JAVA_FLOAT, samples);
                 lib.onlineStreamAcceptWaveform.invokeExact(stream, sampleRate, samplesSeg, samples.length);
+                decode();
+            } catch (SherpaException e) {
+                throw e;
             } catch (Throwable t) {
                 throw new SherpaException("Failed to accept waveform", t);
+            } finally {
+                lock.unlock();
             }
-            decode();
         }
 
         @Override
         public boolean isEndpointDetected() {
-            if (closed) return false;
+            if (closed) {return false;}
+            lock.lock();
             try {
                 return ((int) lib.isEndpoint.invokeExact(recognizer, stream)) != 0;
             } catch (Throwable t) {
                 throw new SherpaException("Failed to check endpoint", t);
+            } finally {
+                lock.unlock();
             }
         }
 
@@ -182,12 +191,15 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
 
         @Override
         public void close() {
-            if (closed) return;
+            if (closed) {return;}
             closed = true;
+            lock.lock();
             try {
                 lib.destroyOnlineStream.invokeExact(stream);
             } catch (Throwable t) {
                 // native cleanup
+            } finally {
+                lock.unlock();
             }
             streamArena.close();
         }
@@ -203,18 +215,22 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
         }
 
         private String readResult() {
-            if (closed) return "";
-            MemorySegment result;
+            if (closed) {return "";}
+            lock.lock();
             try {
-                result = (MemorySegment) lib.getOnlineStreamResult.invokeExact(recognizer, stream);
+                MemorySegment result = (MemorySegment) lib.getOnlineStreamResult.invokeExact(recognizer, stream);
+                try {
+                    MemorySegment textPtr = result.reinterpret(Long.MAX_VALUE).get(ValueLayout.ADDRESS, 0);
+                    return textPtr.reinterpret(Long.MAX_VALUE).getString(0);
+                } finally {
+                    try {lib.destroyOnlineRecognizerResult.invokeExact(result);} catch (Throwable t) { /* cleanup */ }
+                }
+            } catch (SherpaException e) {
+                throw e;
             } catch (Throwable t) {
                 throw new SherpaException("Failed to get online stream result", t);
-            }
-            try {
-                MemorySegment textPtr = result.reinterpret(Long.MAX_VALUE).get(ValueLayout.ADDRESS, 0);
-                return textPtr.reinterpret(Long.MAX_VALUE).getString(0);
             } finally {
-                try { lib.destroyOnlineRecognizerResult.invokeExact(result); } catch (Throwable t) { /* cleanup */ }
+                lock.unlock();
             }
         }
     }
