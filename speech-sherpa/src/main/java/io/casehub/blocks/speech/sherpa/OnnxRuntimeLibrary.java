@@ -19,6 +19,7 @@ final class OnnxRuntimeLibrary {
     private static volatile OnnxRuntimeLibrary INSTANCE;
 
     private final MemorySegment ortApi;
+    private final MemorySegment env;
     private final Linker linker = Linker.nativeLinker();
 
     // Vtable indices (from onnxruntime v1.21.0 c-api.h)
@@ -54,6 +55,12 @@ final class OnnxRuntimeLibrary {
 
     private OnnxRuntimeLibrary(MemorySegment ortApi) {
         this.ortApi = ortApi;
+        MemorySegment envOut = Arena.global().allocate(ADDRESS);
+        MemorySegment logId = Arena.global().allocateFrom("casehub");
+        checkStatus(callVtable(IDX_CREATE_ENV,
+                FunctionDescriptor.of(ADDRESS, JAVA_INT, ADDRESS, ADDRESS),
+                ORT_LOGGING_LEVEL_WARNING, logId, envOut));
+        this.env = envOut.get(ADDRESS, 0);
     }
 
     static OnnxRuntimeLibrary load() {
@@ -72,13 +79,6 @@ final class OnnxRuntimeLibrary {
 
     Session createSession(Path modelPath, int numThreads) {
         try (Arena setup = Arena.ofConfined()) {
-            MemorySegment envOut = setup.allocate(ADDRESS);
-            MemorySegment logId = setup.allocateFrom("casehub-vits");
-            checkStatus(callVtable(IDX_CREATE_ENV,
-                    FunctionDescriptor.of(ADDRESS, JAVA_INT, ADDRESS, ADDRESS),
-                    ORT_LOGGING_LEVEL_WARNING, logId, envOut));
-            MemorySegment env = envOut.get(ADDRESS, 0);
-
             MemorySegment optsOut = setup.allocate(ADDRESS);
             checkStatus(callVtable(IDX_CREATE_SESSION_OPTIONS,
                     FunctionDescriptor.of(ADDRESS, ADDRESS),
@@ -110,7 +110,7 @@ final class OnnxRuntimeLibrary {
 
             releaseQuietly(IDX_RELEASE_SESSION_OPTIONS, opts);
 
-            return new Session(this, env, session, memInfo, allocator);
+            return new Session(this, session, memInfo, allocator);
         }
     }
 
@@ -220,17 +220,15 @@ final class OnnxRuntimeLibrary {
 
     static final class Session implements AutoCloseable {
         private final OnnxRuntimeLibrary lib;
-        private final MemorySegment env;
         private final MemorySegment session;
         private final MemorySegment memInfo;
         private final MemorySegment allocator;
         private final int inputCount;
         private final int outputCount;
 
-        Session(OnnxRuntimeLibrary lib, MemorySegment env, MemorySegment session,
+        Session(OnnxRuntimeLibrary lib, MemorySegment session,
                 MemorySegment memInfo, MemorySegment allocator) {
             this.lib = lib;
-            this.env = env;
             this.session = session;
             this.memInfo = memInfo;
             this.allocator = allocator;
@@ -411,7 +409,6 @@ final class OnnxRuntimeLibrary {
         public void close() {
             lib.releaseQuietly(IDX_RELEASE_SESSION, session);
             lib.releaseQuietly(IDX_RELEASE_MEMORY_INFO, memInfo);
-            lib.releaseQuietly(IDX_RELEASE_ENV, env);
         }
     }
 

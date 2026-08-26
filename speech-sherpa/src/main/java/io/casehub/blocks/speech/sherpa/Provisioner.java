@@ -53,6 +53,11 @@ final class Provisioner {
         "vits-piper-en_US-lessac-medium", "en_US-lessac-medium.onnx"
     );
 
+    private static final Map<String, String> GECTOR_MODEL_EXPECTED_FILES = Map.of(
+        "gector-deberta-base-5k", "model.onnx",
+        "gector-deberta-large-5k", "model.onnx"
+    );
+
     private static final String ESPEAK_VERSION = "1.52.0";
 
     private static final Map<String, String> ESPEAK_EXPECTED_FILES = Map.of(
@@ -235,6 +240,36 @@ final class Provisioner {
         }
     }
 
+    static Path gectorModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("gector").resolve(modelName);
+    }
+
+    static String gectorModelUrl(String modelName) {
+        return baseUrl() + "gector-models/" + modelName + ".tar.bz2";
+    }
+
+    static Path ensureGectorModel(String modelName) {
+        String expectedFile = GECTOR_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown GECToR model: " + modelName
+                    + ". Known models: " + GECTOR_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = gectorModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            String url = gectorModelUrl(modelName);
+            return provision(url, targetDir, null, 1, expectedFile);
+        }
+    }
+
 
     private static Path provision(String url, Path targetDir, String expectedHash,
                                   int stripComponents, String expectedFile) {
@@ -349,6 +384,7 @@ final class Provisioner {
     }
 
     static void verifyChecksum(Path file, String expectedHex) {
+        if (expectedHex == null) return;
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (InputStream in = Files.newInputStream(file)) {
