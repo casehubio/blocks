@@ -45,7 +45,21 @@ final class Provisioner {
     );
 
     private static final Map<String, String> MODEL_CHECKSUMS = Map.of(
-        "sherpa-onnx-whisper-tiny", "c46116994e539aa165266d96b325252728429c12535eb9d8b6a2b10f129e66b1"
+        "sherpa-onnx-whisper-tiny", "c46116994e539aa165266d96b325252728429c12535eb9d8b6a2b10f129e66b1",
+        "vits-piper-en_US-lessac-medium", "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e"
+    );
+
+    private static final Map<String, String> TTS_MODEL_EXPECTED_FILES = Map.of(
+        "vits-piper-en_US-lessac-medium", "en_US-lessac-medium.onnx"
+    );
+
+    private static final String ESPEAK_VERSION = "1.52.0";
+
+    private static final Map<String, String> ESPEAK_EXPECTED_FILES = Map.of(
+        "osx-arm64", "libespeak-ng.dylib",
+        "osx-x64", "libespeak-ng.dylib",
+        "linux-x64", "libespeak-ng.so",
+        "linux-arm64", "libespeak-ng.so"
     );
 
     private static final Map<String, String> NATIVE_EXPECTED_FILES = Map.of(
@@ -148,6 +162,79 @@ final class Provisioner {
             return provision(url, targetDir, expectedHash, 1, expectedFile);
         }
     }
+
+    static Path espeakCacheDir() {
+        return cacheBaseDir().resolve("native").resolve("espeak-ng")
+                             .resolve(ESPEAK_VERSION).resolve(SherpaLibrary.platformId());
+    }
+
+    static String espeakLibName() {
+        String platformId = SherpaLibrary.platformId();
+        String name       = ESPEAK_EXPECTED_FILES.get(platformId);
+        if (name == null) {
+            throw new SherpaException("No espeak-ng library available for platform: " + platformId);
+        }
+        return name;
+    }
+
+    static Path ensureEspeak() {
+        Path targetDir   = espeakCacheDir();
+        Path expectedLib = targetDir.resolve(espeakLibName());
+        if (Files.exists(expectedLib)) {return targetDir;}
+
+        // espeak-ng can also be found on the system path (e.g. Homebrew)
+        Path systemLib = findSystemEspeak();
+        if (systemLib != null) {return systemLib.getParent();}
+
+        throw new SherpaException(
+                "espeak-ng library not found. Install via package manager (brew install espeak-ng) "
+                + "or place " + espeakLibName() + " in " + targetDir);
+    }
+
+    static Path findSystemEspeak() {
+        String libName = espeakLibName();
+        for (String dir : new String[]{"/opt/homebrew/lib", "/usr/local/lib", "/usr/lib"}) {
+            Path candidate = Path.of(dir).resolve(libName);
+            if (Files.exists(candidate)) {return candidate;}
+        }
+        return null;
+    }
+
+    static Path ttsModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static String ttsModelUrl(String modelName) {
+        return baseUrl() + "tts-models/" + modelName + ".tar.bz2";
+    }
+
+    static Path ensureTtsModel(String modelName) {
+        String expectedHash = MODEL_CHECKSUMS.get(modelName);
+        if (expectedHash == null) {
+            throw new SherpaException(
+                    "No checksum registered for TTS model: " + modelName
+                    + ". Known models: " + MODEL_CHECKSUMS.keySet());
+        }
+        Path   targetDir    = ttsModelDir(modelName);
+        String expectedFile = TTS_MODEL_EXPECTED_FILES.get(modelName);
+
+        if (Files.isDirectory(targetDir) && expectedFile != null && Files.exists(targetDir.resolve(expectedFile))) {
+            ModelPatcher.patch(targetDir);
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && expectedFile != null && Files.exists(targetDir.resolve(expectedFile))) {
+                ModelPatcher.patch(targetDir);
+                return targetDir;
+            }
+            String url    = ttsModelUrl(modelName);
+            Path   result = provision(url, targetDir, expectedHash, 1, expectedFile);
+            ModelPatcher.patch(result);
+            return result;
+        }
+    }
+
 
     private static Path provision(String url, Path targetDir, String expectedHash,
                                   int stripComponents, String expectedFile) {

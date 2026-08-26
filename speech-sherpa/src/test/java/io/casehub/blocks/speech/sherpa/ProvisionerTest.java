@@ -7,7 +7,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProvisionerTest {
 
@@ -180,5 +182,28 @@ class ProvisionerTest {
         assertThat(result).isNotNull();
         assertThat(Files.isDirectory(result)).isTrue();
         assertThat(Files.list(result).count()).isGreaterThan(0);
+    }
+
+// --- TTS model ---
+
+    @Test
+    void ttsModelUrl_constructsCorrectUrl() {
+        String url = Provisioner.ttsModelUrl("vits-piper-en_US-lessac-medium");
+        assertThat(url).contains("tts-models");
+        assertThat(url).endsWith("vits-piper-en_US-lessac-medium.tar.bz2");
+    }
+
+    @Test
+    void espeakLibName_returnsForCurrentPlatform() {
+        String name = Provisioner.espeakLibName();
+        assertThat(name).isNotEmpty();
+        assertThat(name).containsAnyOf("espeak-ng");
+    }
+
+    @Test
+    void espeakCacheDir_includesVersion() {
+        Path dir = Provisioner.espeakCacheDir();
+        assertThat(dir.toString()).contains("espeak-ng");
+        assertThat(dir.toString()).contains("1.52.0");
     }
 }

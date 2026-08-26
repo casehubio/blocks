@@ -170,7 +170,7 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/summarisation/observation/affordance/` | Tests for affordance rendering |
 | `src/test/java/io/casehub/blocks/summarisation/examples/clinical/` | Clinical temporal abstraction example (L1-L4 pipeline) |
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
-| `speech-sherpa/src/main/java/io/casehub/blocks/speech/sherpa/` | sherpa-onnx FFM/Panama implementation — `SherpaOnnxSpeechToText` (+ `withDefaults()` zero-install factory), `SherpaOnnxTextToSpeech`, `SherpaLibrary` (native binding via FFM SymbolLookup, 3-tier loading: system path → local cache → auto-download), `SherpaLayouts` (C struct layouts for sherpa-onnx 1.10.x), `Provisioner` (auto-download native lib + model with SHA-256 verification, `FileLock` concurrency, `tar xf` extraction), `WavReader`/`WavWriter` (PCM audio I/O), `SherpaConfig`, `SherpaException` |
+| `speech-sherpa/src/main/java/io/casehub/blocks/speech/sherpa/` | sherpa-onnx FFM/Panama implementation — `SherpaOnnxSpeechToText` (+ `withDefaults()` zero-install factory), `SherpaOnnxTextToSpeech`, `VitsTextToSpeech` (direct onnxruntime + espeak-ng for TTS with exact phoneme timing), `SherpaLibrary` (native binding via FFM SymbolLookup, 3-tier loading: system path → local cache → auto-download), `OnnxRuntimeLibrary` (onnxruntime C API FFM vtable bindings), `EspeakLibrary` (espeak-ng C API FFM bindings), `SherpaLayouts` (C struct layouts for sherpa-onnx 1.10.x), `Provisioner` (auto-download native lib + model with SHA-256 verification, `FileLock` concurrency, `tar xf` extraction), `ModelPatcher` (ONNX model duration output patching via protobuf), `VitsConfig` (Piper model config parsing + phoneme tokenization), `WavReader`/`WavWriter` (PCM audio I/O), `SherpaConfig`, `SherpaException` |
 | `speech-sherpa/src/test/java/io/casehub/blocks/speech/sherpa/` | Tests for sherpa-onnx implementation |
 
 ## Package: `io.casehub.blocks.attestation`
@@ -554,6 +554,11 @@ sherpa-onnx speech implementation via Java FFM/Panama (JDK 22+). Provides `Speec
 | `WavWriter` | WAV encoder — encodes float[] samples to 16-bit PCM WAV bytes. |
 | `MicrophoneCapture` | Audio capture utility — bridges `javax.sound.sampled.TargetDataLine` to `RecognitionStream.acceptSamples()`. Background platform daemon thread reads 100ms PCM chunks. Injectable `TargetDataLine` for testability, `openDefault()` factory for convenience. |
 | `SpeechCli` | CLI entry point — `transcribe` (offline Whisper), `synthesise` (VITS/Piper), `stream` (streaming Zipformer from WAV), `listen` (live microphone streaming STT). |
+| `VitsTextToSpeech` | `TextToSpeechService` implementation — direct onnxruntime + espeak-ng TTS with exact per-phoneme timing from VITS duration predictor. Bypasses sherpa-onnx TTS API. Composes `EspeakLibrary` (phonemization) + `VitsConfig` (tokenization with VITS blank interspersing) + `OnnxRuntimeLibrary` (inference). `AutoCloseable` — owns ORT session lifecycle. Graceful degradation for unpatched models. |
+| `OnnxRuntimeLibrary` | FFM bindings for onnxruntime C API via vtable pattern (`OrtGetApiBase`). Loads `libonnxruntime` independently (system path → sherpa-onnx cache). Singleton. `Session` inner class wraps ORT session with typed inference (`runFloat`, `runRaw`), tensor creation, output count/name queries. |
+| `EspeakLibrary` | FFM bindings for espeak-ng C API — `espeak_Initialize`, `espeak_SetVoiceByName`, `espeak_TextToPhonemes`, `espeak_Terminate`. All methods `synchronized` (espeak-ng uses global state). Singleton. |
+| `VitsConfig` | Piper VITS model config — parses `.onnx.json` via gson for `phoneme_id_map`, `espeak.voice`, `audio.sample_rate`, inference defaults. Greedy longest-match IPA tokenization with VITS blank token interspersing (2N+1 output). Reverse phoneme ID mapping for duration-to-phoneme conversion. |
+| `ModelPatcher` | Static utility — patches ONNX model to expose `/Ceil_output_0` (VITS duration predictor output) as a second model output. Uses protobuf-java `UnknownFieldSet` for schema-free ONNX manipulation. Idempotent. |
 | `SherpaException` | Unchecked exception for native binding failures. |
 
 ## Dependencies
@@ -570,8 +575,8 @@ quarkus.index-dependency.casehub-blocks.artifact-id=casehub-blocks
 Consumers that only use blocks' pure types (records, sealed interfaces, plain classes) need no configuration.
 
 **speech-sherpa module:**
-**Compile:** `casehub-blocks-speech-api`, `org.jspecify:jspecify`
-**Runtime:** sherpa-onnx native library (`sherpa-onnx-c-api`) — must be on `java.library.path`
+**Compile:** `casehub-blocks-speech-api`, `org.jspecify:jspecify`, `com.google.code.gson:gson`, `com.google.protobuf:protobuf-java`
+**Runtime:** sherpa-onnx native library (`sherpa-onnx-c-api`) — must be on `java.library.path`; `libonnxruntime` (bundled with sherpa-onnx); `libespeak-ng` (optional, for `VitsTextToSpeech` phoneme timing)
 **Compiler target:** Java 22 (stable FFM/Panama API)
 **Test:** JUnit 5, AssertJ
 

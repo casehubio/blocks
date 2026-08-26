@@ -1,0 +1,37 @@
+{
+  "audio": { "sample_rate": 22050, "quality": "medium" },
+  "espeak": { "voice": "en-us" },
+  "inference": { "noise_scale": 0.667, "length_scale": 1.0, "noise_w": 0.8 },
+  "phoneme_type": "espeak",
+  "phoneme_map": {},
+  "phoneme_id_map": {
+    "_": [0], "^": [1], "$": [2], " ": [3],
+    "!": [4], "'": [5], "(": [6], ")": [7], ",": [8], "-": [9],
+    ".": [10], ":": [11], ";": [12], "?": [13],
+    "a": [14], "b": [15], "d": [17], "e": [18],
+    "f": [19], "h": [20], "i": [21], "j": [22],
+    "k": [23], "l": [24], "m": [25], "n": [26],
+    "o": [27], "p": [28], "r": [29], "s": [30],
+    "t": [31], "u": [32], "v": [33], "w": [35],
+    "z": [36],
+    "ɑ": [50], "ɔ": [55], "ə": [59], "ɛ": [61],
+    "ɜ": [62], "ɪ": [65], "ʊ": [80], "ʌ": [82],
+    "ɹ": [88],
+    "oʊ": [40, 41], "aɪ": [42, 43], "eɪ": [44, 45],
+    "tʃ": [90, 91], "dʒ": [92, 93],
+    "ˈ": [120], "ˌ": [121], "ː": [122]
+  },
+  "num_symbols": 256,
+  "num_speakers": 1,
+  "speaker_id_map": {},
+  "piper_version": "1.0.0",
+  "language": {
+    "code": "en_US",
+    "family": "en",
+    "region": "US",
+    "name_native": "English",
+    "name_english": "English",
+    "country_english": "United States"
+  },
+  "dataset": "test"
+}
