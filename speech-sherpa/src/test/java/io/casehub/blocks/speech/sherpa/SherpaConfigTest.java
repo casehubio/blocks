@@ -50,4 +50,12 @@ class SherpaConfigTest {
         assertThat(config.provider()).isEqualTo("coreml");
         assertThat(config.numThreads()).isEqualTo(4);
     }
+
+    @Test
+    void defaultsNoArg_usesDefaultModelDir() {
+        SherpaConfig config = SherpaConfig.defaults();
+        assertThat(config.modelDir().toString()).endsWith("sherpa-onnx-whisper-tiny");
+        assertThat(config.numThreads()).isEqualTo(2);
+        assertThat(config.provider()).isEqualTo("cpu");
+    }
 }

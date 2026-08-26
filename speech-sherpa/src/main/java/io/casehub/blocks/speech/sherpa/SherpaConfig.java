@@ -23,6 +23,10 @@ public record SherpaConfig(Path modelDir, int numThreads, String provider,
         return new SherpaConfig(modelDir, 2, "cpu", null, null);
     }
 
+    public static SherpaConfig defaults() {
+        return new SherpaConfig(Provisioner.defaultModelDir(), 2, "cpu", null, null);
+    }
+
     public SherpaConfig withPunctuation(Path punctuationModelDir) {
         return new SherpaConfig(modelDir, numThreads, provider, punctuationModelDir, cleanupConfig);
     }

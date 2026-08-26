@@ -146,6 +146,19 @@ final class SherpaLibrary {
                 }
             }
 
+            // Tier 3: auto-download (opt-in via system property)
+            if (Provisioner.isAutoDownloadEnabled()) {
+                Path downloadedDir = Provisioner.ensureNativeLibrary();
+                Path onnxRuntime = downloadedDir.resolve(onnxRuntimeLibName());
+                Path sherpaLib   = downloadedDir.resolve(sherpaLibName());
+                if (java.nio.file.Files.exists(sherpaLib) && java.nio.file.Files.exists(onnxRuntime)) {
+                    SymbolLookup.libraryLookup(onnxRuntime, Arena.global());
+                    SymbolLookup lookup = SymbolLookup.libraryLookup(sherpaLib, Arena.global());
+                    INSTANCE = new SherpaLibrary(lookup);
+                    return INSTANCE;
+                }
+            }
+
             throw new UnsatisfiedLinkError(
                     "sherpa-onnx native library not found. Install it system-wide or place "
                     + sherpaLibName() + " + " + onnxRuntimeLibName()
@@ -182,19 +195,6 @@ final class SherpaLibrary {
         Path cacheDir = defaultCacheDir();
         if (java.nio.file.Files.isDirectory(cacheDir)) {return cacheDir;}
 
-        // Search versioned subdirectories (latest first)
-        Path parent = cacheDir.getParent();
-        if (parent != null && java.nio.file.Files.isDirectory(parent)) {
-            try (var dirs = java.nio.file.Files.list(parent)) {
-                return dirs.filter(java.nio.file.Files::isDirectory)
-                           .max(java.util.Comparator.comparing(p -> p.getFileName().toString()))
-                           .map(v -> v.resolve(platformId()))
-                           .filter(java.nio.file.Files::isDirectory)
-                           .orElse(null);
-            } catch (java.io.IOException e) {
-                return null;
-            }
-        }
         return null;
     }
 

@@ -16,6 +16,16 @@ public final class SherpaOnnxSpeechToText implements SpeechToTextService {
     private final SherpaConfig config;
     private final SherpaLibrary lib;
 
+    public static SherpaOnnxSpeechToText withDefaults() {
+        SherpaLibrary lib = SherpaLibrary.load();
+        SherpaConfig config = SherpaConfig.defaults();
+        if (Provisioner.isAutoDownloadEnabled()
+                && !java.nio.file.Files.isDirectory(config.modelDir())) {
+            Provisioner.ensureModel("sherpa-onnx-whisper-tiny");
+        }
+        return new SherpaOnnxSpeechToText(config, lib);
+    }
+
     public SherpaOnnxSpeechToText(SherpaConfig config) {
         this(config, SherpaLibrary.load());
     }
