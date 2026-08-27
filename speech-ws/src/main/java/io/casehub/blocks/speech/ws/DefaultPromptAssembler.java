@@ -17,15 +17,13 @@ public class DefaultPromptAssembler implements PromptAssembler {
     }
 
     @Override
-    public String assemble(String userMessage, List<ConversationTurn> history) {
+    public AssembledPrompt assemble(String userMessage, List<ConversationTurn> history) {
         var sb = new StringBuilder();
-        sb.append("System: ").append(systemPrompt).append("\n\n");
         for (ConversationTurn turn : history) {
             sb.append(turn.role().equals("user") ? "User" : "Assistant");
             sb.append(": ").append(turn.text()).append("\n");
         }
-        sb.append("User: ").append(userMessage).append("\n");
-        sb.append("Assistant:");
-        return sb.toString();
+        sb.append("User: ").append(userMessage);
+        return new AssembledPrompt(systemPrompt, sb.toString());
     }
 }

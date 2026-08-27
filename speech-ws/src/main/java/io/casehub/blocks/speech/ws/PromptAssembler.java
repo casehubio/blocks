@@ -6,5 +6,5 @@ import java.util.List;
 
 @FunctionalInterface
 public interface PromptAssembler {
-    String assemble(String userMessage, List<ConversationTurn> history);
+    AssembledPrompt assemble(String userMessage, List<ConversationTurn> history);
 }

@@ -11,10 +11,10 @@ class DefaultPromptAssemblerTest {
 
     @Test
     void assemblesWithSystemPromptAndNoHistory() {
-        var assembler = new DefaultPromptAssembler("You are a helpful assistant.");
-        String result = assembler.assemble("Hello", List.of());
-        assertThat(result).contains("You are a helpful assistant.");
-        assertThat(result).contains("Hello");
+        var             assembler = new DefaultPromptAssembler("You are a helpful assistant.");
+        AssembledPrompt result    = assembler.assemble("Hello", List.of());
+        assertThat(result.systemPrompt()).isEqualTo("You are a helpful assistant.");
+        assertThat(result.userPrompt()).contains("Hello");
     }
 
     @Test
@@ -23,18 +23,26 @@ class DefaultPromptAssemblerTest {
         var history = List.of(
                 new ConversationTurn("user", "Hi"),
                 new ConversationTurn("assistant", "Hello!"));
-        String result = assembler.assemble("How are you?", history);
-        assertThat(result).contains("Hi");
-        assertThat(result).contains("Hello!");
-        assertThat(result).contains("How are you?");
+        AssembledPrompt result = assembler.assemble("How are you?", history);
+        assertThat(result.userPrompt()).contains("Hi");
+        assertThat(result.userPrompt()).contains("Hello!");
+        assertThat(result.userPrompt()).contains("How are you?");
     }
 
     @Test
     void usesDefaultSystemPromptWhenNull() {
-        var assembler = new DefaultPromptAssembler(null);
-        String result = assembler.assemble("Test", List.of());
-        assertThat(result).isNotBlank();
-        assertThat(result).contains("Test");
+        var             assembler = new DefaultPromptAssembler(null);
+        AssembledPrompt result    = assembler.assemble("Test", List.of());
+        assertThat(result.systemPrompt()).isNotBlank();
+        assertThat(result.userPrompt()).contains("Test");
+    }
+
+    @Test
+    void separatesSystemPromptFromUserPrompt() {
+        var             assembler = new DefaultPromptAssembler("System instructions");
+        AssembledPrompt result    = assembler.assemble("User question", List.of());
+        assertThat(result.systemPrompt()).isEqualTo("System instructions");
+        assertThat(result.userPrompt()).doesNotContain("System instructions");
     }
 
     @Test
@@ -44,11 +52,12 @@ class DefaultPromptAssemblerTest {
                 new ConversationTurn("user", "first"),
                 new ConversationTurn("assistant", "second"),
                 new ConversationTurn("user", "third"));
-        String result = assembler.assemble("fourth", history);
-        int firstIdx = result.indexOf("first");
-        int secondIdx = result.indexOf("second");
-        int thirdIdx = result.indexOf("third");
-        int fourthIdx = result.indexOf("fourth");
+        AssembledPrompt result     = assembler.assemble("fourth", history);
+        String          userPrompt = result.userPrompt();
+        int             firstIdx   = userPrompt.indexOf("first");
+        int             secondIdx  = userPrompt.indexOf("second");
+        int             thirdIdx   = userPrompt.indexOf("third");
+        int             fourthIdx  = userPrompt.indexOf("fourth");
         assertThat(firstIdx).isLessThan(secondIdx);
         assertThat(secondIdx).isLessThan(thirdIdx);
         assertThat(thirdIdx).isLessThan(fourthIdx);

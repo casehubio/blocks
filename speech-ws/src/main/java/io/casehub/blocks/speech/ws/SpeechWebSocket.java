@@ -31,19 +31,44 @@ public class SpeechWebSocket {
     @Inject
     AvatarConfig avatarConfig;
 
+    @Inject
+    jakarta.enterprise.inject.Instance<io.casehub.platform.agent.AgentProvider> agentProvider;
+
+
+    @Inject
+    jakarta.enterprise.inject.Instance<TtsModelRegistry> ttsRegistry;
     private SpeechSession session;
 
     @OnOpen
     public void onOpen(WebSocketConnection connection) {
         var assembler = new DefaultPromptAssembler(
                 avatarConfig.systemPrompt().orElse(null));
+
+        java.util.function.Function<AssembledPrompt, String> generator = null;
+        if (agentProvider.isResolvable()) {
+            var agent = agentProvider.get();
+            generator = prompt -> {
+                var config = prompt.model() != null
+                             ? io.casehub.platform.agent.AgentSessionConfig.of(
+                        prompt.systemPrompt(), prompt.userPrompt(), prompt.model())
+                             : io.casehub.platform.agent.AgentSessionConfig.of(
+                        prompt.systemPrompt(), prompt.userPrompt());
+                return agent.invoke(config)
+                            .filter(e -> e instanceof io.casehub.platform.agent.AgentEvent.TextDelta)
+                            .map(e -> ((io.casehub.platform.agent.AgentEvent.TextDelta) e).text())
+                            .collect().asList()
+                            .map(parts -> String.join("", parts))
+                            .await().atMost(java.time.Duration.ofSeconds(60));
+            };
+        }
+
         session = new SpeechSession(
                 sttService, ttsService, cleanupConfig,
-                null,
+                generator,
                 assembler,
                 text -> connection.sendTextAndAwait(text),
-                data -> connection.sendBinaryAndAwait(data));
-    }
+                data -> connection.sendBinaryAndAwait(data),
+                ttsRegistry.isResolvable() ? ttsRegistry.get().models() : java.util.Map.of());}
 
     @OnTextMessage
     public void onText(String message) {
@@ -51,16 +76,17 @@ public class SpeechWebSocket {
         switch (msg) {
             case AvatarMessage.Start s -> session.handleStart(s);
             case AvatarMessage.Stop s -> session.handleStop();
-            default -> { }
+            case AvatarMessage.Text t -> session.handleText(t.text(), t.llmModel(), t.ttsModel());
+            default -> {}
         }
     }
 
     @OnBinaryMessage
     public void onBinary(ByteBuffer data) {
-        var floatBuf = data.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
-        float[] samples = new float[floatBuf.remaining()];
+        var     floatBuf = data.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+        float[] samples  = new float[floatBuf.remaining()];
         floatBuf.get(samples);
-        session.handleAudio(samples, avatarConfig.sampleRate());
+        session.handleAudio(samples);
     }
 
     @OnClose

@@ -5,6 +5,7 @@ import io.casehub.blocks.speech.SynthesisOptions;
 import io.casehub.blocks.speech.SynthesisResult;
 import io.casehub.blocks.speech.TextToSpeechService;
 
+import java.nio.file.Path;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
@@ -22,6 +23,24 @@ public final class VitsTextToSpeech implements TextToSpeechService, AutoCloseabl
     private final EspeakLibrary espeak;
     private final OnnxRuntimeLibrary.Session session;
     private final boolean phonemeTimingAvailable;
+
+
+    public static VitsTextToSpeech withDefaults() {
+        return withDefaults("vits-piper-en_US-lessac-medium");
+    }
+
+    public static VitsTextToSpeech withDefaults(String modelName) {
+        Provisioner.ensureNativeLibrary();
+        Path ttsModelDir = Provisioner.ensureTtsModel(modelName);
+        ModelPatcher.patch(ttsModelDir);
+        Path espeakDir = Provisioner.ensureEspeak();
+        var config = VitsConfig.fromModelDir(ttsModelDir);
+        var ort = OnnxRuntimeLibrary.load();
+        var espeak = EspeakLibrary.load(
+                espeakDir.resolve(Provisioner.espeakLibName()),
+                espeakDir.resolve("espeak-ng-data"));
+        return new VitsTextToSpeech(config, ort, espeak);
+    }
 
     public VitsTextToSpeech(VitsConfig config, OnnxRuntimeLibrary ort, EspeakLibrary espeak) {
         this.config = Objects.requireNonNull(config);

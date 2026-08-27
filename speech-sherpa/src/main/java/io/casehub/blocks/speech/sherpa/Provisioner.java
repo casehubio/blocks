@@ -46,11 +46,19 @@ final class Provisioner {
 
     private static final Map<String, String> MODEL_CHECKSUMS = Map.of(
         "sherpa-onnx-whisper-tiny", "c46116994e539aa165266d96b325252728429c12535eb9d8b6a2b10f129e66b1",
-        "vits-piper-en_US-lessac-medium", "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e"
+        "vits-piper-en_US-lessac-medium", "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e",
+        "vits-piper-en_US-lessac-high", "8619d204c7005866fe4f420181dfa79622af6a6222389f0b0818d2af31e0db0e",
+        "vits-piper-en_US-amy-medium", "9a5d1fc497f85e8022b785bff5f8105203b1e33099ee6265203efc70b0cb0264",
+        "vits-piper-en_US-ryan-high", "6a71edf4d308b9cb2eaeadc8d1f3c6bf96120ecb7fe52c29a2b6e139c59760ed",
+        "vits-piper-en_GB-jenny_dioco-medium", "a0888024569bafbefc05a4b48ddf8419d8dbbf3205f4af37cf7c6f1a87cc20c5"
     );
 
     private static final Map<String, String> TTS_MODEL_EXPECTED_FILES = Map.of(
-        "vits-piper-en_US-lessac-medium", "en_US-lessac-medium.onnx"
+        "vits-piper-en_US-lessac-medium", "en_US-lessac-medium.onnx",
+        "vits-piper-en_US-lessac-high", "en_US-lessac-high.onnx",
+        "vits-piper-en_US-amy-medium", "en_US-amy-medium.onnx",
+        "vits-piper-en_US-ryan-high", "en_US-ryan-high.onnx",
+        "vits-piper-en_GB-jenny_dioco-medium", "en_GB-jenny_dioco-medium.onnx"
     );
 
     private static final Map<String, String> GECTOR_MODEL_EXPECTED_FILES = Map.of(
