@@ -20,6 +20,15 @@ public final class GectorFilter implements TextFilter, AutoCloseable {
     private final SentencePieceTokenizer tokenizer;
     private final OnnxRuntimeLibrary.Session session;
 
+
+    public static GectorFilter withDefaults() throws IOException {
+        Provisioner.ensureNativeLibrary();
+        var modelDir = Provisioner.ensureGectorModel("gector-deberta-base-5k");
+        var config   = GectorConfig.fromModelDir(modelDir);
+        var ort      = OnnxRuntimeLibrary.load();
+        return new GectorFilter(config, ort);
+    }
+
     public GectorFilter(GectorConfig config, OnnxRuntimeLibrary lib) throws IOException {
         this.config = config;
         this.tokenizer = new SentencePieceTokenizer(config.spModelPath());

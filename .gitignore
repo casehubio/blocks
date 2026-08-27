@@ -11,3 +11,4 @@ proj
 .worktrees
 .worktrees/
 .claude/
+.playwright-mcp/

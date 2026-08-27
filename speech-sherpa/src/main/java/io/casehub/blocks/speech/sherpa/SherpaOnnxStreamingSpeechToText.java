@@ -20,6 +20,20 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     private final Arena recognizerArena;
     private final @org.jspecify.annotations.Nullable CleanupConfig cleanupConfig;
 
+
+    private static final String DEFAULT_STREAMING_MODEL = "sherpa-onnx-streaming-zipformer-en-2023-06-26";
+
+    public static SherpaOnnxStreamingSpeechToText withDefaults() {
+        Provisioner.ensureNativeLibrary();
+        Path modelDir = Provisioner.ensureStreamingSttModel(DEFAULT_STREAMING_MODEL);
+        return new SherpaOnnxStreamingSpeechToText(SherpaConfig.defaults(modelDir));
+    }
+
+    public static void ensureProvisioned() {
+        Provisioner.ensureNativeLibrary();
+        Provisioner.ensureStreamingSttModel(DEFAULT_STREAMING_MODEL);
+    }
+
     public SherpaOnnxStreamingSpeechToText(SherpaConfig config) {
         this(config, SherpaLibrary.load());
     }
@@ -185,8 +199,25 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
 
         @Override
         public TranscriptionResult finalResult() {
+            flushWithSilence();
             String text = applyCleanup(readResult());
             return new TranscriptionResult(text, text.isEmpty() ? "" : "en", 1.0);
+        }
+
+
+        private void flushWithSilence() {
+            if (closed) {return;}
+            lock.lock();
+            try (Arena temp = Arena.ofConfined()) {
+                float[]       silence    = new float[16000];
+                MemorySegment samplesSeg = temp.allocateFrom(ValueLayout.JAVA_FLOAT, silence);
+                lib.onlineStreamAcceptWaveform.invokeExact(stream, 16000, samplesSeg, silence.length);
+                decode();
+            } catch (Throwable t) {
+                // best-effort flush — don't fail the finalResult call
+            } finally {
+                lock.unlock();
+            }
         }
 
         @Override

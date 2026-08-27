@@ -59,7 +59,9 @@ public final class MessageCodec {
         String type = obj.get("type").getAsString();
         return switch (type) {
             case "start" -> new AvatarMessage.Start(
-                    obj.has("sampleRate") ? obj.get("sampleRate").getAsInt() : 16000);
+                    obj.has("sampleRate") ? obj.get("sampleRate").getAsInt() : 16000,
+                    obj.has("llmModel") ? obj.get("llmModel").getAsString() : null,
+                    obj.has("ttsModel") ? obj.get("ttsModel").getAsString() : null);
             case "stop" -> new AvatarMessage.Stop();
             case "text" -> new AvatarMessage.Text(
                     obj.get("text").getAsString(),

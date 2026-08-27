@@ -3,7 +3,10 @@ package io.casehub.blocks.speech.ws.protocol;
 import java.util.List;
 
 public sealed interface AvatarMessage {
-    record Start(int sampleRate) implements AvatarMessage {}
+    record Start(int sampleRate, @org.jspecify.annotations.Nullable String llmModel,
+                 @org.jspecify.annotations.Nullable String ttsModel) implements AvatarMessage {
+        public Start(int sampleRate) {this(sampleRate, null, null);}
+    }
     record Stop() implements AvatarMessage {}
     record Text(String text, @org.jspecify.annotations.Nullable String llmModel, @org.jspecify.annotations.Nullable String ttsModel) implements AvatarMessage { public Text(String text) { this(text, null, null); } }
     record Partial(String text) implements AvatarMessage {}

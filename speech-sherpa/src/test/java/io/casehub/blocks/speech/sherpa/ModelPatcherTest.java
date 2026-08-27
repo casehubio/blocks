@@ -75,36 +75,39 @@ class ModelPatcherTest {
     }
 
     static byte[] buildMinimalOnnxModel(int numOutputs) throws IOException {
-        // ValueInfoProto for "output" (field 1 = name)
-        UnknownFieldSet outputValueInfo = UnknownFieldSet.newBuilder()
-                .addField(1, UnknownFieldSet.Field.newBuilder()
-                        .addLengthDelimited(ByteString.copyFromUtf8("output")).build())
-                .build();
+            UnknownFieldSet outputValueInfo = UnknownFieldSet.newBuilder()
+                                                             .addField(1, UnknownFieldSet.Field.newBuilder()
+                                                                                               .addLengthDelimited(ByteString.copyFromUtf8("output")).build())
+                                                             .build();
 
-        // GraphProto with output(s) (field 12 = output)
-        UnknownFieldSet.Field.Builder outputFieldBuilder = UnknownFieldSet.Field.newBuilder()
-                .addLengthDelimited(outputValueInfo.toByteString());
+            UnknownFieldSet.Field.Builder outputFieldBuilder = UnknownFieldSet.Field.newBuilder()
+                                                                                    .addLengthDelimited(outputValueInfo.toByteString());
 
-        if (numOutputs >= 2) {
-            UnknownFieldSet ceilOutput = UnknownFieldSet.newBuilder()
-                    .addField(1, UnknownFieldSet.Field.newBuilder()
-                            .addLengthDelimited(ByteString.copyFromUtf8("/Ceil_output_0")).build())
-                    .build();
-            outputFieldBuilder.addLengthDelimited(ceilOutput.toByteString());
-        }
+            if (numOutputs >= 2) {
+                UnknownFieldSet ceilOutput = UnknownFieldSet.newBuilder()
+                                                            .addField(1, UnknownFieldSet.Field.newBuilder()
+                                                                                              .addLengthDelimited(ByteString.copyFromUtf8("/Ceil_output_0")).build())
+                                                            .build();
+                outputFieldBuilder.addLengthDelimited(ceilOutput.toByteString());
+            }
 
-        UnknownFieldSet graph = UnknownFieldSet.newBuilder()
-                .addField(1, UnknownFieldSet.Field.newBuilder()
-                        .addLengthDelimited(ByteString.copyFromUtf8("test_graph")).build())
-                .addField(12, outputFieldBuilder.build())
-                .build();
+            // NodeProto with output "/Ceil_output_0" (field 2 = output)
+            UnknownFieldSet ceilNode = UnknownFieldSet.newBuilder()
+                                                      .addField(2, UnknownFieldSet.Field.newBuilder()
+                                                                                        .addLengthDelimited(ByteString.copyFromUtf8("/Ceil_output_0")).build())
+                                                      .build();
 
-        // ModelProto (field 1 = ir_version, field 7 = graph)
-        UnknownFieldSet model = UnknownFieldSet.newBuilder()
-                .addField(1, UnknownFieldSet.Field.newBuilder().addVarint(7).build())
-                .addField(7, UnknownFieldSet.Field.newBuilder()
-                        .addLengthDelimited(graph.toByteString()).build())
-                .build();
+            UnknownFieldSet graph = UnknownFieldSet.newBuilder()
+                                                   .addField(1, UnknownFieldSet.Field.newBuilder()
+                                                                                     .addLengthDelimited(ceilNode.toByteString()).build())
+                                                   .addField(12, outputFieldBuilder.build())
+                                                   .build();
+
+            UnknownFieldSet model = UnknownFieldSet.newBuilder()
+                                                   .addField(1, UnknownFieldSet.Field.newBuilder().addVarint(7).build())
+                                                   .addField(7, UnknownFieldSet.Field.newBuilder()
+                                                                                     .addLengthDelimited(graph.toByteString()).build())
+                                                   .build();
 
         return model.toByteArray();
     }

@@ -21,13 +21,29 @@ public class SpeechProducers {
     @Produces
     @jakarta.inject.Singleton
     io.casehub.blocks.speech.ws.TtsModelRegistry ttsRegistry() {
-        return new io.casehub.blocks.speech.ws.TtsModelRegistry(java.util.Map.of(
-                "lessac-medium", VitsTextToSpeech.withDefaults(),
-                "lessac-high", VitsTextToSpeech.withDefaults("vits-piper-en_US-lessac-high"),
-                "amy", VitsTextToSpeech.withDefaults("vits-piper-en_US-amy-medium"),
-                "ryan", VitsTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"),
-                "jenny", VitsTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium")));
-    }
+        var models = new java.util.LinkedHashMap<String, io.casehub.blocks.speech.TextToSpeechService>();
+        models.put("lessac-medium", VitsTextToSpeech.withDefaults());
+        models.put("lessac-high", VitsTextToSpeech.withDefaults("vits-piper-en_US-lessac-high"));
+        models.put("amy", VitsTextToSpeech.withDefaults("vits-piper-en_US-amy-medium"));
+        models.put("ryan", VitsTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"));
+        models.put("jenny", VitsTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium"));
+        models.put("sherpa:lessac-medium", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults());
+        models.put("sherpa:lessac-high", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-lessac-high"));
+        models.put("sherpa:amy", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-amy-medium"));
+        models.put("sherpa:ryan", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"));
+        models.put("sherpa:jenny", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium"));
+        models.put("kokoro:af", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(0));
+        models.put("kokoro:af_bella", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(1));
+        models.put("kokoro:af_nicole", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(2));
+        models.put("kokoro:af_sarah", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(3));
+        models.put("kokoro:af_sky", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(4));
+        models.put("kokoro:am_adam", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(5));
+        models.put("kokoro:am_michael", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(6));
+        models.put("kokoro:bf_emma", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(7));
+        models.put("kokoro:bf_isabella", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(8));
+        models.put("kokoro:bm_george", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(9));
+        models.put("kokoro:bm_lewis", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(10));
+        return new io.casehub.blocks.speech.ws.TtsModelRegistry(java.util.Collections.unmodifiableMap(models));}
 
     @Produces
     @ApplicationScoped
@@ -125,12 +141,22 @@ public class SpeechProducers {
     @Produces
     @ApplicationScoped
     io.casehub.blocks.speech.StreamingSpeechToTextService stt() {
-        return options -> {throw new UnsupportedOperationException("STT not configured — use text input");};
+        return io.casehub.blocks.speech.sherpa.SherpaOnnxStreamingSpeechToText.withDefaults();
     }
 
     @Produces
     @jakarta.inject.Singleton
     CleanupConfig cleanupConfig() {
-        return CleanupConfig.of();
-    }
+        try {
+            var gector = io.casehub.blocks.speech.sherpa.GectorFilter.withDefaults();
+            return CleanupConfig.of(
+                    new io.casehub.blocks.speech.sherpa.FillerRemovalFilter(),
+                    new io.casehub.blocks.speech.sherpa.CasingFilter(),
+                    gector);
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "GECToR unavailable, using basic cleanup: " + e.getMessage());
+            return CleanupConfig.of(
+                    new io.casehub.blocks.speech.sherpa.FillerRemovalFilter(),
+                    new io.casehub.blocks.speech.sherpa.CasingFilter());
+        }}
 }

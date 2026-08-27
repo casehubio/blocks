@@ -65,6 +65,13 @@ final class Provisioner {
         "gector-deberta-base-5k", "model.onnx",
         "gector-deberta-large-5k", "model.onnx"
     );
+    private static final Map<String, String> KOKORO_MODEL_EXPECTED_FILES = Map.of(
+            "kokoro-en-v0_19", "model.onnx"
+                                                                                 );
+    private static final Map<String, String> STREAMING_STT_MODEL_EXPECTED_FILES = Map.of(
+            "sherpa-onnx-streaming-zipformer-en-2023-06-26", "tokens.txt"
+                                                                                        );
+
 
     private static final String ESPEAK_VERSION = "1.52.0";
 
@@ -274,6 +281,62 @@ final class Provisioner {
                 return targetDir;
             }
             String url = gectorModelUrl(modelName);
+            return provision(url, targetDir, null, 1, expectedFile);
+        }
+    }
+
+    static Path kokoroModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static String kokoroModelUrl(String modelName) {
+        return baseUrl() + "tts-models/" + modelName + ".tar.bz2";
+    }
+
+    static Path ensureKokoroModel(String modelName) {
+        String expectedFile = KOKORO_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown Kokoro model: " + modelName
+                    + ". Known models: " + KOKORO_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = kokoroModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            String url = kokoroModelUrl(modelName);
+            return provision(url, targetDir, null, 1, expectedFile);
+        }
+    }
+
+    static Path streamingSttModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static Path ensureStreamingSttModel(String modelName) {
+        String expectedFile = STREAMING_STT_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown streaming STT model: " + modelName
+                    + ". Known models: " + STREAMING_STT_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = streamingSttModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            String url = modelUrl(modelName);
             return provision(url, targetDir, null, 1, expectedFile);
         }
     }

@@ -17,7 +17,13 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class SpeechSessionTest {
 
@@ -103,6 +109,44 @@ class SpeechSessionTest {
             assertThat(json).contains("Hello world.");
         });
     }
+
+    @Test
+    void stopAppliesRealCleanupFiltersToSttOutput() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("UM HELLO WORLD UH THIS IS A TEST", "en", 0.9));
+
+        io.casehub.blocks.speech.TextFilter lowercaseFilter = new io.casehub.blocks.speech.TextFilter() {
+            public String apply(String t) {return t.toLowerCase();}
+
+            public String name()          {return "lowercase";}
+
+            public int destructiveness()  {return 0;}
+        };
+        io.casehub.blocks.speech.TextFilter fillerFilter = new io.casehub.blocks.speech.TextFilter() {
+            public String apply(String t) {return t.replaceAll("(?i)\\bum\\b|\\buh\\b", "").replaceAll("\\s+", " ").trim();}
+
+            public String name()          {return "filler";}
+
+            public int destructiveness()  {return 1;}
+        };
+        var realCleanup = io.casehub.blocks.speech.CleanupConfig.of(lowercaseFilter, fillerFilter);
+
+        session = new SpeechSession(
+                sttService, ttsService, realCleanup,
+                null,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        assertThat(sentTextMessages).anySatisfy(json -> {
+            assertThat(json).contains("\"type\":\"transcript\"");
+            assertThat(json).contains("hello world this is a test");
+        });
+    }
+
 
     @Test
     void stopWithResponseGeneratorProducesFullPipeline() {
@@ -322,5 +366,67 @@ class SpeechSessionTest {
                                                         assertThat(json).contains("\"type\":\"error\""));
         assertThat(sentBinaryMessages).isEmpty();
     }
+
+    @Test
+    void handleTextUsesNamedTtsModelFromRegistry() {
+        var altTts = mock(TextToSpeechService.class);
+        when(altTts.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{9, 8}, "wav", List.of()));
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                assembled -> "response",
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of("sherpa:lessac-medium", altTts));
+
+        session.handleText("Hello", null, "sherpa:lessac-medium");
+
+        verify(altTts, atLeastOnce()).synthesise(any(), any());
+        verify(ttsService, never()).synthesise(any(), any());
+        assertThat(sentBinaryMessages).isNotEmpty();
+    }
+
+    @Test
+    void handleTextFallsBackToDefaultTtsForUnknownModel() {
+        var altTts = mock(TextToSpeechService.class);
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1}, "wav", List.of()));
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                assembled -> "response",
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of("sherpa:lessac-medium", altTts));
+
+        session.handleText("Hello", null, "unknown-model");
+
+        verify(ttsService, atLeastOnce()).synthesise(any(), any());
+        verify(altTts, never()).synthesise(any(), any());
+    }
+
+    @Test
+    void handleTextFallsBackToDefaultTtsForNullModel() {
+        var altTts = mock(TextToSpeechService.class);
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1}, "wav", List.of()));
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                assembled -> "response",
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of("sherpa:lessac-medium", altTts));
+
+        session.handleText("Hello", null, null);
+
+        verify(ttsService, atLeastOnce()).synthesise(any(), any());
+        verify(altTts, never()).synthesise(any(), any());
+    }
+
 
 }

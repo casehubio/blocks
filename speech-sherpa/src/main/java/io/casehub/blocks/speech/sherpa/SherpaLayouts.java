@@ -65,6 +65,18 @@ final class SherpaLayouts {
     static final long TTS_NUM_THREADS    = 56;
     // debug at 60
     static final long TTS_PROVIDER       = 64;
+    // model.matcha at offset 72 (56 bytes, ends at 127)
+// model.kokoro at offset 128
+    static final long KOKORO_MODEL       = 128;
+    static final long KOKORO_VOICES      = 136;
+    static final long KOKORO_TOKENS      = 144;
+    static final long KOKORO_DATA_DIR    = 152;
+    static final long KOKORO_LENGTH_SCALE = 160;
+    // padding at 164 for 8-byte alignment
+    static final long KOKORO_DICT_DIR = 168;
+    static final long KOKORO_LEXICON = 176;
+    static final long KOKORO_LANG = 184;
+
 
     // === SherpaOnnxGeneratedAudio (small, stable — keep as MemoryLayout) ===
     static final java.lang.foreign.GroupLayout GENERATED_AUDIO = java.lang.foreign.MemoryLayout.structLayout(

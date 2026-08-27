@@ -13,7 +13,6 @@ import io.quarkus.websockets.next.WebSocket;
 import io.quarkus.websockets.next.WebSocketConnection;
 import jakarta.inject.Inject;
 
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 @WebSocket(path = "/ws/avatar")
@@ -82,8 +81,8 @@ public class SpeechWebSocket {
     }
 
     @OnBinaryMessage
-    public void onBinary(ByteBuffer data) {
-        var     floatBuf = data.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
+    public void onBinary(byte[] data) {
+        var     floatBuf = java.nio.ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer();
         float[] samples  = new float[floatBuf.remaining()];
         floatBuf.get(samples);
         session.handleAudio(samples);

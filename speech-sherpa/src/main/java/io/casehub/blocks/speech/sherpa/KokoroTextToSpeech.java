@@ -12,37 +12,31 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
-public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
+public final class KokoroTextToSpeech implements TextToSpeechService {
 
-    private final SherpaConfig config;
+    private final KokoroConfig config;
     private final SherpaLibrary lib;
 
-
-    public static SherpaOnnxTextToSpeech withDefaults() {
-        return withDefaults("vits-piper-en_US-lessac-medium");
+    public static KokoroTextToSpeech withDefaults() {
+        return withDefaults(0);
     }
 
-    public static SherpaOnnxTextToSpeech withDefaults(String modelName) {
+    public static KokoroTextToSpeech withDefaults(int voiceId) {
         Provisioner.ensureNativeLibrary();
-        Path ttsModelDir = Provisioner.ensureTtsModel(modelName);
-        ModelPatcher.ensureUnpatchedBackup(ttsModelDir);
-        return new SherpaOnnxTextToSpeech(SherpaConfig.defaults(ttsModelDir));
+        Path modelDir = Provisioner.ensureKokoroModel("kokoro-en-v0_19");
+        return new KokoroTextToSpeech(KokoroConfig.defaults(modelDir, voiceId));
     }
 
-    public static void ensureProvisioned(String modelName) {
+    public static void ensureProvisioned() {
         Provisioner.ensureNativeLibrary();
-        Provisioner.ensureTtsModel(modelName);
+        Provisioner.ensureKokoroModel("kokoro-en-v0_19");
     }
 
-    public SherpaOnnxTextToSpeech(SherpaConfig config) {
+    public KokoroTextToSpeech(KokoroConfig config) {
         this(config, SherpaLibrary.load());
     }
 
-    public SherpaOnnxTextToSpeech(SherpaConfig config, Path libraryPath) {
-        this(config, SherpaLibrary.load(libraryPath));
-    }
-
-    SherpaOnnxTextToSpeech(SherpaConfig config, SherpaLibrary lib) {
+    KokoroTextToSpeech(KokoroConfig config, SherpaLibrary lib) {
         this.config = Objects.requireNonNull(config);
         this.lib = lib;
     }
@@ -58,7 +52,7 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
             try {
                 tts = (MemorySegment) lib.createTts.invokeExact(configSeg);
             } catch (Throwable t) {
-                throw new SherpaException("Failed to create TTS engine", t);
+                throw new SherpaException("Failed to create Kokoro TTS engine", t);
             }
 
             if (tts.equals(MemorySegment.NULL)) {
@@ -75,8 +69,8 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
 
     private SynthesisResult doSynthesise(Arena arena, MemorySegment tts, String text, SynthesisOptions options) {
         MemorySegment textSeg = arena.allocateFrom(text);
-        int speakerId = 0;
-        float speed = 1.0f;
+        int speakerId = config.voiceId();
+        float speed = config.lengthScale();
 
         MemorySegment audioPtr;
         try {
@@ -99,10 +93,10 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
                     .reinterpret((long) sampleCount * ValueLayout.JAVA_FLOAT.byteSize())
                     .toArray(ValueLayout.JAVA_FLOAT);
 
-            String format = options.audioFormat() != null ? options.audioFormat() : "wav";
             byte[] audioData = WavWriter.encode(samples, sampleRate, 1);
             List<PhonemeTiming> phonemes = List.of();
 
+            String format = options.audioFormat() != null ? options.audioFormat() : "wav";
             return new SynthesisResult(audioData, format, phonemes);
         } finally {
             destroyQuietly(() -> lib.destroyGeneratedAudio.invokeExact(audioPtr));
@@ -114,56 +108,23 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
         seg.fill((byte) 0);
 
         Path modelDir = config.modelDir();
-        seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.VITS_MODEL_PATH,
-                arena.allocateFrom(findTtsModel(modelDir, true)));
-        seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.VITS_TOKENS,
-                arena.allocateFrom(modelDir.resolve("tokens.txt").toString()));
-        seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.VITS_DATA_DIR,
-                arena.allocateFrom(modelDir.resolve("espeak-ng-data").toString()));
-        seg.set(java.lang.foreign.ValueLayout.JAVA_FLOAT, SherpaLayouts.VITS_LENGTH_SCALE, 1.0f);
 
-        seg.set(java.lang.foreign.ValueLayout.JAVA_INT, SherpaLayouts.TTS_NUM_THREADS, config.numThreads());
-        seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.TTS_PROVIDER,
+        seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_MODEL,
+                arena.allocateFrom(modelDir.resolve("model.onnx").toString()));
+        seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_VOICES,
+                arena.allocateFrom(modelDir.resolve("voices.bin").toString()));
+        seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_TOKENS,
+                arena.allocateFrom(modelDir.resolve("tokens.txt").toString()));
+        seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_DATA_DIR,
+                arena.allocateFrom(modelDir.resolve("espeak-ng-data").toString()));
+        seg.set(ValueLayout.JAVA_FLOAT, SherpaLayouts.KOKORO_LENGTH_SCALE, config.lengthScale());
+
+        seg.set(ValueLayout.JAVA_INT, SherpaLayouts.TTS_NUM_THREADS, config.numThreads());
+        seg.set(ValueLayout.ADDRESS, SherpaLayouts.TTS_PROVIDER,
                 arena.allocateFrom(config.provider()));
 
-        return seg;}
-
-    static String findTtsModel(java.nio.file.Path modelDir) {
-        return findTtsModel(modelDir, false);
+        return seg;
     }
-
-    static String findTtsModel(java.nio.file.Path modelDir, boolean preferUnpatched) {
-        try (var files = java.nio.file.Files.list(modelDir)) {
-            var candidates = files
-                                     .filter(p -> p.getFileName().toString().endsWith(".onnx"))
-                                     .filter(p -> !p.getFileName().toString().endsWith(".onnx.json"))
-                                     .toList();
-            if (candidates.isEmpty()) {
-                throw new SherpaException("No TTS model (.onnx) found in " + modelDir);
-            }
-            if (preferUnpatched) {
-                var unpatched = candidates.stream()
-                                          .filter(p -> p.getFileName().toString().endsWith(".unpatched.onnx"))
-                                          .findFirst();
-                if (unpatched.isPresent()) {
-                    return unpatched.get().toString();
-                }
-            }
-            var sorted = candidates.stream()
-                                   .filter(p -> !p.getFileName().toString().endsWith(".unpatched.onnx"))
-                                   .sorted(java.util.Comparator.<java.nio.file.Path, Boolean>comparing(
-                                                       p -> !p.getFileName().toString().equals("model.onnx"))
-                                                               .thenComparing(java.nio.file.Path::getFileName))
-                                   .toList();
-            if (sorted.isEmpty()) {
-                return candidates.getFirst().toString();
-            }
-            return sorted.getFirst().toString();
-        } catch (java.io.IOException e) {
-            throw new SherpaException("Failed to scan model directory: " + modelDir, e);
-        }
-    }
-
 
     private static void destroyQuietly(DestroyAction action) {
         try {

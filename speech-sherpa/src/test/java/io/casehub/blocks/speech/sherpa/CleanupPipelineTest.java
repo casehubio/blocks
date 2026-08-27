@@ -4,16 +4,17 @@ import io.casehub.blocks.speech.CleanupConfig;
 import io.casehub.blocks.speech.TextFilter;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CleanupPipelineTest {
 
     @Test
-    void casingFilterLowercases() {
+    void casingFilterAppliesSentenceCase() {
         var filter = new CasingFilter();
-        assertThat(filter.apply("THE YELLOW LAMPS")).isEqualTo("the yellow lamps");
+        assertThat(filter.apply("THE YELLOW LAMPS")).isEqualTo("The yellow lamps");
+        assertThat(filter.apply("I'M HERE")).isEqualTo("I'm here");
+        assertThat(filter.apply("HELLO. WORLD")).isEqualTo("Hello. World");
+        assertThat(filter.apply("I THINK I'LL GO")).isEqualTo("I think I'll go");
         assertThat(filter.destructiveness()).isEqualTo(0);
     }
 

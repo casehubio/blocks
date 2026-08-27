@@ -18,6 +18,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class SpeechSession {
+    private static final System.Logger LOG = System.getLogger("speech-session");
+
 
     private final           StreamingSpeechToTextService               sttService;
     private final           TextToSpeechService                        ttsService;
@@ -33,6 +35,9 @@ public class SpeechSession {
     private           int               sampleRate = 16000;
     private volatile  boolean           polling;
     private @Nullable Thread            pollingThread;
+    private @Nullable String            activeLlmModel;
+    private @Nullable String            activeTtsModel;
+
 
     public SpeechSession(StreamingSpeechToTextService sttService,
                          TextToSpeechService ttsService,
@@ -68,10 +73,11 @@ public class SpeechSession {
         if (stream != null) {
             stream.close();
         }
-        this.sampleRate = msg.sampleRate();
-        stream          = sttService.startStream(null);
-        startPolling();
-    }
+        this.sampleRate     = msg.sampleRate();
+        this.activeLlmModel = msg.llmModel();
+        this.activeTtsModel = msg.ttsModel();
+        stream              = sttService.startStream(io.casehub.blocks.speech.TranscriptionOptions.defaults());
+        startPolling();}
 
     public void handleAudio(float[] samples) {
         if (stream != null) {
@@ -86,30 +92,37 @@ public class SpeechSession {
             return;
         }
         try {
+            LOG.log(System.Logger.Level.INFO, "[STT] finalResult() called");
             TranscriptionResult result = stream.finalResult();
             stream.close();
             stream = null;
 
+            LOG.log(System.Logger.Level.INFO, "[STT] raw: \"{0}\"", result.text());
             String cleanText = cleanupConfig.apply(result.text());
+            LOG.log(System.Logger.Level.INFO, "[STT] after cleanup ({0} filters): \"{1}\"",
+                    cleanupConfig.filters().size(), cleanText);
             send(new AvatarMessage.Transcript(cleanText));
             history.add(new ConversationTurn("user", cleanText));
 
-            String responseText = generateResponse(cleanText, null);
+            String responseText = generateResponse(cleanText, activeLlmModel);
             if (responseText != null) {
                 send(new AvatarMessage.Response(responseText));
                 history.add(new ConversationTurn("assistant", responseText));
 
-                SynthesisResult synthesis = ttsService.synthesise(responseText,
-                                                                  new SynthesisOptions(null, null, "wav", true));
-
-                var visemeFrames = VisemeMapping.convert(synthesis.phonemes());
-                send(new AvatarMessage.Phonemes(visemeFrames));
-                binarySink.accept(synthesis.audioData());
+                TextToSpeechService tts       = resolveTts(activeTtsModel);
+                String[]            sentences = responseText.split("(?<=[.!?])\\s+");
+                for (String sentence : sentences) {
+                    if (sentence.isBlank()) {continue;}
+                    SynthesisResult synthesis = tts.synthesise(sentence,
+                                                               new SynthesisOptions(null, null, "wav", true));
+                    var visemeFrames = VisemeMapping.convert(synthesis.phonemes());
+                    send(new AvatarMessage.Phonemes(visemeFrames));
+                    binarySink.accept(synthesis.audioData());
+                }
             }
         } catch (Exception e) {
             send(new AvatarMessage.Error(e.getMessage()));
-        }
-    }
+        }}
 
     public void handleText(String text) {
         handleText(text, null, null);

@@ -25,49 +25,95 @@ final class ModelPatcher {
     private ModelPatcher() {}
 
     static boolean patch(Path modelDir) {
-        Path modelFile = findOnnxModel(modelDir);
-        try {
-            byte[] bytes = Files.readAllBytes(modelFile);
-            UnknownFieldSet model = UnknownFieldSet.parseFrom(bytes);
+            Path modelFile = findOnnxModel(modelDir);
+            try {
+                byte[]          bytes = Files.readAllBytes(modelFile);
+                UnknownFieldSet model = UnknownFieldSet.parseFrom(bytes);
 
+                UnknownFieldSet.Field graphField = model.getField(MODEL_GRAPH_FIELD);
+                if (graphField == null || graphField.getLengthDelimitedList().isEmpty()) {
+                    throw new SherpaException("ONNX model has no graph: " + modelFile);
+                }
+
+                byte[]          graphBytes = graphField.getLengthDelimitedList().getFirst().toByteArray();
+                UnknownFieldSet graph      = UnknownFieldSet.parseFrom(graphBytes);
+
+                if (hasOutput(graph, DURATION_OUTPUT_NAME)) {
+                    LOG.log(System.Logger.Level.DEBUG, "Model already patched: {0}", modelFile);
+                    return false;
+                }
+
+                if (!hasNodeOutput(graph, DURATION_OUTPUT_NAME)) {
+                    LOG.log(System.Logger.Level.INFO,
+                            "Model does not contain node output {0} — skipping patch: {1}",
+                            DURATION_OUTPUT_NAME, modelFile);
+                    return false;
+                }
+
+                String fileName = modelFile.getFileName().toString();
+                Path   backup   = modelDir.resolve(fileName.replace(".onnx", ".unpatched.onnx"));
+                if (!Files.exists(backup)) {
+                    Files.copy(modelFile, backup);
+                }
+
+                UnknownFieldSet patchedGraph = addOutput(graph, DURATION_OUTPUT_NAME);
+                UnknownFieldSet patchedModel = replaceField(model, MODEL_GRAPH_FIELD,
+                                                            UnknownFieldSet.Field.newBuilder()
+                                                                                 .addLengthDelimited(patchedGraph.toByteString())
+                                                                                 .build());
+
+                Path tempFile = Files.createTempFile(modelDir, ".patching-", ".onnx");
+                try {
+                    Files.write(tempFile, patchedModel.toByteArray());
+                    Files.move(tempFile, modelFile, StandardCopyOption.ATOMIC_MOVE,
+                               StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception e) {
+                    Files.deleteIfExists(tempFile);
+                    throw e;
+                }
+
+                LOG.log(System.Logger.Level.INFO, "Patched model with duration output: {0}", modelFile);
+                return true;
+
+            } catch (SherpaException e) {
+                throw e;
+            } catch (IOException e) {
+                throw new SherpaException("Failed to patch model: " + modelFile, e);
+            }
+    }
+
+    static void ensureUnpatchedBackup(Path modelDir) {
+        Path   modelFile = findOnnxModel(modelDir);
+        String fileName  = modelFile.getFileName().toString();
+        Path   backup    = modelDir.resolve(fileName.replace(".onnx", ".unpatched.onnx"));
+        if (Files.exists(backup)) {
+            return;
+        }
+        try {
+            byte[]                bytes      = Files.readAllBytes(modelFile);
+            UnknownFieldSet       model      = UnknownFieldSet.parseFrom(bytes);
             UnknownFieldSet.Field graphField = model.getField(MODEL_GRAPH_FIELD);
             if (graphField == null || graphField.getLengthDelimitedList().isEmpty()) {
-                throw new SherpaException("ONNX model has no graph: " + modelFile);
+                return;
             }
-
-            byte[] graphBytes = graphField.getLengthDelimitedList().getFirst().toByteArray();
-            UnknownFieldSet graph = UnknownFieldSet.parseFrom(graphBytes);
-
-            if (hasOutput(graph, DURATION_OUTPUT_NAME)) {
-                LOG.log(System.Logger.Level.DEBUG, "Model already patched: {0}", modelFile);
-                return false;
+            byte[]          graphBytes = graphField.getLengthDelimitedList().getFirst().toByteArray();
+            UnknownFieldSet graph      = UnknownFieldSet.parseFrom(graphBytes);
+            if (!hasOutput(graph, DURATION_OUTPUT_NAME)) {
+                Files.copy(modelFile, backup);
+                return;
             }
-
-            UnknownFieldSet patchedGraph = addOutput(graph, DURATION_OUTPUT_NAME);
-            UnknownFieldSet patchedModel = replaceField(model, MODEL_GRAPH_FIELD,
-                    UnknownFieldSet.Field.newBuilder()
-                            .addLengthDelimited(patchedGraph.toByteString())
-                            .build());
-
-            Path tempFile = Files.createTempFile(modelDir, ".patching-", ".onnx");
-            try {
-                Files.write(tempFile, patchedModel.toByteArray());
-                Files.move(tempFile, modelFile, StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.REPLACE_EXISTING);
-            } catch (Exception e) {
-                Files.deleteIfExists(tempFile);
-                throw e;
-            }
-
-            LOG.log(System.Logger.Level.INFO, "Patched model with duration output: {0}", modelFile);
-            return true;
-
-        } catch (SherpaException e) {
-            throw e;
+            UnknownFieldSet unpatchedGraph = removeOutput(graph, DURATION_OUTPUT_NAME);
+            UnknownFieldSet unpatchedModel = replaceField(model, MODEL_GRAPH_FIELD,
+                                                          UnknownFieldSet.Field.newBuilder()
+                                                                               .addLengthDelimited(unpatchedGraph.toByteString())
+                                                                               .build());
+            Files.write(backup, unpatchedModel.toByteArray());
+            LOG.log(System.Logger.Level.INFO, "Created unpatched backup: {0}", backup);
         } catch (IOException e) {
-            throw new SherpaException("Failed to patch model: " + modelFile, e);
+            LOG.log(System.Logger.Level.WARNING, "Failed to create unpatched backup: " + e.getMessage());
         }
     }
+
 
     private static boolean hasOutput(UnknownFieldSet graph, String name) throws IOException {
         UnknownFieldSet.Field outputField = graph.getField(GRAPH_OUTPUT_FIELD);
@@ -87,6 +133,29 @@ final class ModelPatcher {
         return false;
     }
 
+    private static final int GRAPH_NODE_FIELD  = 1;
+    private static final int NODE_OUTPUT_FIELD = 2;
+
+    private static boolean hasNodeOutput(UnknownFieldSet graph, String outputName) throws IOException {
+        UnknownFieldSet.Field nodeField = graph.getField(GRAPH_NODE_FIELD);
+        if (nodeField == null) {
+            return false;
+        }
+        for (ByteString nodeBytes : nodeField.getLengthDelimitedList()) {
+            UnknownFieldSet       node    = UnknownFieldSet.parseFrom(nodeBytes);
+            UnknownFieldSet.Field outputs = node.getField(NODE_OUTPUT_FIELD);
+            if (outputs != null) {
+                for (ByteString name : outputs.getLengthDelimitedList()) {
+                    if (outputName.equals(name.toStringUtf8())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+
     private static UnknownFieldSet addOutput(UnknownFieldSet graph, String outputName) {
         UnknownFieldSet newOutput = buildValueInfoProto(outputName, ONNX_FLOAT);
         UnknownFieldSet.Field existingOutputField = graph.getField(GRAPH_OUTPUT_FIELD);
@@ -101,6 +170,27 @@ final class ModelPatcher {
 
         return replaceField(graph, GRAPH_OUTPUT_FIELD, outputFieldBuilder.build());
     }
+
+    private static UnknownFieldSet removeOutput(UnknownFieldSet graph, String outputName) throws IOException {
+        UnknownFieldSet.Field existingOutputField = graph.getField(GRAPH_OUTPUT_FIELD);
+        if (existingOutputField == null) {
+            return graph;
+        }
+        UnknownFieldSet.Field.Builder outputFieldBuilder = UnknownFieldSet.Field.newBuilder();
+        for (ByteString outputBytes : existingOutputField.getLengthDelimitedList()) {
+            UnknownFieldSet       output    = UnknownFieldSet.parseFrom(outputBytes);
+            UnknownFieldSet.Field nameField = output.getField(VALUE_INFO_NAME_FIELD);
+            if (nameField != null && !nameField.getLengthDelimitedList().isEmpty()) {
+                String name = nameField.getLengthDelimitedList().getFirst().toStringUtf8();
+                if (outputName.equals(name)) {
+                    continue;
+                }
+            }
+            outputFieldBuilder.addLengthDelimited(outputBytes);
+        }
+        return replaceField(graph, GRAPH_OUTPUT_FIELD, outputFieldBuilder.build());
+    }
+
 
     private static UnknownFieldSet buildValueInfoProto(String name, int elemType) {
         UnknownFieldSet tensorType = UnknownFieldSet.newBuilder()
