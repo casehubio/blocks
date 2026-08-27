@@ -172,6 +172,9 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
 | `speech-sherpa/src/main/java/io/casehub/blocks/speech/sherpa/` | sherpa-onnx FFM/Panama implementation — `SherpaOnnxSpeechToText` (+ `withDefaults()` zero-install factory), `SherpaOnnxTextToSpeech`, `VitsTextToSpeech` (direct onnxruntime + espeak-ng for TTS with exact phoneme timing), `SherpaLibrary` (native binding via FFM SymbolLookup, 3-tier loading: system path → local cache → auto-download), `OnnxRuntimeLibrary` (onnxruntime C API FFM vtable bindings, singleton env shared across sessions), `EspeakLibrary` (espeak-ng C API FFM bindings), `SherpaLayouts` (C struct layouts for sherpa-onnx 1.10.x), `Provisioner` (auto-download native lib + model with SHA-256 verification, `FileLock` concurrency, `tar xf` extraction; `ensureGectorModel()` for GECToR ONNX bundles), `ModelPatcher` (ONNX model duration output patching via protobuf), `VitsConfig` (Piper model config parsing + phoneme tokenization), `SentencePieceTokenizer` (pure Java Viterbi unigram segmentation — reads .model protobuf via CodedInputStream, trie-based vocab lookup), `GectorFilter` (`TextFilter` impl, destructiveness 3 — composes WordTokenizer + SentencePieceTokenizer + ORT + GectorTagApplier for iterative grammar correction), `GectorConfig` (tag vocabulary + verb dictionary + model path resolution from model directory), `GectorTagApplier` (stateless tag application — $KEEP/$DELETE/$APPEND/$REPLACE/morphological transforms), `WordTokenizer` (spaCy-compatible word pre-tokenization with contraction splitting), `WavReader`/`WavWriter` (PCM audio I/O), `SherpaConfig`, `SherpaException` |
 | `speech-sherpa/src/test/java/io/casehub/blocks/speech/sherpa/` | Tests for sherpa-onnx implementation |
+| `speech-ws/src/main/java/io/casehub/blocks/speech/ws/` | Avatar WebSocket endpoint — `SpeechWebSocket` (Quarkus WebSocket at `/ws/avatar`), `SpeechSession` (per-connection business logic), `VisemeMapping` (IPA→Oculus viseme), `PromptAssembler` SPI with `DefaultPromptAssembler`, `AvatarConfig` |
+| `speech-ws/src/main/java/io/casehub/blocks/speech/ws/protocol/` | WebSocket protocol DTOs — `AvatarMessage` sealed hierarchy (Start, Stop, Partial, Transcript, Response, Phonemes, Error), `VisemeFrame`, `ConversationTurn`, `MessageCodec` (gson JSON encode/decode) |
+| `speech-ws/src/test/java/io/casehub/blocks/speech/ws/` | Tests for avatar WebSocket (68 tests) |
 
 ## Package: `io.casehub.blocks.attestation`
 
@@ -584,6 +587,12 @@ Consumers that only use blocks' pure types (records, sealed interfaces, plain cl
 **Runtime:** sherpa-onnx native library (`sherpa-onnx-c-api`) — must be on `java.library.path`; `libonnxruntime` (bundled with sherpa-onnx); `libespeak-ng` (optional, for `VitsTextToSpeech` phoneme timing)
 **Compiler target:** Java 22 (stable FFM/Panama API)
 **Test:** JUnit 5, AssertJ
+
+**speech-ws module:**
+**Compile:** `casehub-blocks-speech-api`, `com.google.code.gson:gson`, `org.jspecify:jspecify`
+**Provided:** `casehub-platform-agent-api`, `quarkus-websockets-next`
+**Compiler target:** Java 17
+**Test:** JUnit 5, AssertJ, Mockito
 
 ## Consumers
 

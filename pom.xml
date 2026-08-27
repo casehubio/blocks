@@ -21,6 +21,7 @@
     <module>blocks</module>
     <module>engine-adapter</module>
     <module>speech-api</module>
+    <module>speech-ws</module>
     <module>annotations</module>
   </modules>
 
