@@ -131,6 +131,8 @@ public final class GectorFilter implements TextFilter, AutoCloseable {
             }
 
             for (var output : outputs) session.releaseValue(output);
+            session.releaseValue(inputTensor);
+            session.releaseValue(maskTensor);
 
             return aggregateSubwordTags(subwordTags, wordBoundaries, words.size());
         }
