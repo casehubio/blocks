@@ -113,6 +113,7 @@ let micStream = null;
 let micProcessor = null;
 let micSource = null;
 let recording = false;
+let visemeMeshes = null;
 
 function addMessage(text, cls) {
   const div = document.createElement('div');
@@ -136,7 +137,6 @@ function connect() {
   };
 
   ws.onmessage = (evt) => {
-    addMessage('DEBUG msg: type=' + typeof evt.data + ' constructor=' + evt.data.constructor.name + ' len=' + (evt.data.length || evt.data.size || '?'), 'system');
     if (typeof evt.data === 'string') {
       const msg = JSON.parse(evt.data);
       switch (msg.type) {
@@ -165,7 +165,6 @@ function connect() {
           break;
       }
     } else {
-      addMessage('DEBUG: binary frame received, size=' + evt.data.size, 'system');
       playAudio(evt.data);
     }
   };
@@ -194,6 +193,97 @@ function sendText() {
   status.textContent = 'Processing...';
 }
 
+function discoverVisemeMeshes() {
+  if (visemeMeshes) return visemeMeshes;
+  var scene = head.scene || head._scene;
+  if (!scene) return null;
+  var meshes = [];
+  scene.traverse(function(o) {
+    if (o.morphTargetDictionary) {
+      var dict = {};
+      for (var k in o.morphTargetDictionary) {
+        if (k.startsWith('viseme_')) dict[k] = o.morphTargetDictionary[k];
+      }
+      if (Object.keys(dict).length > 0) meshes.push({ mesh: o, dict: dict });
+    }
+  });
+  if (meshes.length > 0) visemeMeshes = meshes;
+  return visemeMeshes;
+}
+
+var visemeQueue = [];
+var visemePlaying = false;
+var ATTACK = 0.35;
+var DECAY = 0.12;
+
+function driveVisemes(audioBuf, timeline) {
+  visemeQueue.push({ audio: audioBuf, timeline: timeline });
+  if (!visemePlaying) playNextViseme();
+}
+
+function playNextViseme() {
+  if (visemeQueue.length === 0) {
+    visemePlaying = false;
+    status.textContent = 'Ready';
+    return;
+  }
+  visemePlaying = true;
+  var item = visemeQueue.shift();
+  var meshes = discoverVisemeMeshes();
+  if (!meshes) { addMessage('No viseme meshes found', 'system'); playNextViseme(); return; }
+
+  if (!audioCtx) audioCtx = new AudioContext();
+  var source = audioCtx.createBufferSource();
+  source.buffer = item.audio;
+  var rate = parseFloat(document.getElementById('speed').value);
+  source.playbackRate.value = rate;
+  source.connect(audioCtx.destination);
+  var startTime = audioCtx.currentTime;
+  source.start();
+  status.textContent = 'Speaking... (' + visemeQueue.length + ' queued)';
+
+  var timeline = item.timeline;
+  var animating = true;
+
+  function animate() {
+    if (!animating) return;
+    var elapsed = (audioCtx.currentTime - startTime) * 1000 * rate;
+
+    if (elapsed > item.audio.duration * 1000 + 300) {
+      meshes.forEach(function(m) {
+        for (var k in m.dict) m.mesh.morphTargetInfluences[m.dict[k]] = 0;
+      });
+      playNextViseme();
+      return;
+    }
+
+    var activeViseme = 'sil';
+    var activeWeight = 0;
+    for (var i = timeline.length - 1; i >= 0; i--) {
+      if (elapsed >= timeline[i].startMs && elapsed < timeline[i].endMs) {
+        activeViseme = timeline[i].viseme;
+        activeWeight = timeline[i].weight != null ? timeline[i].weight : 1.0;
+        break;
+      }
+    }
+
+    meshes.forEach(function(m) {
+      for (var k in m.dict) {
+        var idx = m.dict[k];
+        var target = (k === 'viseme_' + activeViseme) ? activeWeight : 0;
+        var current = m.mesh.morphTargetInfluences[idx] || 0;
+        var lerp = target > current ? ATTACK : DECAY;
+        m.mesh.morphTargetInfluences[idx] = current + (target - current) * lerp;
+      }
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  source.onended = function() { setTimeout(function() { animating = false; }, 300); };
+  requestAnimationFrame(animate);
+}
+
 var audioQueue = [];
 var audioPlaying = false;
 
@@ -203,25 +293,12 @@ async function playAudio(blob) {
     const arrayBuf = await blob.arrayBuffer();
     const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
 
-    addMessage('DEBUG playAudio: head=' + (head ? 'yes' : 'no') + ' visemes=' + (pendingVisemes ? pendingVisemes.length : 'null'), 'system');
     if (head && pendingVisemes) {
-      var visemes = pendingVisemes.map(function(v) { return v.viseme; });
-      var vtimes = pendingVisemes.map(function(v) { return v.startMs; });
-      var vdurations = pendingVisemes.map(function(v) { return v.endMs - v.startMs; });
+      var timeline = pendingVisemes;
       pendingVisemes = null;
-      var speakData = { audio: audioBuf, visemes: visemes, vtimes: vtimes, vdurations: vdurations };
-      setTimeout(function() {
-        try {
-          head.speakAudio(speakData);
-          addMessage('Lip-sync: ' + visemes.length + ' visemes, ' + audioBuf.duration.toFixed(1) + 's audio, speaking=' + head.isSpeaking, 'system');
-        } catch (e) {
-          addMessage('speakAudio error: ' + e.message, 'system');
-        }
-      }, 0);
-      status.textContent = 'Speaking...';
+      addMessage('Lip-sync: ' + timeline.length + ' visemes, ' + audioBuf.duration.toFixed(1) + 's audio', 'system');
+      driveVisemes(audioBuf, timeline);
       return;
-    } else if (head) {
-      addMessage('No visemes for audio chunk (head=' + !!head + ')', 'system');
     }
 
     audioQueue.push(audioBuf);
