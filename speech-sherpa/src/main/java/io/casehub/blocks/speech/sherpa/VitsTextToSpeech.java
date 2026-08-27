@@ -5,10 +5,10 @@ import io.casehub.blocks.speech.SynthesisOptions;
 import io.casehub.blocks.speech.SynthesisResult;
 import io.casehub.blocks.speech.TextToSpeechService;
 
-import java.nio.file.Path;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -41,6 +41,13 @@ public final class VitsTextToSpeech implements TextToSpeechService, AutoCloseabl
                 espeakDir.resolve("espeak-ng-data"));
         return new VitsTextToSpeech(config, ort, espeak);
     }
+
+    public static void ensureProvisioned(String modelName) {
+        Provisioner.ensureNativeLibrary();
+        Provisioner.ensureTtsModel(modelName);
+        Provisioner.ensureEspeak();
+    }
+
 
     public VitsTextToSpeech(VitsConfig config, OnnxRuntimeLibrary ort, EspeakLibrary espeak) {
         this.config = Objects.requireNonNull(config);
