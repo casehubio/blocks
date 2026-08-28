@@ -212,35 +212,39 @@ function discoverVisemeMeshes() {
   return visemeMeshes;
 }
 
-var visemeQueue = [];
-var visemePlaying = false;
+var playQueue = [];
+var isPlaying = false;
 var ATTACK = 0.35;
 var DECAY = 0.12;
 
-function driveVisemes(audioBuf, timeline) {
-  visemeQueue.push({ audio: audioBuf, timeline: timeline });
-  if (!visemePlaying) playNextViseme();
+async function playAudio(blob) {
+  // Capture visemes SYNCHRONOUSLY — before any yield point.
+  // This prevents interleaving from overwriting pendingVisemes
+  // while we're decoding the audio blob.
+  var myVisemes = null;
+  if (head && pendingVisemes && pendingVisemes.length > 0) {
+    myVisemes = pendingVisemes;
+    pendingVisemes = null;
+  }
+
+  try {
+    if (!audioCtx) audioCtx = new AudioContext();
+    const arrayBuf = await blob.arrayBuffer();
+    const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
+
+    playQueue.push({ audio: audioBuf, visemes: myVisemes });
+    if (!isPlaying) playNextQueued();
+  } catch (e) {
+    addMessage('Audio playback error: ' + e.message, 'system');
+    status.textContent = 'Ready';
+  }
 }
 
-function playNextViseme() {
-  if (visemeQueue.length === 0) {
-    visemePlaying = false;
-    status.textContent = 'Ready';
-    return;
-  }
-  visemePlaying = true;
-  var item = visemeQueue.shift();
-  var meshes = discoverVisemeMeshes();
-  if (!meshes) {
-    if (!audioCtx) audioCtx = new AudioContext();
-    var fallbackSrc = audioCtx.createBufferSource();
-    fallbackSrc.buffer = item.audio;
-    fallbackSrc.playbackRate.value = parseFloat(document.getElementById('speed').value);
-    fallbackSrc.connect(audioCtx.destination);
-    fallbackSrc.start();
-    fallbackSrc.onended = playNextViseme;
-    return;
-  }
+function playNextQueued() {
+  if (playQueue.length === 0) { isPlaying = false; status.textContent = 'Ready'; return; }
+  isPlaying = true;
+  var item = playQueue.shift();
+  var meshes = (item.visemes && item.visemes.length > 0) ? discoverVisemeMeshes() : null;
 
   if (!audioCtx) audioCtx = new AudioContext();
   var source = audioCtx.createBufferSource();
@@ -248,24 +252,21 @@ function playNextViseme() {
   var rate = parseFloat(document.getElementById('speed').value);
   source.playbackRate.value = rate;
   source.connect(audioCtx.destination);
-  var startTime = audioCtx.currentTime;
   source.start();
-  status.textContent = 'Speaking... (' + visemeQueue.length + ' queued)';
+  status.textContent = 'Speaking... (' + playQueue.length + ' queued)';
 
-  var timeline = item.timeline;
+  if (!meshes) {
+    source.onended = playNextQueued;
+    return;
+  }
+
+  var timeline = item.visemes;
+  var startTime = audioCtx.currentTime;
   var animating = true;
 
   function animate() {
     if (!animating) return;
     var elapsed = (audioCtx.currentTime - startTime) * 1000 * rate;
-
-    if (elapsed > item.audio.duration * 1000 + 300) {
-      meshes.forEach(function(m) {
-        for (var k in m.dict) m.mesh.morphTargetInfluences[m.dict[k]] = 0;
-      });
-      playNextViseme();
-      return;
-    }
 
     var activeViseme = 'sil';
     var activeWeight = 0;
@@ -296,49 +297,10 @@ function playNextViseme() {
       meshes.forEach(function(m) {
         for (var k in m.dict) m.mesh.morphTargetInfluences[m.dict[k]] = 0;
       });
-      playNextViseme();
+      playNextQueued();
     }, 300);
   };
   requestAnimationFrame(animate);
-}
-
-var audioQueue = [];
-var audioPlaying = false;
-
-async function playAudio(blob) {
-  try {
-    if (!audioCtx) audioCtx = new AudioContext();
-    const arrayBuf = await blob.arrayBuffer();
-    const audioBuf = await audioCtx.decodeAudioData(arrayBuf);
-
-    if (head && pendingVisemes) {
-      var timeline = pendingVisemes;
-      pendingVisemes = null;
-      addMessage('Lip-sync: ' + timeline.length + ' visemes, ' + audioBuf.duration.toFixed(1) + 's audio', 'system');
-      driveVisemes(audioBuf, timeline);
-      return;
-    }
-
-    audioQueue.push(audioBuf);
-    if (!audioPlaying) playNext();
-  } catch (e) {
-    addMessage('Audio playback error: ' + e.message, 'system');
-    status.textContent = 'Ready';
-  }
-}
-
-function playNext() {
-  if (audioQueue.length === 0) { audioPlaying = false; status.textContent = 'Ready'; return; }
-  audioPlaying = true;
-  var audioBuf = audioQueue.shift();
-  var source = audioCtx.createBufferSource();
-  source.buffer = audioBuf;
-  var rate = parseFloat(document.getElementById('speed').value);
-  source.playbackRate.value = rate;
-  source.connect(audioCtx.destination);
-  source.start();
-  status.textContent = 'Playing (' + audioQueue.length + ' queued)';
-  source.onended = playNext;
 }
 
 function showTiming(t) {
