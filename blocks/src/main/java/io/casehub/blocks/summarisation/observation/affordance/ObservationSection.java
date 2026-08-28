@@ -4,7 +4,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-public sealed interface ObservationSection {
+public sealed interface ObservationSection permits ObservationSection.EntityGroup, ObservationSection.TextBlock, ObservationSection.ItemList, AnnotatedSection {
 
     String header();
 

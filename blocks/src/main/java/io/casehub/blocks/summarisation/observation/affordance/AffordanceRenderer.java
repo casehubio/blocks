@@ -84,6 +84,7 @@ public class AffordanceRenderer {
                 }
                 yield items.toString();
             }
+            case AnnotatedSection a -> renderSection(a.section());
         };
     }
 
