@@ -32,7 +32,7 @@ class SpeechToTextServiceTest {
     void transcriptionOptionsDefaultsReturnsTinyWav() {
         final var opts = TranscriptionOptions.defaults();
         assertThat(opts.audioFormat()).isEqualTo("wav");
-        assertThat(opts.modelSize()).isEqualTo("tiny");
+        assertThat(opts.modelSize()).isEqualTo("base.en");
         assertThat(opts.languageHint()).isNull();
     }
 

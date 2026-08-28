@@ -260,8 +260,11 @@ final class Provisioner {
     }
 
     static String gectorModelUrl(String modelName) {
-        return baseUrl() + "gector-models/" + modelName + ".tar.bz2";
-    }
+        String override = System.getProperty("casehub.speech.gector-url");
+        if (override != null) {
+            return override + modelName + ".tar.bz2";
+        }
+        return "https://github.com/casehubio/speech-models/releases/download/gector-v1/" + modelName + ".tar.bz2";}
 
     static Path ensureGectorModel(String modelName) {
         String expectedFile = GECTOR_MODEL_EXPECTED_FILES.get(modelName);
@@ -284,6 +287,115 @@ final class Provisioner {
             return provision(url, targetDir, null, 1, expectedFile);
         }
     }
+
+    private static final String PUNCT_MODEL_NAME = "sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12";
+
+    static Path punctModelDir() {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(PUNCT_MODEL_NAME);
+    }
+
+    static Path ensurePunctuationModel() {
+        Path   targetDir    = punctModelDir();
+        String expectedFile = "model.onnx";
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            String url = baseUrl() + "punctuation-models/" + PUNCT_MODEL_NAME + ".tar.bz2";
+            return provision(url, targetDir, null, 1, expectedFile);
+        }
+    }
+
+    private static final String WHISPER_VERSION = "1.7.3";
+
+    private static final Map<String, String> WHISPER_NATIVE_ASSETS = Map.of(
+            "osx-arm64", "whisper-v" + WHISPER_VERSION + "-bin-macos-arm64.tar.gz",
+            "osx-x64", "whisper-v" + WHISPER_VERSION + "-bin-macos-x64.tar.gz",
+            "linux-x64", "whisper-v" + WHISPER_VERSION + "-bin-ubuntu-x64.tar.gz",
+            "linux-arm64", "whisper-v" + WHISPER_VERSION + "-bin-ubuntu-arm64.tar.gz"
+                                                                           );
+
+    private static final Map<String, String> WHISPER_NATIVE_EXPECTED_FILES = Map.of(
+            "osx-arm64", "libwhisper.dylib",
+            "osx-x64", "libwhisper.dylib",
+            "linux-x64", "libwhisper.so",
+            "linux-arm64", "libwhisper.so"
+                                                                                   );
+
+    private static final Map<String, String> WHISPER_MODEL_EXPECTED_FILES = Map.of(
+            "ggml-base.en", "ggml-base.en.bin",
+            "ggml-small.en", "ggml-small.en.bin",
+            "ggml-tiny.en", "ggml-tiny.en.bin"
+                                                                                  );
+
+    static String whisperVersion() {return WHISPER_VERSION;}
+
+    static Path whisperNativeCacheDir() {
+        return cacheBaseDir().resolve("native").resolve("whisper")
+                             .resolve(WHISPER_VERSION).resolve(SherpaLibrary.platformId());
+    }
+
+    static Path ensureWhisperNativeLib() {
+        String platformId   = SherpaLibrary.platformId();
+        String expectedFile = WHISPER_NATIVE_EXPECTED_FILES.get(platformId);
+        if (expectedFile == null) {
+            throw new SherpaException("No whisper native lib available for platform: " + platformId);
+        }
+        Path targetDir = whisperNativeCacheDir();
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+        synchronized (NATIVE_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            String asset = WHISPER_NATIVE_ASSETS.get(platformId);
+            String url   = "https://github.com/ggerganov/whisper.cpp/releases/download/v" + WHISPER_VERSION + "/" + asset;
+            return provision(url, targetDir, null, 1, expectedFile);
+        }
+    }
+
+    static Path whisperModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("whisper").resolve(modelName);
+    }
+
+    static Path ensureWhisperModel(String modelName) {
+        String expectedFile = WHISPER_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException("Unknown Whisper model: " + modelName
+                                      + ". Known models: " + WHISPER_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = whisperModelDir(modelName);
+        Path modelFile = targetDir.resolve(expectedFile);
+
+        if (Files.exists(modelFile)) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.exists(modelFile)) {
+                return targetDir;
+            }
+            String url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/" + expectedFile;
+            try {
+                Files.createDirectories(targetDir);
+                Path downloaded = downloadWithRetry(url, targetDir, 3);
+                if (!downloaded.getFileName().toString().equals(expectedFile)) {
+                    Files.move(downloaded, modelFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new SherpaException("Failed to download Whisper model: " + url
+                                          + ". Download manually to " + modelFile, e);
+            }
+            return targetDir;
+        }
+    }
+
 
     static Path kokoroModelDir(String modelName) {
         return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);

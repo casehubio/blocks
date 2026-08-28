@@ -36,6 +36,9 @@ public class SpeechWebSocket {
 
     @Inject
     jakarta.enterprise.inject.Instance<TtsModelRegistry> ttsRegistry;
+    @Inject
+    jakarta.enterprise.inject.Instance<CorrectionHooks>  correctionHooks;
+
     private SpeechSession session;
 
     @OnOpen
@@ -61,13 +64,18 @@ public class SpeechWebSocket {
             };
         }
 
+        CorrectionHooks hooks = correctionHooks.isResolvable() ? correctionHooks.get() : null;
+
         session = new SpeechSession(
                 sttService, ttsService, cleanupConfig,
                 generator,
                 assembler,
                 text -> connection.sendTextAndAwait(text),
                 data -> connection.sendBinaryAndAwait(data),
-                ttsRegistry.isResolvable() ? ttsRegistry.get().models() : java.util.Map.of());}
+                ttsRegistry.isResolvable() ? ttsRegistry.get().models() : java.util.Map.of(),
+                hooks != null ? hooks.corrector() : null,
+                hooks != null ? hooks.onResponse() : null,
+                hooks != null ? hooks.vocabularyHintSupplier() : null);}
 
     @OnTextMessage
     public void onText(String message) {

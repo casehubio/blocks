@@ -1,0 +1,10 @@
+a	limerick	5000
+a	cat	8000
+read	a	12000
+the	cat	9000
+hello	world	6000
+the	world	4000
+is	a	7000
+was	a	6000
+in	the	11000
+of	the	10000

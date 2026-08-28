@@ -14,6 +14,13 @@ public final class PunctuationFilter implements TextFilter, AutoCloseable {
     private final MemorySegment punct;
     private final Arena punctArena;
 
+
+    public static PunctuationFilter withDefaults() {
+        Provisioner.ensureNativeLibrary();
+        Path modelDir = Provisioner.ensurePunctuationModel();
+        return new PunctuationFilter(modelDir);
+    }
+
     public PunctuationFilter(Path modelDir) {
         this(modelDir, SherpaLibrary.load());
     }

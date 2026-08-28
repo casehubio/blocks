@@ -30,6 +30,10 @@ public class SpeechSession {
     private final           Consumer<byte[]>                           binarySink;
     private final           List<ConversationTurn>                     history = new ArrayList<>();
     private final           java.util.Map<String, TextToSpeechService> ttsModels;
+    private final java.util.function.UnaryOperator<String>   corrector;
+    private final java.util.function.Consumer<String>        onResponse;
+    private final java.util.function.Supplier<String>        vocabularyHintSupplier;
+
 
     private @Nullable RecognitionStream stream;
     private           int               sampleRate = 16000;
@@ -58,15 +62,34 @@ public class SpeechSession {
                          Consumer<String> textSink,
                          Consumer<byte[]> binarySink,
                          java.util.Map<String, TextToSpeechService> ttsModels) {
-        this.sttService        = sttService;
-        this.ttsService        = ttsService;
-        this.cleanupConfig     = cleanupConfig;
-        this.responseGenerator = responseGenerator;
-        this.promptAssembler   = promptAssembler;
-        this.textSink          = textSink;
-        this.binarySink        = binarySink;
-        this.ttsModels         = ttsModels;
+        this(sttService, ttsService, cleanupConfig, responseGenerator, promptAssembler,
+             textSink, binarySink, ttsModels, null, null, null);
     }
+
+    public SpeechSession(StreamingSpeechToTextService sttService,
+                         TextToSpeechService ttsService,
+                         CleanupConfig cleanupConfig,
+                         @Nullable Function<AssembledPrompt, String> responseGenerator,
+                         PromptAssembler promptAssembler,
+                         Consumer<String> textSink,
+                         Consumer<byte[]> binarySink,
+                         java.util.Map<String, TextToSpeechService> ttsModels,
+                         java.util.function.UnaryOperator<String> corrector,
+                         java.util.function.Consumer<String> onResponse,
+                         java.util.function.Supplier<String> vocabularyHintSupplier) {
+        this.sttService             = sttService;
+        this.ttsService             = ttsService;
+        this.cleanupConfig          = cleanupConfig;
+        this.responseGenerator      = responseGenerator;
+        this.promptAssembler        = promptAssembler;
+        this.textSink               = textSink;
+        this.binarySink             = binarySink;
+        this.ttsModels              = ttsModels;
+        this.corrector              = corrector;
+        this.onResponse             = onResponse;
+        this.vocabularyHintSupplier = vocabularyHintSupplier;
+    }
+
 
     public void handleStart(AvatarMessage.Start msg) {
         stopPolling();
@@ -76,7 +99,14 @@ public class SpeechSession {
         this.sampleRate     = msg.sampleRate();
         this.activeLlmModel = msg.llmModel();
         this.activeTtsModel = msg.ttsModel();
-        stream              = sttService.startStream(io.casehub.blocks.speech.TranscriptionOptions.defaults());
+        var opts = io.casehub.blocks.speech.TranscriptionOptions.defaults();
+        if (vocabularyHintSupplier != null) {
+            String hint = vocabularyHintSupplier.get();
+            if (hint != null && !hint.isEmpty()) {
+                opts = opts.withVocabularyHint(hint);
+            }
+        }
+        stream = sttService.startStream(opts);
         startPolling();}
 
     public void handleAudio(float[] samples) {
@@ -97,8 +127,15 @@ public class SpeechSession {
             stream.close();
             stream = null;
 
-            LOG.log(System.Logger.Level.INFO, "[STT] raw: \"{0}\"", result.text());
-            String cleanText = cleanupConfig.apply(result.text());
+            String raw = result.text();
+            LOG.log(System.Logger.Level.INFO, "[STT] raw: \"{0}\"", raw);
+
+            String corrected = corrector != null ? corrector.apply(raw) : raw;
+            if (corrector != null && !corrected.equals(raw)) {
+                LOG.log(System.Logger.Level.INFO, "[STT] corrected: \"{0}\"", corrected);
+            }
+
+            String cleanText = cleanupConfig.apply(corrected);
             LOG.log(System.Logger.Level.INFO, "[STT] after cleanup ({0} filters): \"{1}\"",
                     cleanupConfig.filters().size(), cleanText);
             send(new AvatarMessage.Transcript(cleanText));
@@ -108,6 +145,10 @@ public class SpeechSession {
             if (responseText != null) {
                 send(new AvatarMessage.Response(responseText));
                 history.add(new ConversationTurn("assistant", responseText));
+
+                if (onResponse != null) {
+                    onResponse.accept(responseText);
+                }
 
                 TextToSpeechService tts       = resolveTts(activeTtsModel);
                 String[]            sentences = responseText.split("(?<=[.!?])\\s+");
@@ -131,7 +172,8 @@ public class SpeechSession {
     public void handleText(String text, @Nullable String llmModel, @Nullable String ttsModel) {
         long t0 = System.nanoTime();
         try {
-            String cleanText   = cleanupConfig.apply(text);
+            String corrected   = corrector != null ? corrector.apply(text) : text;
+            String cleanText   = cleanupConfig.apply(corrected);
             long   cleanupDone = System.nanoTime();
 
             send(new AvatarMessage.Transcript(cleanText));
@@ -144,12 +186,16 @@ public class SpeechSession {
                 send(new AvatarMessage.Response(responseText));
                 history.add(new ConversationTurn("assistant", responseText));
 
-                TextToSpeechService tts = resolveTts(ttsModel);
-                String[] sentences = responseText.split("(?<=[.!?])\\s+");
+                if (onResponse != null) {
+                    onResponse.accept(responseText);
+                }
+
+                TextToSpeechService tts       = resolveTts(ttsModel);
+                String[]            sentences = responseText.split("(?<=[.!?])\\s+");
                 for (String sentence : sentences) {
-                    if (sentence.isBlank()) continue;
+                    if (sentence.isBlank()) {continue;}
                     SynthesisResult synthesis = tts.synthesise(sentence,
-                            new SynthesisOptions(null, null, "wav", true));
+                                                               new SynthesisOptions(null, null, "wav", true));
                     var visemeFrames = VisemeMapping.convert(synthesis.phonemes());
                     send(new AvatarMessage.Phonemes(visemeFrames));
                     binarySink.accept(synthesis.audioData());
@@ -164,8 +210,7 @@ public class SpeechSession {
             }
         } catch (Exception e) {
             send(new AvatarMessage.Error(e.getMessage()));
-        }
-    }
+        }}
 
     private TextToSpeechService resolveTts(@Nullable String modelKey) {
         if (modelKey != null && ttsModels.containsKey(modelKey)) {

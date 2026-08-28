@@ -141,22 +141,78 @@ public class SpeechProducers {
     @Produces
     @ApplicationScoped
     io.casehub.blocks.speech.StreamingSpeechToTextService stt() {
-        return io.casehub.blocks.speech.sherpa.SherpaOnnxStreamingSpeechToText.withDefaults();
-    }
+        try {
+            if (io.casehub.blocks.speech.sherpa.WhisperLibrary.isAvailable()) {
+                LOG.log(System.Logger.Level.INFO, "Using WhisperSpeechToText");
+                return io.casehub.blocks.speech.sherpa.WhisperSpeechToText.withDefaults();
+            }
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "Whisper init failed, falling back: " + e.getMessage());
+        }
+        LOG.log(System.Logger.Level.INFO, "Using Zipformer streaming STT");
+        return io.casehub.blocks.speech.sherpa.SherpaOnnxStreamingSpeechToText.withDefaults();}
 
     @Produces
     @jakarta.inject.Singleton
     CleanupConfig cleanupConfig() {
+        var filters = new java.util.ArrayList<io.casehub.blocks.speech.TextFilter>();
+        filters.add(new io.casehub.blocks.speech.sherpa.FillerRemovalFilter());
+        filters.add(new io.casehub.blocks.speech.sherpa.CasingFilter());
         try {
-            var gector = io.casehub.blocks.speech.sherpa.GectorFilter.withDefaults();
-            return CleanupConfig.of(
-                    new io.casehub.blocks.speech.sherpa.FillerRemovalFilter(),
-                    new io.casehub.blocks.speech.sherpa.CasingFilter(),
-                    gector);
+            filters.add(io.casehub.blocks.speech.sherpa.PunctuationFilter.withDefaults());
         } catch (Exception e) {
-            LOG.log(System.Logger.Level.WARNING, "GECToR unavailable, using basic cleanup: " + e.getMessage());
-            return CleanupConfig.of(
-                    new io.casehub.blocks.speech.sherpa.FillerRemovalFilter(),
-                    new io.casehub.blocks.speech.sherpa.CasingFilter());
+            LOG.log(System.Logger.Level.WARNING, "PunctuationFilter unavailable: " + e.getMessage());
+        }
+        try {
+            filters.add(io.casehub.blocks.speech.sherpa.GectorFilter.withDefaults());
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "GECToR unavailable: " + e.getMessage());
+        }
+        return CleanupConfig.of(filters.toArray(io.casehub.blocks.speech.TextFilter[]::new));}
+
+    @Produces
+    @jakarta.inject.Singleton
+    io.casehub.blocks.speech.sherpa.correction.ConversationVocabulary conversationVocabulary() {
+        return new io.casehub.blocks.speech.sherpa.correction.ConversationVocabulary();
+    }
+
+    @Produces
+    @jakarta.inject.Singleton
+    io.casehub.blocks.speech.sherpa.correction.TranscriptCorrector transcriptCorrector(
+            io.casehub.blocks.speech.sherpa.correction.ConversationVocabulary vocabulary) {
+        try {
+            var symSpell = io.casehub.blocks.speech.sherpa.correction.SymSpellIndex.fromResource(
+                    "frequency_dictionary_en_82_765.txt");
+            var phonetic = io.casehub.blocks.speech.sherpa.correction.PhoneticIndex.fromSymSpellIndex(symSpell);
+            var ngram = io.casehub.blocks.speech.sherpa.correction.NgramModel.fromResource(
+                    "frequency_bigramdictionary_en_243_342.txt");
+
+            LOG.log(System.Logger.Level.INFO, "TranscriptCorrector loaded — {0} words, {1} bigrams",
+                    symSpell.dictionary().size(), "243K");
+            return new io.casehub.blocks.speech.sherpa.correction.TranscriptCorrector(
+                    java.util.List.of(
+                            new io.casehub.blocks.speech.sherpa.correction.SymSpellStrategy(symSpell),
+                            new io.casehub.blocks.speech.sherpa.correction.PhoneticStrategy(phonetic)),
+                    ngram, symSpell.dictionary());
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "TranscriptCorrector unavailable: " + e.getMessage());
+            return new io.casehub.blocks.speech.sherpa.correction.TranscriptCorrector(
+                    java.util.List.of(), null, java.util.Set.of());
         }}
+
+    @Produces
+    @jakarta.inject.Singleton
+    io.casehub.blocks.speech.ws.CorrectionHooks correctionHooks(
+            io.casehub.blocks.speech.sherpa.correction.TranscriptCorrector corrector,
+            io.casehub.blocks.speech.sherpa.correction.ConversationVocabulary vocabulary) {
+        return new io.casehub.blocks.speech.ws.CorrectionHooks(
+                corrector::correct,
+                response -> {
+                    vocabulary.addFromText(response);
+                    corrector.addVocabulary(vocabulary.terms().toArray(String[]::new));
+                },
+                vocabulary::asPromptHint);
+    }
+
+
 }

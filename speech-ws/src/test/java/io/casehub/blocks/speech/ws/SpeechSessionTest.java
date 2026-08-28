@@ -429,4 +429,98 @@ class SpeechSessionTest {
     }
 
 
+// --- Correction pipeline regression tests ---
+
+    @Test
+    void handleTextAppliesCorrectorBeforeCleanup() {
+        var corrected = new ArrayList<String>();
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null, new DefaultPromptAssembler(null),
+                sentTextMessages::add, sentBinaryMessages::add, java.util.Map.of(),
+                text -> {
+                    corrected.add(text);
+                    return text.replace("limaric", "limerick");
+                },
+                null, null);
+
+        session.handleText("tell me a limaric");
+
+        assertThat(corrected).containsExactly("tell me a limaric");
+        verify(cleanupConfig).apply("tell me a limerick");
+    }
+
+    @Test
+    void handleStopAppliesCorrectorToSttOutput() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("tell me a limaric", "en", 0.9));
+
+        var corrected = new ArrayList<String>();
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null, new DefaultPromptAssembler(null),
+                sentTextMessages::add, sentBinaryMessages::add, java.util.Map.of(),
+                text -> {
+                    corrected.add(text);
+                    return text.replace("limaric", "limerick");
+                },
+                null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        assertThat(corrected).containsExactly("tell me a limaric");
+        verify(cleanupConfig).apply("tell me a limerick");
+    }
+
+    @Test
+    void onResponseCalledAfterLlmResponse() {
+        var responses = new ArrayList<String>();
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                prompt -> "I am a helpful avatar.",
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add, sentBinaryMessages::add, java.util.Map.of(),
+                null,
+                responses::add,
+                null);
+
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[44], "en", List.of()));
+
+        session.handleText("hello");
+
+        assertThat(responses).containsExactly("I am a helpful avatar.");
+    }
+
+    @Test
+    void vocabularyHintPassedToStartStream() {
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null, new DefaultPromptAssembler(null),
+                sentTextMessages::add, sentBinaryMessages::add, java.util.Map.of(),
+                null, null,
+                () -> "limerick poetry nantucket");
+
+        session.handleStart(new AvatarMessage.Start(16000));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                io.casehub.blocks.speech.TranscriptionOptions.class);
+        verify(sttService).startStream(captor.capture());
+        assertThat(captor.getValue().vocabularyHint()).isEqualTo("limerick poetry nantucket");
+        session.close();
+    }
+
+    @Test
+    void nullCorrectorLeavesTextUnchanged() {
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null, new DefaultPromptAssembler(null),
+                sentTextMessages::add, sentBinaryMessages::add, java.util.Map.of(),
+                null, null, null);
+
+        session.handleText("limaric");
+
+        verify(cleanupConfig).apply("limaric");
+    }
 }
