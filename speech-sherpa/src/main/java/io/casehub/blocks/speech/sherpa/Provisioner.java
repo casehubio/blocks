@@ -18,6 +18,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -450,6 +451,77 @@ final class Provisioner {
             }
             String url = modelUrl(modelName);
             return provision(url, targetDir, null, 1, expectedFile);
+        }
+    }
+
+    // --- Audio8 TTS models (HuggingFace) ---
+
+    private static final Map<String, String> AUDIO8_REPOS = Map.of(
+            "0.1b", "Audio8/audio8-TTS-0.1B-ONNX-INT8",
+            "0.6b", "Audio8/Audio8-TTS-Preview-0.6B-ONNX-INT4"
+                                                                  );
+
+    private static final Map<String, List<String>> AUDIO8_MODEL_FILES = Map.of(
+            "0.1b", List.of(
+                    "slow_ar_int8.onnx", "slow_ar_int8.onnx.data",
+                    "fast_ar_int8.onnx", "fast_ar_int8.onnx.data",
+                    "codec_decoder_fp16.onnx", "codec_decoder_fp16.onnx.data",
+                    "tokenizer/tokenizer.json", "runtime_manifest.json",
+                    "reference_codes.npy"
+                           ),
+            "0.6b", List.of(
+                    "slow_ar_int4.onnx", "slow_ar_int4.onnx.data",
+                    "fast_ar_int4.onnx", "fast_ar_int4.onnx.data",
+                    "codec_decoder_fp16.onnx", "codec_decoder_fp16.onnx.data",
+                    "tokenizer/tokenizer.json", "runtime_manifest.json"
+                           )
+                                                                              );
+
+    static Path audio8ModelDir(String variant) {
+        return cacheBaseDir().resolve("models").resolve("audio8-tts").resolve(variant);
+    }
+
+    static Path ensureAudio8Model(String variant) {
+        List<String> files = AUDIO8_MODEL_FILES.get(variant);
+        if (files == null) {
+            throw new SherpaException(
+                    "Unknown Audio8 variant: " + variant
+                    + ". Known variants: " + AUDIO8_MODEL_FILES.keySet());
+        }
+        Path targetDir = audio8ModelDir(variant);
+
+        if (Files.isDirectory(targetDir) && files.stream().allMatch(f -> Files.exists(targetDir.resolve(f)))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && files.stream().allMatch(f -> Files.exists(targetDir.resolve(f)))) {
+                return targetDir;
+            }
+            String repo = AUDIO8_REPOS.get(variant);
+            provisionFromHuggingFace(repo, files, targetDir);
+            return targetDir;
+        }
+    }
+
+    private static void provisionFromHuggingFace(String repo, List<String> files, Path targetDir) {
+        try {
+            Files.createDirectories(targetDir);
+            for (String file : files) {
+                Path filePath = targetDir.resolve(file);
+                if (Files.exists(filePath)) {continue;}
+                Files.createDirectories(filePath.getParent());
+                String url = "https://huggingface.co/" + repo + "/resolve/main/" + file;
+                LOG.log(System.Logger.Level.INFO, "Downloading {0}...", url);
+                Path downloaded = downloadWithRetry(url, filePath.getParent(), 3);
+                Files.move(downloaded, filePath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            LOG.log(System.Logger.Level.INFO, "Audio8 model provisioned at {0}", targetDir);
+        } catch (SherpaException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SherpaException("Failed to provision Audio8 model from HuggingFace: " + repo
+                                      + ". Download manually to " + targetDir, e);
         }
     }
 

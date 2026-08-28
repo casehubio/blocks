@@ -225,6 +225,8 @@ final class OnnxRuntimeLibrary {
         private final MemorySegment allocator;
         private final int inputCount;
         private final int outputCount;
+        private volatile boolean closed;
+
 
         Session(OnnxRuntimeLibrary lib, MemorySegment session,
                 MemorySegment memInfo, MemorySegment allocator) {
@@ -407,11 +409,14 @@ final class OnnxRuntimeLibrary {
 
         @Override
         public void close() {
+            if (closed) {return;}
+            closed = true;
             lib.releaseQuietly(IDX_RELEASE_SESSION, session);
-            lib.releaseQuietly(IDX_RELEASE_MEMORY_INFO, memInfo);
-        }
+            lib.releaseQuietly(IDX_RELEASE_MEMORY_INFO, memInfo);}
     }
 
     static final int FLOAT = ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT;
     static final int INT64 = ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64;
+    static final int BOOL  = 9;
+
 }
