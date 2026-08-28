@@ -195,8 +195,9 @@ function sendText() {
 
 function discoverVisemeMeshes() {
   if (visemeMeshes) return visemeMeshes;
-  var scene = head.scene || head._scene;
-  if (!scene) return null;
+  var scene = head.scene || head._scene || head.model || head._model;
+  if (!scene && head.getObjectByName) scene = head;
+  if (!scene || !scene.traverse) return null;
   var meshes = [];
   scene.traverse(function(o) {
     if (o.morphTargetDictionary) {
@@ -230,7 +231,16 @@ function playNextViseme() {
   visemePlaying = true;
   var item = visemeQueue.shift();
   var meshes = discoverVisemeMeshes();
-  if (!meshes) { addMessage('No viseme meshes found', 'system'); playNextViseme(); return; }
+  if (!meshes) {
+    if (!audioCtx) audioCtx = new AudioContext();
+    var fallbackSrc = audioCtx.createBufferSource();
+    fallbackSrc.buffer = item.audio;
+    fallbackSrc.playbackRate.value = parseFloat(document.getElementById('speed').value);
+    fallbackSrc.connect(audioCtx.destination);
+    fallbackSrc.start();
+    fallbackSrc.onended = playNextViseme;
+    return;
+  }
 
   if (!audioCtx) audioCtx = new AudioContext();
   var source = audioCtx.createBufferSource();
