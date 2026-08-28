@@ -290,7 +290,15 @@ function playNextViseme() {
     requestAnimationFrame(animate);
   }
 
-  source.onended = function() { setTimeout(function() { animating = false; }, 300); };
+  source.onended = function() {
+    setTimeout(function() {
+      animating = false;
+      meshes.forEach(function(m) {
+        for (var k in m.dict) m.mesh.morphTargetInfluences[m.dict[k]] = 0;
+      });
+      playNextViseme();
+    }, 300);
+  };
   requestAnimationFrame(animate);
 }
 
