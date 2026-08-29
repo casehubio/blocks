@@ -26,6 +26,15 @@ public final class EspeakPhonemeAligner implements PhonemeAligner {
         this.voice = voice;
     }
 
+
+    public static EspeakPhonemeAligner withDefaults() {
+        java.nio.file.Path espeakDir = Provisioner.ensureEspeak();
+        var espeak = EspeakLibrary.load(
+                espeakDir.resolve(Provisioner.espeakLibName()),
+                espeakDir.resolve("espeak-ng-data"));
+        return withEspeak(espeak);
+    }
+
     public static EspeakPhonemeAligner withEspeak(EspeakLibrary espeak) {
         return new EspeakPhonemeAligner(espeak::textToPhonemes);
     }

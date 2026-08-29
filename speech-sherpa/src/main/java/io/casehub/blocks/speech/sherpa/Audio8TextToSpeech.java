@@ -64,6 +64,11 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
         return fromModelDir(modelDir, variant);
     }
 
+    public static void ensureProvisioned(String variant) {
+        Provisioner.ensureAudio8Model(variant);
+    }
+
+
     static Audio8TextToSpeech fromModelDir(Path modelDir, String variant) {
         try {
             var cfg      = Audio8Config.defaults(modelDir, variant);

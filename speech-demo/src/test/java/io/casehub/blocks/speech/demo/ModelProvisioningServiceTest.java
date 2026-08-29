@@ -12,21 +12,35 @@ class ModelProvisioningServiceTest {
     @Test
     void init_setsAllModelsToPending() {
         var service = new ModelProvisioningService() {
-            @Override void provision(String modelName) {}
+            @Override
+            void provision(String modelName) {}
         };
 
         service.init();
 
-        assertThat(service.status()).hasSize(ModelProvisioningService.MODELS.size());
+        int expectedSize = ModelProvisioningService.MODELS.size()
+                           + ModelProvisioningService.KOKORO_MODELS.size()
+                           + ModelProvisioningService.AUDIO8_MODELS.size()
+                           + 1; // streaming-stt
+        assertThat(service.status()).hasSize(expectedSize);
         assertThat(service.status().values()).allMatch(s -> s == ModelStatus.PENDING);
-        assertThat(service.allReady()).isFalse();
-    }
+        assertThat(service.allReady()).isFalse();}
 
     @Test
     void provisionAll_setsAllModelsToReady() {
         var provisioned = new ArrayList<String>();
         var service = new ModelProvisioningService() {
-            @Override void provision(String modelName) { provisioned.add(modelName); }
+            @Override
+            void provision(String modelName)       {provisioned.add(modelName);}
+
+            @Override
+            void provisionKokoro(String modelName) {}
+
+            @Override
+            void provisionAudio8(String variant)   {}
+
+            @Override
+            void provisionStreamingStt()           {}
         };
 
         service.init();
@@ -41,9 +55,19 @@ class ModelProvisioningServiceTest {
     @Test
     void provisionAll_setsErrorOnFailure() {
         var service = new ModelProvisioningService() {
-            @Override void provision(String modelName) {
-                if (modelName.contains("amy")) throw new RuntimeException("download failed");
+            @Override
+            void provision(String modelName) {
+                if (modelName.contains("amy")) {throw new RuntimeException("download failed");}
             }
+
+            @Override
+            void provisionKokoro(String modelName) {}
+
+            @Override
+            void provisionAudio8(String variant)   {}
+
+            @Override
+            void provisionStreamingStt()           {}
         };
 
         service.init();
@@ -52,15 +76,30 @@ class ModelProvisioningServiceTest {
         assertThat(service.allReady()).isFalse();
         assertThat(service.status().get("amy")).isEqualTo(ModelStatus.ERROR);
 
+        int expectedReady = ModelProvisioningService.MODELS.size()
+                            + ModelProvisioningService.KOKORO_MODELS.size()
+                            + ModelProvisioningService.AUDIO8_MODELS.size()
+                            + 1  // streaming-stt
+                            - 1; // amy failed
         var readyCount = service.status().values().stream()
-                .filter(s -> s == ModelStatus.READY).count();
-        assertThat(readyCount).isEqualTo(ModelProvisioningService.MODELS.size() - 1);
+                                .filter(s -> s == ModelStatus.READY).count();
+        assertThat(readyCount).isEqualTo(expectedReady);
     }
 
     @Test
     void statusReturnsDefensiveCopy() {
         var service = new ModelProvisioningService() {
-            @Override void provision(String modelName) {}
+            @Override
+            void provision(String modelName)       {}
+
+            @Override
+            void provisionKokoro(String modelName) {}
+
+            @Override
+            void provisionAudio8(String variant)   {}
+
+            @Override
+            void provisionStreamingStt()           {}
         };
 
         service.init();

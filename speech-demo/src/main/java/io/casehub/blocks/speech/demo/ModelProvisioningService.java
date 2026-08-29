@@ -24,6 +24,10 @@ public class ModelProvisioningService {
     static final Map<String, String> KOKORO_MODELS = new LinkedHashMap<>(Map.of(
             "kokoro", "kokoro-en-v0_19"));
 
+    static final Map<String, String> AUDIO8_MODELS = new LinkedHashMap<>(Map.of(
+            "audio8", "0.1b",
+            "audio8:0.6b", "0.6b"));
+
     private static final System.Logger LOG = System.getLogger("speech-demo.provisioning");
 
     private final ConcurrentHashMap<String, ModelStatus> statuses = new ConcurrentHashMap<>();
@@ -36,47 +40,48 @@ public class ModelProvisioningService {
     void init() {
         MODELS.keySet().forEach(key -> statuses.put(key, ModelStatus.PENDING));
         KOKORO_MODELS.keySet().forEach(key -> statuses.put(key, ModelStatus.PENDING));
-        statuses.put("streaming-stt", ModelStatus.PENDING);
-    }
+        AUDIO8_MODELS.keySet().forEach(key -> statuses.put(key, ModelStatus.PENDING));
+        statuses.put("streaming-stt", ModelStatus.PENDING);}
 
     void provisionAll() {
         for (var entry : MODELS.entrySet()) {
-            statuses.put(entry.getKey(), ModelStatus.DOWNLOADING);
-            try {
-                LOG.log(System.Logger.Level.INFO, "Provisioning model: {0}", entry.getValue());
-                provision(entry.getValue());
-                statuses.put(entry.getKey(), ModelStatus.READY);
-                LOG.log(System.Logger.Level.INFO, "Model ready: {0}", entry.getKey());
-            } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING, "Failed to provision " + entry.getKey() + ": " + e.getMessage());
-                statuses.put(entry.getKey(), ModelStatus.ERROR);
-            }
+            provisionEntry(entry.getKey(), () -> provision(entry.getValue()));
         }
         for (var entry : KOKORO_MODELS.entrySet()) {
-            statuses.put(entry.getKey(), ModelStatus.DOWNLOADING);
-            try {
-                LOG.log(System.Logger.Level.INFO, "Provisioning Kokoro model: {0}", entry.getValue());
-                io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.ensureProvisioned();
-                statuses.put(entry.getKey(), ModelStatus.READY);
-                LOG.log(System.Logger.Level.INFO, "Model ready: {0}", entry.getKey());
-            } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING, "Failed to provision " + entry.getKey() + ": " + e.getMessage());
-                statuses.put(entry.getKey(), ModelStatus.ERROR);
-            }
+            provisionEntry(entry.getKey(), () -> provisionKokoro(entry.getValue()));
         }
-        statuses.put("streaming-stt", ModelStatus.DOWNLOADING);
-        try {
-            LOG.log(System.Logger.Level.INFO, "Provisioning streaming STT model");
-            io.casehub.blocks.speech.sherpa.SherpaOnnxStreamingSpeechToText.ensureProvisioned();
-            statuses.put("streaming-stt", ModelStatus.READY);
-            LOG.log(System.Logger.Level.INFO, "Streaming STT model ready");
-        } catch (Exception e) {
-            LOG.log(System.Logger.Level.WARNING, "Failed to provision streaming STT: " + e.getMessage());
-            statuses.put("streaming-stt", ModelStatus.ERROR);
-        }}
+        for (var entry : AUDIO8_MODELS.entrySet()) {
+            provisionEntry(entry.getKey(), () -> provisionAudio8(entry.getValue()));
+        }
+        provisionEntry("streaming-stt", this::provisionStreamingStt);}
 
     void provision(String modelName) {
         VitsTextToSpeech.ensureProvisioned(modelName);
+    }
+
+    private void provisionEntry(String key, Runnable provisioner) {
+        statuses.put(key, ModelStatus.DOWNLOADING);
+        try {
+            LOG.log(System.Logger.Level.INFO, "Provisioning model: {0}", key);
+            provisioner.run();
+            statuses.put(key, ModelStatus.READY);
+            LOG.log(System.Logger.Level.INFO, "Model ready: {0}", key);
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "Failed to provision " + key + ": " + e.getMessage());
+            statuses.put(key, ModelStatus.ERROR);
+        }
+    }
+
+    void provisionKokoro(String modelName) {
+        io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.ensureProvisioned();
+    }
+
+    void provisionAudio8(String variant) {
+        io.casehub.blocks.speech.sherpa.Audio8TextToSpeech.ensureProvisioned(variant);
+    }
+
+    void provisionStreamingStt() {
+        io.casehub.blocks.speech.sherpa.SherpaOnnxStreamingSpeechToText.ensureProvisioned();
     }
 
 

@@ -22,28 +22,65 @@ public class SpeechProducers {
     @jakarta.inject.Singleton
     io.casehub.blocks.speech.ws.TtsModelRegistry ttsRegistry() {
         var models = new java.util.LinkedHashMap<String, io.casehub.blocks.speech.TextToSpeechService>();
+
+        // Shared lip-sync aligner — enriches any TTS engine that returns empty phonemes
+        io.casehub.blocks.speech.PhonemeAligner aligner = null;
+        try {
+            aligner = io.casehub.blocks.speech.sherpa.EspeakPhonemeAligner.withDefaults();
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "EspeakPhonemeAligner unavailable — lip-sync disabled: " + e.getMessage());
+        }
+
+        // VITS models — native phoneme timing, no wrapping needed
         models.put("lessac-medium", VitsTextToSpeech.withDefaults());
         models.put("lessac-high", VitsTextToSpeech.withDefaults("vits-piper-en_US-lessac-high"));
         models.put("amy", VitsTextToSpeech.withDefaults("vits-piper-en_US-amy-medium"));
         models.put("ryan", VitsTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"));
         models.put("jenny", VitsTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium"));
-        models.put("sherpa:lessac-medium", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults());
-        models.put("sherpa:lessac-high", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-lessac-high"));
-        models.put("sherpa:amy", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-amy-medium"));
-        models.put("sherpa:ryan", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"));
-        models.put("sherpa:jenny", io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium"));
-        models.put("kokoro:af", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(0));
-        models.put("kokoro:af_bella", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(1));
-        models.put("kokoro:af_nicole", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(2));
-        models.put("kokoro:af_sarah", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(3));
-        models.put("kokoro:af_sky", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(4));
-        models.put("kokoro:am_adam", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(5));
-        models.put("kokoro:am_michael", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(6));
-        models.put("kokoro:bf_emma", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(7));
-        models.put("kokoro:bf_isabella", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(8));
-        models.put("kokoro:bm_george", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(9));
-        models.put("kokoro:bm_lewis", io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(10));
+
+        // SherpaOnnx models — wrap with LipSyncEnricher for lip-sync
+        models.put("sherpa:lessac-medium", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults(), aligner));
+        models.put("sherpa:lessac-high", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-lessac-high"), aligner));
+        models.put("sherpa:amy", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-amy-medium"), aligner));
+        models.put("sherpa:ryan", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"), aligner));
+        models.put("sherpa:jenny", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium"), aligner));
+
+        // Kokoro models — wrap with LipSyncEnricher for lip-sync
+        models.put("kokoro:af", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(0), aligner));
+        models.put("kokoro:af_bella", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(1), aligner));
+        models.put("kokoro:af_nicole", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(2), aligner));
+        models.put("kokoro:af_sarah", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(3), aligner));
+        models.put("kokoro:af_sky", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(4), aligner));
+        models.put("kokoro:am_adam", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(5), aligner));
+        models.put("kokoro:am_michael", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(6), aligner));
+        models.put("kokoro:bf_emma", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(7), aligner));
+        models.put("kokoro:bf_isabella", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(8), aligner));
+        models.put("kokoro:bm_george", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(9), aligner));
+        models.put("kokoro:bm_lewis", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(10), aligner));
+
+        // Audio8 DualAR models — wrap with LipSyncEnricher for lip-sync
+        try {
+            models.put("audio8", wrapIfAvailable(io.casehub.blocks.speech.sherpa.Audio8TextToSpeech.withDefaults("0.1b"), aligner));
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.INFO, "Audio8 0.1b not available: " + e.getMessage());
+        }
+        try {
+            models.put("audio8:0.6b", wrapIfAvailable(io.casehub.blocks.speech.sherpa.Audio8TextToSpeech.withDefaults("0.6b"), aligner));
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.INFO, "Audio8 0.6b not available: " + e.getMessage());
+        }
+
         return new io.casehub.blocks.speech.ws.TtsModelRegistry(java.util.Collections.unmodifiableMap(models));}
+
+    private static io.casehub.blocks.speech.TextToSpeechService wrapIfAvailable(
+            io.casehub.blocks.speech.TextToSpeechService delegate,
+            io.casehub.blocks.speech.PhonemeAligner aligner) {
+        if (aligner == null) {
+            return delegate;
+        }
+        return io.casehub.blocks.speech.LipSyncEnricher.wrap(delegate, aligner);
+    }
+
 
     @Produces
     @ApplicationScoped

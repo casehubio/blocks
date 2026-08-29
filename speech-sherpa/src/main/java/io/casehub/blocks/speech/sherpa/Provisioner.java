@@ -466,6 +466,7 @@ final class Provisioner {
                     "slow_ar_int8.onnx", "slow_ar_int8.onnx.data",
                     "fast_ar_int8.onnx", "fast_ar_int8.onnx.data",
                     "codec_decoder_fp16.onnx", "codec_decoder_fp16.onnx.data",
+                    "registration/codec_encoder_fp16.onnx", "registration/codec_encoder_fp16.onnx.data",
                     "tokenizer/tokenizer.json", "runtime_manifest.json",
                     "reference_codes.npy"
                            ),
@@ -473,6 +474,7 @@ final class Provisioner {
                     "slow_ar_int4.onnx", "slow_ar_int4.onnx.data",
                     "fast_ar_int4.onnx", "fast_ar_int4.onnx.data",
                     "codec_decoder_fp16.onnx", "codec_decoder_fp16.onnx.data",
+                    "registration/codec_encoder_fp16.onnx", "registration/codec_encoder_fp16.onnx.data",
                     "tokenizer/tokenizer.json", "runtime_manifest.json"
                            )
                                                                               );
