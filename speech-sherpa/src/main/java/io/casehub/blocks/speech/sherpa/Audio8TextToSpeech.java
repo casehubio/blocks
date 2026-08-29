@@ -26,6 +26,27 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
         float[] decode(int[][] frames);
     }
 
+    @FunctionalInterface
+    interface FrameGenerator {
+        void generate(String text, String referenceText, int[] voiceCodes,
+                      Audio8Config config, Audio8Tokenizer tokenizer,
+                      java.util.function.Consumer<int[]> frameConsumer);
+    }
+
+    record StreamingConfig(int codecHopLength, int contextFrames, int guardFrames,
+                           int defaultChunkFrames) {
+        static StreamingConfig from(RuntimeManifest m) {
+            return new StreamingConfig(m.codecHopLength(), m.streamContextFrames(),
+                                       m.streamGuardFrames(), 12);
+        }
+    }
+
+    @FunctionalInterface
+    public interface AudioChunkCallback {
+        void onChunk(byte[] wavData, int seq);
+    }
+
+
     private final Audio8Tokenizer tokenizer;
     private final Audio8Config config;
     private final Generator generator;
@@ -33,17 +54,32 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
     private final int sampleRate;
     private final VoiceRegistry voiceRegistry;
     private final int[]         defaultVoiceCodes;
-    private final String        defaultReferenceText;
+    private final String          defaultReferenceText;
+    private final FrameGenerator  frameGenerator;
+    private final StreamingConfig streamingConfig;
+    private final AutoCloseable[] ownedResources;
 
 
     Audio8TextToSpeech(Audio8Tokenizer tokenizer, Audio8Config config,
                        Generator generator, Decoder decoder,
-                       int sampleRate, VoiceRegistry voiceRegistry) {this(tokenizer, config, generator, decoder, sampleRate, voiceRegistry, null, "");}
+                       int sampleRate, VoiceRegistry voiceRegistry) {
+        this(tokenizer, config, generator, decoder, sampleRate, voiceRegistry, null, "", null, null);
+    }
 
     Audio8TextToSpeech(Audio8Tokenizer tokenizer, Audio8Config config,
                        Generator generator, Decoder decoder,
                        int sampleRate, VoiceRegistry voiceRegistry,
                        int[] defaultVoiceCodes, String defaultReferenceText) {
+        this(tokenizer, config, generator, decoder, sampleRate, voiceRegistry,
+             defaultVoiceCodes, defaultReferenceText, null, null);
+    }
+
+    Audio8TextToSpeech(Audio8Tokenizer tokenizer, Audio8Config config,
+                       Generator generator, Decoder decoder,
+                       int sampleRate, VoiceRegistry voiceRegistry,
+                       int[] defaultVoiceCodes, String defaultReferenceText,
+                       FrameGenerator frameGenerator, StreamingConfig streamingConfig,
+                       AutoCloseable... ownedResources) {
         this.tokenizer            = tokenizer;
         this.config               = config;
         this.generator            = generator;
@@ -52,6 +88,9 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
         this.voiceRegistry        = voiceRegistry;
         this.defaultVoiceCodes    = defaultVoiceCodes;
         this.defaultReferenceText = defaultReferenceText != null ? defaultReferenceText : "";
+        this.frameGenerator       = frameGenerator;
+        this.streamingConfig      = streamingConfig;
+        this.ownedResources       = ownedResources;
     }
 
 
@@ -108,9 +147,18 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
                 }
             }
 
+            FrameGenerator frameGen = (text, refText, voiceCodes, config, tokenizer, consumer) -> {
+                int numCb = manifest.numCodebooks();
+                long[][][] prompt = DualARLoop.buildPrompt(text, refText, voiceCodes, numCb,
+                                                           manifest.semanticBeginId(), tokenizer);
+                dualAr.iterateFrames(prompt, config, consumer);
+            };
+
             return new Audio8TextToSpeech(tok, cfg, gen, dec,
                                           manifest.sampleRate(), new VoiceRegistry(voiceEncoder),
-                                          defaultCodes, manifest.referenceText());
+                                          defaultCodes, manifest.referenceText(),
+                                          frameGen, StreamingConfig.from(manifest),
+                                          dualAr, codecDec);
         } catch (SherpaException e) {
             throw e;
         } catch (Exception e) {
@@ -132,6 +180,71 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
         byte[]  wav         = WavWriter.encode(samples, sampleRate, 1);
         return new SynthesisResult(wav, "wav", List.of());}
 
+    public void synthesiseStreaming(String text, SynthesisOptions options,
+                                    AudioChunkCallback callback) {
+        synthesiseStreaming(text, options, callback,
+                            streamingConfig != null ? streamingConfig.defaultChunkFrames() : 12);
+    }
+
+    public void synthesiseStreaming(String text, SynthesisOptions options,
+                                    AudioChunkCallback callback, int chunkFrames) {
+        if (frameGenerator == null || streamingConfig == null) {
+            throw new UnsupportedOperationException(
+                    "Streaming not available — use withDefaults() factory for streaming support");
+        }
+
+        int[]  voiceCodes = null;
+        String refText    = "";
+        if (options.voice() != null && !options.voice().isEmpty()) {
+            voiceCodes = voiceRegistry.getVoiceCodes(options.voice());
+        } else if (defaultVoiceCodes != null) {
+            voiceCodes = defaultVoiceCodes;
+            refText    = defaultReferenceText;
+        }
+
+        int hop     = streamingConfig.codecHopLength();
+        int context = streamingConfig.contextFrames();
+        int guard   = streamingConfig.guardFrames() * hop;
+
+        var   allFrames = new java.util.ArrayList<int[]>();
+        int[] emitted   = {0};
+        int[] seq       = {0};
+
+        frameGenerator.generate(text, refText, voiceCodes, config, tokenizer, frame -> {
+            allFrames.add(frame);
+            if (allFrames.size() % chunkFrames != 0) {return;}
+
+            int     startFrame = Math.max(0, allFrames.size() - context - chunkFrames);
+            int[][] window     = allFrames.subList(startFrame, allFrames.size()).toArray(int[][]::new);
+            float[] audio      = decoder.decode(window);
+
+            int absoluteStart = startFrame * hop;
+            int stableEnd     = absoluteStart + Math.max(0, audio.length - guard);
+            int begin         = Math.max(0, emitted[0] - absoluteStart);
+            int end           = Math.max(begin, stableEnd - absoluteStart);
+
+            if (end > begin) {
+                float[] chunk = java.util.Arrays.copyOfRange(audio, begin, end);
+                callback.onChunk(WavWriter.encode(chunk, sampleRate, 1), seq[0]++);
+                emitted[0] += chunk.length;
+            }
+        });
+
+        if (allFrames.isEmpty()) {return;}
+
+        int     startFrame = Math.max(0, allFrames.size() - context - chunkFrames);
+        int[][] window     = allFrames.subList(startFrame, allFrames.size()).toArray(int[][]::new);
+        float[] audio      = decoder.decode(window);
+
+        int absoluteStart = startFrame * hop;
+        int begin         = Math.max(0, emitted[0] - absoluteStart);
+        if (begin < audio.length) {
+            float[] tail = java.util.Arrays.copyOfRange(audio, begin, audio.length);
+            callback.onChunk(WavWriter.encode(tail, sampleRate, 1), seq[0]);
+        }
+    }
+
+
     public String registerVoice(Path referenceAudio) {
         return voiceRegistry.register(referenceAudio);
     }
@@ -146,8 +259,10 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
 
     @Override
     public void close() {
-        voiceRegistry.close();
-    }
+        for (AutoCloseable resource : ownedResources) {
+            try {resource.close();} catch (Exception ignored) {}
+        }
+        voiceRegistry.close();}
 
     private static int[] encodeVoice(OnnxRuntimeLibrary.Session encoder, byte[] audioData,
                                      int numCodebooks) {

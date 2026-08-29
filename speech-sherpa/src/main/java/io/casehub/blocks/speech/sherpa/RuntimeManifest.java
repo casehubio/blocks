@@ -31,7 +31,10 @@ record RuntimeManifest(
         int mambaNHeads,
         int mambaDSsm,
         String referenceCodesFile,
-        String referenceText
+        String referenceText,
+        int codecHopLength,
+        int streamContextFrames,
+        int streamGuardFrames
 ) {
     static RuntimeManifest load(Path path) throws IOException {
         var obj = new Gson().fromJson(Files.readString(path), JsonObject.class);
@@ -59,7 +62,10 @@ record RuntimeManifest(
                 obj.has("mamba_n_heads") ? obj.get("mamba_n_heads").getAsInt() : 0,
                 obj.has("mamba_d_ssm") ? obj.get("mamba_d_ssm").getAsInt() : 0,
                 obj.has("reference_codes") ? obj.get("reference_codes").getAsString() : null,
-                obj.has("reference_text") ? obj.get("reference_text").getAsString() : null
+                obj.has("reference_text") ? obj.get("reference_text").getAsString() : null,
+                obj.has("codec_hop_length") ? obj.get("codec_hop_length").getAsInt() : 2048,
+                obj.has("stream_context_frames") ? obj.get("stream_context_frames").getAsInt() : 128,
+                obj.has("stream_guard_frames") ? obj.get("stream_guard_frames").getAsInt() : 1
         );
     }
 

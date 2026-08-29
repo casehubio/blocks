@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -78,6 +76,62 @@ class Audio8TextToSpeechTest {
         assertThat(result).isNotNull();
         assertThat(result.audioData()).isNotEmpty();
     }
+
+    @Test
+    void synthesiseStreamingEmitsChunksProgressively(@TempDir Path tempDir) throws Exception {
+        int numCodebooks = 3;
+        int hop = 256;
+        int totalFrames = 36;
+        int chunkFrames = 12;
+        int contextFrames = 24;
+        int guardFrames = 1;
+
+        Path tokPath = tempDir.resolve("tokenizer.json");
+        java.nio.file.Files.writeString(tokPath, buildMinimalTokenizer());
+        var tokenizer = Audio8Tokenizer.load(tokPath);
+        var config    = Audio8Config.defaults(tempDir);
+
+        Audio8TextToSpeech.FrameGenerator frameGen = (text, refText, voiceCodes, cfg, tok, consumer) -> {
+            for (int i = 0; i < totalFrames; i++) {
+                int[] frame = new int[numCodebooks];
+                java.util.Arrays.fill(frame, i);
+                consumer.accept(frame);
+            }
+        };
+
+        Audio8TextToSpeech.Decoder decoder = frames -> new float[frames.length * hop];
+
+        var streamingConfig = new Audio8TextToSpeech.StreamingConfig(hop, contextFrames, guardFrames, chunkFrames);
+
+        var tts = new Audio8TextToSpeech(tokenizer, config,
+                                         (text, refText, voiceCodes, cfg, tok) -> new int[0][],
+                                         decoder, 22050, new VoiceRegistry(audio -> new int[]{1}),
+                                         null, "", frameGen, streamingConfig);
+
+        var chunks = new java.util.ArrayList<byte[]>();
+        var seqs   = new java.util.ArrayList<Integer>();
+        tts.synthesiseStreaming("hello", io.casehub.blocks.speech.SynthesisOptions.defaults(),
+                                (wav, seq) -> {
+                                    chunks.add(wav);
+                                    seqs.add(seq);
+                                });
+
+        assertThat(chunks).isNotEmpty();
+        assertThat(seqs).isSorted();
+        for (byte[] wav : chunks) {
+            assertThat(wav[0]).isEqualTo((byte) 'R');
+            assertThat(wav[1]).isEqualTo((byte) 'I');
+        }
+    }
+
+    @Test
+    void synthesiseStreamingThrowsWhenNotAvailable(@TempDir Path tempDir) throws Exception {
+        var tts = createTestInstance(tempDir);
+        assertThatThrownBy(() -> tts.synthesiseStreaming("hello",
+                                                         io.casehub.blocks.speech.SynthesisOptions.defaults(), (wav, seq) -> {}))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
 
     /**
      * Creates a test Audio8TextToSpeech with stub internals — no real ONNX sessions.

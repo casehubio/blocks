@@ -22,12 +22,12 @@ final class CodecDecoder implements AutoCloseable {
         if (frames == null || frames.length == 0) {
             throw new SherpaException("No codec frames to decode");
         }
-        int numCodebooks = frames[0].length;
-        long[] codes = reshapeForOrt(frames, numCodebooks);
+        int    numCodebooks = frames[0].length;
+        long[] codes        = reshapeForOrt(frames, numCodebooks);
 
         try (var arena = Arena.ofConfined()) {
-            long[] shape = {1, numCodebooks, frames.length};
-            MemorySegment data = arena.allocateFrom(ValueLayout.JAVA_LONG, codes);
+            long[]        shape = {1, numCodebooks, frames.length};
+            MemorySegment data  = arena.allocateFrom(ValueLayout.JAVA_LONG, codes);
             MemorySegment tensor = session.createTensor(
                     data, codes.length * ValueLayout.JAVA_LONG.byteSize(),
                     shape, OnnxRuntimeLibrary.INT64, arena);
@@ -37,15 +37,15 @@ final class CodecDecoder implements AutoCloseable {
                     new String[]{session.outputName(0)}, arena);
 
             MemorySegment audioData = session.getTensorData(outputs[0], arena);
-            long count = session.tensorElementCount(outputs[0], arena);
+            long          count     = session.tensorElementCount(outputs[0], arena);
             float[] audio = audioData
-                    .reinterpret(count * ValueLayout.JAVA_FLOAT.byteSize())
-                    .toArray(ValueLayout.JAVA_FLOAT);
+                                    .reinterpret(count * ValueLayout.JAVA_FLOAT.byteSize())
+                                    .toArray(ValueLayout.JAVA_FLOAT);
 
-            for (MemorySegment out : outputs) session.releaseValue(out);
+            for (MemorySegment out : outputs) {session.releaseValue(out);}
+            session.releaseValue(tensor);
             return audio;
-        }
-    }
+        }}
 
     @Override
     public void close() {

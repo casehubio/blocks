@@ -48,6 +48,13 @@ final class DualARLoop implements AutoCloseable {
         long[][][] prompt = buildPrompt(text, referenceText, voiceCodes, numCb,
                                         manifest.semanticBeginId(), tokenizer);
 
+        var frames = new ArrayList<int[]>();
+        iterateFrames(prompt, config, frames::add);
+        return frames.toArray(new int[0][]);}
+
+    void iterateFrames(long[][][] prompt, Audio8Config config,
+                       java.util.function.Consumer<int[]> frameConsumer) {
+        int numCb     = manifest.numCodebooks();
         int promptLen = prompt[0][0].length;
         if (promptLen >= manifest.maxSeqLen()) {
             throw new SherpaException("Prompt length " + promptLen
@@ -56,7 +63,6 @@ final class DualARLoop implements AutoCloseable {
         int maxNewTokens = Math.min(config.maxTokens(), manifest.maxSeqLen() - promptLen);
 
         var rng      = new Random(42);
-        var frames   = new ArrayList<int[]>();
         var previous = new ArrayList<Integer>();
 
         try (var arena = Arena.ofConfined()) {
@@ -98,13 +104,14 @@ final class DualARLoop implements AutoCloseable {
                                            config.topK(), rng);
                     codebooks[cb] = token;
                 }
-                frames.add(codebooks);
+                frameConsumer.accept(codebooks);
 
                 long[] column = buildColumn(semantic, codebooks, numCb);
                 result = slowStep(column, promptLen + step, slowState, arena);
             }
         }
-        return frames.toArray(new int[0][]);}
+    }
+
 
     @Override
     public void close() {
