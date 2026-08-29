@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TranscriptCorrector {
 
 
-    private static final double            CONTEXT_CHALLENGE_THRESHOLD = 10.0;
+    private static final double            CONTEXT_CHALLENGE_THRESHOLD = 3.0;
     private final List<CorrectionStrategy> strategies;
     private final @Nullable NgramModel ngramModel;
     private final Set<String> dictionary;
