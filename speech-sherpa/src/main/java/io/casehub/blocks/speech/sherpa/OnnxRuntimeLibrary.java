@@ -210,20 +210,20 @@ final class OnnxRuntimeLibrary {
             return SymbolLookup.libraryLookup("onnxruntime", Arena.global());
         } catch (IllegalArgumentException | UnsatisfiedLinkError ignored) {}
 
-        // Tier 2: pinned ORT 1.18.0 (for FP16 model compatibility)
-        Path ort180Dir = Path.of(System.getProperty("user.home"), ".casehub", "ort-1.18.0");
-        Path ort180Lib = ort180Dir.resolve(onnxRuntimeLibName());
-        if (Files.exists(ort180Lib)) {
-            return SymbolLookup.libraryLookup(ort180Lib, Arena.global());
-        }
-
-        // Tier 3: sherpa-onnx provisioned directory
+        // Tier 2: sherpa-onnx provisioned directory (ORT bundled with sherpa-onnx)
         Path cacheDir = SherpaLibrary.defaultCacheDir();
         if (cacheDir != null) {
             Path onnxLib = cacheDir.resolve(onnxRuntimeLibName());
             if (Files.exists(onnxLib)) {
                 return SymbolLookup.libraryLookup(onnxLib, Arena.global());
             }
+        }
+
+        // Tier 3: standalone ORT 1.18.0 (for FP16 model compatibility when no sherpa-onnx)
+        Path ort180Dir = Path.of(System.getProperty("user.home"), ".casehub", "ort-1.18.0");
+        Path ort180Lib = ort180Dir.resolve(onnxRuntimeLibName());
+        if (Files.exists(ort180Lib)) {
+            return SymbolLookup.libraryLookup(ort180Lib, Arena.global());
         }
 
         throw new UnsatisfiedLinkError(

@@ -214,7 +214,14 @@ final class CosyVoice3Decoder implements TtsDecoder {
                         new String[]{hiftSource.outputName(0)},
                         arena);
 
-                float[][][] stftResult = StftUtils.stft(source, nFft, hopLength);
+                int pad = nFft / 2;
+                float[] centeredSource = new float[source.length + 2 * pad];
+                System.arraycopy(source, 0, centeredSource, pad, source.length);
+                for (int i = 0; i < pad; i++) {
+                    centeredSource[pad - 1 - i] = source[Math.min(i + 1, source.length - 1)];
+                    centeredSource[centeredSource.length - pad + i] = source[Math.max(source.length - 2 - i, 0)];
+                }
+                float[][][] stftResult = StftUtils.stft(centeredSource, nFft, hopLength);
                 float[][] stftReal = stftResult[0];
                 float[][] stftImag = stftResult[1];
                 int stftFrames = stftReal[0].length;
