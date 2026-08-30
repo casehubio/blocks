@@ -418,5 +418,7 @@ final class OnnxRuntimeLibrary {
     static final int FLOAT = ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT;
     static final int INT64 = ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64;
     static final int BOOL  = 9;
+    static final int INT32 = 6;
+
 
 }
