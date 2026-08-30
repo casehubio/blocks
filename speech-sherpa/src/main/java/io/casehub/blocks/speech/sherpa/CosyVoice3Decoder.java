@@ -90,7 +90,7 @@ final class CosyVoice3Decoder implements TtsDecoder {
                     var embSeg = arena.allocateFrom(ValueLayout.JAVA_FLOAT, embeddings);
                     var embTensor2 = flowPreLookahead.createTensor(embSeg,
                             (long) embeddings.length * ValueLayout.JAVA_FLOAT.byteSize(),
-                            new long[]{1, tokens.length, hiddenDim}, OnnxRuntimeLibrary.FLOAT, arena);
+                            new long[]{1, tokens.length, melBins}, OnnxRuntimeLibrary.FLOAT, arena);
                     var laOutputs = flowPreLookahead.runRaw(
                             new String[]{flowPreLookahead.inputName(0)},
                             new MemorySegment[]{embTensor2},
@@ -103,10 +103,10 @@ final class CosyVoice3Decoder implements TtsDecoder {
                                 .toArray(ValueLayout.JAVA_FLOAT);
 
                         int melLen = tokens.length * tokenMelRatio;
-                        float[] mu = new float[hiddenDim * melLen];
-                        for (int d = 0; d < hiddenDim; d++) {
+                        float[] mu = new float[melBins * melLen];
+                        for (int d = 0; d < melBins; d++) {
                             for (int f = 0; f < melLen; f++) {
-                                mu[d * melLen + f] = h[f * hiddenDim + d];
+                                mu[d * melLen + f] = h[f * melBins + d];
                             }
                         }
                         return mu;
@@ -280,42 +280,50 @@ final class CosyVoice3Decoder implements TtsDecoder {
         }
         if (!(voiceData instanceof VoiceData.EmbeddingVoiceData evd)) {
             throw new IllegalArgumentException("CosyVoice3 requires EmbeddingVoiceData, got "
-                    + voiceData.getClass().getSimpleName());
+                                               + voiceData.getClass().getSimpleName());
         }
         if (!(generatorOutput instanceof GeneratorOutput.SpeechTokenOutput sto)) {
             throw new IllegalArgumentException("CosyVoice3 requires SpeechTokenOutput, got "
-                    + generatorOutput.getClass().getSimpleName());
+                                               + generatorOutput.getClass().getSimpleName());
         }
 
-        int[] promptTokens = evd.speechTokens();
-        int[] genTokens = sto.speechTokens();
-        int[] allTokens = concatInt(promptTokens, genTokens);
+        int[] promptTokens  = evd.speechTokens();
+        int[] genTokens     = sto.speechTokens();
+        int[] allTokens     = concatInt(promptTokens, genTokens);
+        int   melBins       = manifest.melBins();
+        int   tokenMelRatio = manifest.tokenMelRatio();
 
-        int melLen = allTokens.length * manifest.tokenMelRatio();
-        int promptMelFrames = promptTokens.length * manifest.tokenMelRatio();
+        float[] mu        = flowTokenProcessor.process(allTokens);
+        int     rawMelLen = mu.length / melBins;
+        int     melLen    = rawMelLen % 2 == 0 ? rawMelLen : rawMelLen + 1;
+        if (melLen != rawMelLen) {
+            float[] paddedMu = new float[melBins * melLen];
+            System.arraycopy(mu, 0, paddedMu, 0, mu.length);
+            mu = paddedMu;
+        }
+
+        int promptMelFrames = promptTokens.length * tokenMelRatio;
+        if (promptMelFrames > melLen) {promptMelFrames = melLen;}
         int genMelFrames = melLen - promptMelFrames;
-        int melBins = manifest.melBins();
-
-        float[] mu = flowTokenProcessor.process(allTokens);
 
         float[] normalizedSpk = l2Normalize(evd.speakerEmbedding());
-        float[] spks = speakerProjector.project(normalizedSpk);
+        float[] spks          = speakerProjector.project(normalizedSpk);
 
         float[] cond = buildConditioning(evd.promptMel(), melBins, melLen, promptMelFrames);
 
         float[] mask = new float[melLen];
         Arrays.fill(mask, 1.0f);
 
-        Random random = rng != null ? rng : ThreadLocalRandom.current();
-        float[] x = new float[melBins * melLen];
+        Random  random = rng != null ? rng : ThreadLocalRandom.current();
+        float[] x      = new float[melBins * melLen];
         for (int i = 0; i < x.length; i++) {
             x[i] = (float) random.nextGaussian();
         }
 
-        int flowSteps = manifest.flowSteps();
-        float dt = 1.0f / flowSteps;
+        int   flowSteps = manifest.flowSteps();
+        float dt        = 1.0f / flowSteps;
         for (int step = 0; step < flowSteps; step++) {
-            float[] t = {(float) step / flowSteps, (float) step / flowSteps};
+            float[] t        = {(float) step / flowSteps, (float) step / flowSteps};
             float[] velocity = flowEstimator.estimate(x, mask, mu, t, spks, cond, melBins, melLen);
             for (int i = 0; i < x.length; i++) {
                 x[i] += velocity[i] * dt;
@@ -325,7 +333,7 @@ final class CosyVoice3Decoder implements TtsDecoder {
         float[] genMel = new float[melBins * genMelFrames];
         for (int m = 0; m < melBins; m++) {
             System.arraycopy(x, m * melLen + promptMelFrames,
-                    genMel, m * genMelFrames, genMelFrames);
+                             genMel, m * genMelFrames, genMelFrames);
         }
 
         float[] audio = vocoder.synthesize(genMel, melBins, genMelFrames);

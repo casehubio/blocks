@@ -29,6 +29,8 @@ final class OnnxRuntimeLibrary {
     private static final int IDX_CREATE_SESSION = 7;
     private static final int IDX_RUN = 9;
     private static final int IDX_CREATE_SESSION_OPTIONS = 10;
+    private static final int IDX_SET_SESSION_GRAPH_OPT_LEVEL = 23;
+
     private static final int IDX_SET_INTRA_OP_NUM_THREADS = 24;
     private static final int IDX_SESSION_GET_INPUT_COUNT = 30;
     private static final int IDX_SESSION_GET_OUTPUT_COUNT = 31;
@@ -114,6 +116,48 @@ final class OnnxRuntimeLibrary {
         }
     }
 
+    Session createSession(Path modelPath, int numThreads, int graphOptLevel) {
+        try (Arena setup = Arena.ofConfined()) {
+            MemorySegment optsOut = setup.allocate(ADDRESS);
+            checkStatus(callVtable(IDX_CREATE_SESSION_OPTIONS,
+                                   FunctionDescriptor.of(ADDRESS, ADDRESS),
+                                   optsOut));
+            MemorySegment opts = optsOut.get(ADDRESS, 0);
+
+            checkStatus(callVtable(IDX_SET_INTRA_OP_NUM_THREADS,
+                                   FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_INT),
+                                   opts, numThreads));
+
+            checkStatus(callVtable(IDX_SET_SESSION_GRAPH_OPT_LEVEL,
+                                   FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_INT),
+                                   opts, graphOptLevel));
+
+            MemorySegment sessionOut   = setup.allocate(ADDRESS);
+            MemorySegment modelPathSeg = setup.allocateFrom(modelPath.toString());
+            checkStatus(callVtable(IDX_CREATE_SESSION,
+                                   FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+                                   env, modelPathSeg, opts, sessionOut));
+            MemorySegment session = sessionOut.get(ADDRESS, 0);
+
+            MemorySegment memInfoOut = setup.allocate(ADDRESS);
+            checkStatus(callVtable(IDX_CREATE_CPU_MEMORY_INFO,
+                                   FunctionDescriptor.of(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS),
+                                   OrtDeviceAllocator, OrtMemTypeCPU, memInfoOut));
+            MemorySegment memInfo = memInfoOut.get(ADDRESS, 0);
+
+            MemorySegment allocOut = setup.allocate(ADDRESS);
+            checkStatus(callVtable(IDX_GET_ALLOCATOR_WITH_DEFAULT_OPTIONS,
+                                   FunctionDescriptor.of(ADDRESS, ADDRESS),
+                                   allocOut));
+            MemorySegment allocator = allocOut.get(ADDRESS, 0);
+
+            releaseQuietly(IDX_RELEASE_SESSION_OPTIONS, opts);
+
+            return new Session(this, session, memInfo, allocator);
+        }
+    }
+
+
     private MemorySegment callVtable(int index, FunctionDescriptor desc, Object... args) {
         try {
             MemorySegment fnPtr = ortApi.get(ADDRESS, (long) index * ADDRESS.byteSize());
@@ -166,7 +210,14 @@ final class OnnxRuntimeLibrary {
             return SymbolLookup.libraryLookup("onnxruntime", Arena.global());
         } catch (IllegalArgumentException | UnsatisfiedLinkError ignored) {}
 
-        // Tier 2: sherpa-onnx provisioned directory
+        // Tier 2: pinned ORT 1.18.0 (for FP16 model compatibility)
+        Path ort180Dir = Path.of(System.getProperty("user.home"), ".casehub", "ort-1.18.0");
+        Path ort180Lib = ort180Dir.resolve(onnxRuntimeLibName());
+        if (Files.exists(ort180Lib)) {
+            return SymbolLookup.libraryLookup(ort180Lib, Arena.global());
+        }
+
+        // Tier 3: sherpa-onnx provisioned directory
         Path cacheDir = SherpaLibrary.defaultCacheDir();
         if (cacheDir != null) {
             Path onnxLib = cacheDir.resolve(onnxRuntimeLibName());
@@ -419,6 +470,8 @@ final class OnnxRuntimeLibrary {
     static final int INT64 = ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64;
     static final int BOOL  = 9;
     static final int INT32 = 6;
+    static final int GRAPH_OPT_DISABLE_ALL = 0;
+    static final int GRAPH_OPT_ENABLE_BASIC = 1;
 
 
 }

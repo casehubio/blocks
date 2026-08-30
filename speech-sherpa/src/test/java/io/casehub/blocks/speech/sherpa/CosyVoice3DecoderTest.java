@@ -182,7 +182,7 @@ class CosyVoice3DecoderTest {
         CosyVoice3Decoder.FlowTokenProcessor processor = tokens -> {
             capturedTokens[0] = tokens.clone();
             int melLen = tokens.length * TOKEN_MEL_RATIO;
-            return new float[MANIFEST.hiddenDim() * melLen];
+            return new float[MEL_BINS * melLen];
         };
         var decoder = new CosyVoice3Decoder(
                 processor, mockSpeakerProjector(), mockFlowEstimator(),
@@ -207,7 +207,7 @@ class CosyVoice3DecoderTest {
     private static CosyVoice3Decoder.FlowTokenProcessor mockFlowTokenProcessor() {
         return tokens -> {
             int melLen = tokens.length * TOKEN_MEL_RATIO;
-            return new float[MANIFEST.hiddenDim() * melLen];
+            return new float[MEL_BINS * melLen];
         };
     }
 

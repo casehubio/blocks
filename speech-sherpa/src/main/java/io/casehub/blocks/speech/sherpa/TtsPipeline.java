@@ -44,7 +44,6 @@ public final class TtsPipeline implements TextToSpeechService, AutoCloseable {
     private static TtsPipeline buildCosyVoice3(Path modelDir, CosyVoice3Manifest manifest) {
         OnnxRuntimeLibrary ort     = OnnxRuntimeLibrary.load();
         int                threads = 4;
-
         var campplus              = ort.createSession(modelDir.resolve("campplus.onnx"), threads);
         var speechTokenizer       = ort.createSession(modelDir.resolve("speech_tokenizer_v3.onnx"), threads);
         var textEmbedding         = ort.createSession(modelDir.resolve("text_embedding_fp32.onnx"), threads);

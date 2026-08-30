@@ -495,8 +495,10 @@ final class Provisioner {
             "hift_f0_predictor_fp32.onnx",
             "hift_source_generator_fp32.onnx",
             "hift_decoder_fp32.onnx",
-            "tokenizer/vocab.json",
-            "tokenizer/merges.txt"
+            "vocab.json",
+            "merges.txt",
+            "prompts/en_female_nova_greeting.wav",
+            "prompts/en_male_onyx_greeting.wav"
                                                                       );
 
 
@@ -581,8 +583,11 @@ final class Provisioner {
                         "hiftNFft": 16,
                         "hiftHopLength": 4,
                         "speakerEmbedDim": 192,
-                        "tokenizerDir": "tokenizer",
-                        "defaultPrompts": {}
+                        "tokenizerDir": ".",
+                        "defaultPrompts": {
+                    "en_female_nova_greeting.wav": "Hello, how can I help you today?",
+                    "en_male_onyx_greeting.wav": "Welcome, what can I assist you with?"
+                  }
                       }
                       """;
         try {

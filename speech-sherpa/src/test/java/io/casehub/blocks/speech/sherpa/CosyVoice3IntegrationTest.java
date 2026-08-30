@@ -22,7 +22,7 @@ class CosyVoice3IntegrationTest {
     @Test void endToEndSynthesisWithVoiceCloning() {
         Path modelDir = Provisioner.ensureCosyVoice3Model();
         try (var pipeline = TtsPipeline.fromModelDir(modelDir)) {
-            byte[] referenceWav = makeTestWav(16000, 3.0f);
+            byte[] referenceWav = makeTestWav(16000, 1.0f);
             String voiceId = pipeline.registerVoice(
                     writeTemp(referenceWav), "Hello, this is a test voice.");
             try {

@@ -34,9 +34,9 @@ final class CosyVoice3VoiceEncoder implements TtsVoiceEncoder {
                                                OnnxRuntimeLibrary.Session speechTokenizer,
                                                CosyVoice3Manifest manifest) {
         SpeakerExtractor speaker = logMel -> {
-            int nMels = logMel.length;
-            int frames = logMel[0].length;
-            float[] flat = new float[frames * nMels];
+            int     nMels  = logMel.length;
+            int     frames = logMel[0].length;
+            float[] flat   = new float[frames * nMels];
             for (int f = 0; f < frames; f++) {
                 for (int m = 0; m < nMels; m++) {
                     flat[f * nMels + m] = logMel[m][f];
@@ -45,32 +45,50 @@ final class CosyVoice3VoiceEncoder implements TtsVoiceEncoder {
             try (var arena = java.lang.foreign.Arena.ofConfined()) {
                 var data = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, flat);
                 return campplus.runFloat(
-                        new String[]{"fbank"},
+                        new String[]{"input"},
                         new java.lang.foreign.MemorySegment[]{data},
                         new long[][]{{1, frames, nMels}},
-                        new String[]{"embs"},
+                        new String[]{"output"},
                         arena);
             }
         };
 
         TokenExtractor tokens = logMel -> {
-            int nMels = logMel.length;
-            int frames = logMel[0].length;
-            float[] flat = new float[nMels * frames];
+            int     nMels  = logMel.length;
+            int     frames = logMel[0].length;
+            float[] flat   = new float[nMels * frames];
             for (int m = 0; m < nMels; m++) {
                 System.arraycopy(logMel[m], 0, flat, m * frames, frames);
             }
             try (var arena = java.lang.foreign.Arena.ofConfined()) {
-                var data = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, flat);
-                float[] raw = speechTokenizer.runFloat(
-                        new String[]{"mel"},
-                        new java.lang.foreign.MemorySegment[]{data},
-                        new long[][]{{1, nMels, frames}},
-                        new String[]{"codes"},
+                var featData = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_FLOAT, flat);
+                var featTensor = speechTokenizer.createTensor(featData,
+                                                              (long) flat.length * java.lang.foreign.ValueLayout.JAVA_FLOAT.byteSize(),
+                                                              new long[]{1, nMels, frames}, OnnxRuntimeLibrary.FLOAT, arena);
+
+                var lenData = arena.allocateFrom(java.lang.foreign.ValueLayout.JAVA_INT, new int[]{frames});
+                var lenTensor = speechTokenizer.createTensor(lenData,
+                                                             java.lang.foreign.ValueLayout.JAVA_INT.byteSize(),
+                                                             new long[]{1}, OnnxRuntimeLibrary.INT32, arena);
+
+                var outputs = speechTokenizer.runRaw(
+                        new String[]{"feats", "feats_length"},
+                        new java.lang.foreign.MemorySegment[]{featTensor, lenTensor},
+                        new String[]{"indices"},
                         arena);
-                int[] result = new int[raw.length];
-                for (int i = 0; i < raw.length; i++) result[i] = Math.round(raw[i]);
-                return result;
+                try {
+                    long count = speechTokenizer.tensorElementCount(outputs[0], arena);
+                    float[] raw = speechTokenizer.getTensorData(outputs[0], arena)
+                                                 .reinterpret(count * java.lang.foreign.ValueLayout.JAVA_FLOAT.byteSize())
+                                                 .toArray(java.lang.foreign.ValueLayout.JAVA_FLOAT);
+                    int[] result = new int[raw.length];
+                    for (int i = 0; i < raw.length; i++) {result[i] = Math.round(raw[i]);}
+                    return result;
+                } finally {
+                    for (var out : outputs) {speechTokenizer.releaseValue(out);}
+                    speechTokenizer.releaseValue(featTensor);
+                    speechTokenizer.releaseValue(lenTensor);
+                }
             }
         };
 
