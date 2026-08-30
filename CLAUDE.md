@@ -7,6 +7,8 @@
 **Workspace:** `/Users/mdproctor/claude/public/casehub/blocks`
 **Workspace type:** public
 
+**DSL parity:** YAML and Java are peer representations — see [DSL Style Guide](https://raw.githubusercontent.com/casehubio/parent/main/docs/DSL-STYLE-GUIDE.md) §YAML/Java Parity Principle
+
 ## Session Start
 
 Run `add-dir /Users/mdproctor/claude/casehub/blocks` before any other work.
