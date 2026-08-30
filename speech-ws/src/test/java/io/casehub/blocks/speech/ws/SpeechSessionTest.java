@@ -446,8 +446,8 @@ class SpeechSessionTest {
 
         session.handleText("tell me a limaric");
 
-        assertThat(corrected).containsExactly("tell me a limaric");
-        verify(cleanupConfig).apply("tell me a limerick");
+        assertThat(corrected).as("corrector should not be called for typed text").isEmpty();
+        verify(cleanupConfig).apply("tell me a limaric");
     }
 
     @Test

@@ -172,8 +172,7 @@ public class SpeechSession {
     public void handleText(String text, @Nullable String llmModel, @Nullable String ttsModel) {
         long t0 = System.nanoTime();
         try {
-            String corrected   = corrector != null ? corrector.apply(text) : text;
-            String cleanText   = cleanupConfig.apply(corrected);
+            String cleanText   = cleanupConfig.apply(text);
             long   cleanupDone = System.nanoTime();
 
             send(new AvatarMessage.Transcript(cleanText));

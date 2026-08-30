@@ -70,6 +70,15 @@ public class SpeechProducers {
             LOG.log(System.Logger.Level.INFO, "Audio8 0.6b not available: " + e.getMessage());
         }
 
+        // CosyVoice3 pipeline — requires ORT 1.18.0 for FP16 models
+        try {
+            var cosyDir = java.nio.file.Path.of(System.getProperty("user.home"), ".casehub", "models", "cosyvoice3");
+            var cosyPipeline = io.casehub.blocks.speech.sherpa.TtsPipeline.fromModelDir(cosyDir);
+            models.put("cosyvoice3", wrapIfAvailable(cosyPipeline, aligner));
+        } catch (Throwable e) {
+            LOG.log(System.Logger.Level.WARNING, "CosyVoice3 not available: " + e, e);
+        }
+
         return new io.casehub.blocks.speech.ws.TtsModelRegistry(java.util.Collections.unmodifiableMap(models));}
 
     private static io.casehub.blocks.speech.TextToSpeechService wrapIfAvailable(
