@@ -478,6 +478,27 @@ final class Provisioner {
                     "tokenizer/tokenizer.json", "runtime_manifest.json"
                            )
                                                                               );
+    private static final String                    COSYVOICE3_REPO    = "ayousanz/cosy-voice3-onnx";
+
+    private static final List<String> COSYVOICE3_MODEL_FILES = List.of(
+            "campplus.onnx",
+            "speech_tokenizer_v3.onnx",
+            "text_embedding_fp32.onnx",
+            "llm_backbone_initial_fp16.onnx",
+            "llm_backbone_decode_fp16.onnx",
+            "llm_decoder_fp16.onnx",
+            "llm_speech_embedding_fp16.onnx",
+            "flow_token_embedding_fp16.onnx",
+            "flow_pre_lookahead_fp16.onnx",
+            "flow_speaker_projection_fp16.onnx",
+            "flow.decoder.estimator.fp16.onnx",
+            "hift_f0_predictor_fp32.onnx",
+            "hift_source_generator_fp32.onnx",
+            "hift_decoder_fp32.onnx",
+            "tokenizer/vocab.json",
+            "tokenizer/merges.txt"
+                                                                      );
+
 
     static Path audio8ModelDir(String variant) {
         return cacheBaseDir().resolve("models").resolve("audio8-tts").resolve(variant);
@@ -506,6 +527,72 @@ final class Provisioner {
         }
     }
 
+    static Path cosyVoice3ModelDir() {
+        return cacheBaseDir().resolve("models").resolve("cosyvoice3");
+    }
+
+    static Path ensureCosyVoice3Model() {
+        Path targetDir = cosyVoice3ModelDir();
+        if (Files.isDirectory(targetDir) && COSYVOICE3_MODEL_FILES.stream()
+                                                                  .allMatch(f -> Files.exists(targetDir.resolve(f)))) {
+            return targetDir;
+        }
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && COSYVOICE3_MODEL_FILES.stream()
+                                                                      .allMatch(f -> Files.exists(targetDir.resolve(f)))) {
+                return targetDir;
+            }
+            provisionFromHuggingFace(COSYVOICE3_REPO, COSYVOICE3_MODEL_FILES, targetDir);
+            writeCosyVoice3Manifest(targetDir);
+            return targetDir;
+        }
+    }
+
+    private static void writeCosyVoice3Manifest(Path targetDir) {
+        Path manifestPath = targetDir.resolve("pipeline_manifest.json");
+        if (Files.exists(manifestPath)) {return;}
+        String json = """
+                      {
+                        "header": {
+                          "name": "cosyvoice3",
+                          "sampleRate": 24000,
+                          "stageModels": {
+                            "voice_encoder": ["campplus.onnx", "speech_tokenizer_v3.onnx"],
+                            "generator": ["text_embedding_fp32.onnx", "llm_speech_embedding_fp16.onnx",
+                                          "llm_backbone_initial_fp16.onnx", "llm_backbone_decode_fp16.onnx",
+                                          "llm_decoder_fp16.onnx"],
+                            "decoder": ["flow_token_embedding_fp16.onnx", "flow_pre_lookahead_fp16.onnx",
+                                        "flow_speaker_projection_fp16.onnx", "flow.decoder.estimator.fp16.onnx",
+                                        "hift_f0_predictor_fp32.onnx", "hift_source_generator_fp32.onnx",
+                                        "hift_decoder_fp32.onnx"]
+                          },
+                          "metadata": {}
+                        },
+                        "hiddenDim": 896,
+                        "speechVocabSize": 6561,
+                        "sosId": 6561,
+                        "eosId": 6562,
+                        "taskId": 6563,
+                        "numLlmLayers": 24,
+                        "kvHeadDim": 64,
+                        "tokenMelRatio": 2,
+                        "flowSteps": 10,
+                        "melBins": 80,
+                        "hiftNFft": 16,
+                        "hiftHopLength": 4,
+                        "speakerEmbedDim": 192,
+                        "tokenizerDir": "tokenizer",
+                        "defaultPrompts": {}
+                      }
+                      """;
+        try {
+            Files.writeString(manifestPath, json);
+        } catch (IOException e) {
+            throw new SherpaException("Failed to write CosyVoice3 manifest", e);
+        }
+    }
+
+
     private static void provisionFromHuggingFace(String repo, List<String> files, Path targetDir) {
         try {
             Files.createDirectories(targetDir);
@@ -518,11 +605,11 @@ final class Provisioner {
                 Path downloaded = downloadWithRetry(url, filePath.getParent(), 3);
                 Files.move(downloaded, filePath, StandardCopyOption.REPLACE_EXISTING);
             }
-            LOG.log(System.Logger.Level.INFO, "Audio8 model provisioned at {0}", targetDir);
+            LOG.log(System.Logger.Level.INFO, "Model provisioned at {0}", targetDir);
         } catch (SherpaException e) {
             throw e;
         } catch (Exception e) {
-            throw new SherpaException("Failed to provision Audio8 model from HuggingFace: " + repo
+            throw new SherpaException("Failed to provision model from HuggingFace: " + repo
                                       + ". Download manually to " + targetDir, e);
         }
     }
