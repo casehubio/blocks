@@ -5,6 +5,7 @@ import io.casehub.blocks.agentic.FailurePolicy;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.activation.ActivationRule;
 import io.casehub.blocks.agentic.aggregation.AggregationStrategy;
+import io.casehub.blocks.agentic.judgment.JudgmentPhase;
 import io.casehub.blocks.agentic.model.ExecutionBackend;
 import io.casehub.blocks.agentic.model.ExecutionEventListener;
 import io.casehub.blocks.agentic.model.ExecutionModel;
@@ -34,6 +35,7 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
     protected       String                           task          = "execution";
     protected       ExecutionBackend<T>              backend;
     protected       PatternType                      patternType;
+    protected       JudgmentPhase<T>                 judgment;
 
     public B route(RoutingStrategy<T> routing) {
         this.routing = routing;
@@ -123,6 +125,11 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
         return (B) this;
     }
 
+    public B judgment(JudgmentPhase<T> judgment) {
+        this.judgment = judgment;
+        return (B) this;
+    }
+
     protected B agents(AgentRef... agents) {
         var candidates = Arrays.stream(agents)
                                .map(a -> new RoutingCandidate(a, null))
@@ -141,7 +148,8 @@ public abstract class AbstractPatternBuilder<T, B extends AbstractPatternBuilder
         return new ExecutionModel<>(routing, decomposition, activation,
                                     aggregation, termination, candidateSupplier,
                                     failurePolicy, listeners, task, patternType,
-                                    backend);}
+                                    backend, judgment);
+    }
 
     public Uni<ExecutionResult> execute(T initialContext) {
         var model = build();

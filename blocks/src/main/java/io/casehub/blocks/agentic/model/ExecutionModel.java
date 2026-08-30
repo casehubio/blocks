@@ -4,6 +4,7 @@ import io.casehub.blocks.agentic.FailurePolicy;
 import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.activation.ActivationRule;
 import io.casehub.blocks.agentic.aggregation.AggregationStrategy;
+import io.casehub.blocks.agentic.judgment.JudgmentPhase;
 import io.casehub.blocks.agentic.routing.RoutingStrategy;
 import io.casehub.blocks.agentic.termination.TerminationCondition;
 import io.casehub.engine.plan.DecompositionStrategy;
@@ -24,7 +25,8 @@ public record ExecutionModel<T>(
         List<ExecutionEventListener> listeners,
         String task,
         PatternType patternType,
-        @Nullable ExecutionBackend<T> backend
+        @Nullable ExecutionBackend<T> backend,
+        @Nullable JudgmentPhase<T> judgment
 ) {
     public ExecutionModel {
         Objects.requireNonNull(routing, "routing");
@@ -43,9 +45,19 @@ public record ExecutionModel<T>(
                           TerminationCondition<T> termination,
                           Supplier<List<RoutingCandidate>> candidateSupplier,
                           FailurePolicy failurePolicy, List<ExecutionEventListener> listeners,
+                          String task, PatternType patternType, ExecutionBackend<T> backend) {
+        this(routing, decomposition, activation, aggregation, termination,
+             candidateSupplier, failurePolicy, listeners, task, patternType, backend, null);
+    }
+
+    public ExecutionModel(RoutingStrategy<T> routing, DecompositionStrategy<T> decomposition,
+                          ActivationRule<T> activation, AggregationStrategy<T> aggregation,
+                          TerminationCondition<T> termination,
+                          Supplier<List<RoutingCandidate>> candidateSupplier,
+                          FailurePolicy failurePolicy, List<ExecutionEventListener> listeners,
                           String task, PatternType patternType) {
         this(routing, decomposition, activation, aggregation, termination,
-             candidateSupplier, failurePolicy, listeners, task, patternType, null);
+             candidateSupplier, failurePolicy, listeners, task, patternType, null, null);
     }
 
     public ExecutionModel(RoutingStrategy<T> routing, DecompositionStrategy<T> decomposition,
