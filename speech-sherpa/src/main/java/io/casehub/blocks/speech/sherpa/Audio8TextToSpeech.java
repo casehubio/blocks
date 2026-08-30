@@ -126,14 +126,14 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
                                     dualAr.generate(text, refText, voiceCodes, config, tokenizer);
             Decoder dec = codecDec::decode;
 
-            VoiceRegistry.VoiceEncoder voiceEncoder = audioData -> {
+            TtsVoiceEncoder voiceEncoder = (audioData, transcript) -> {
                 Path encoderPath = modelDir.resolve("registration").resolve("codec_encoder_fp16.onnx");
                 if (!Files.exists(encoderPath)) {
                     throw new SherpaException("Voice encoder not available — download registration package first");
                 }
                 var encoderSession = ort.createSession(encoderPath, cfg.numThreads());
                 try {
-                    return encodeVoice(encoderSession, audioData, manifest.numCodebooks());
+                    return new VoiceData.CodecVoiceData(encodeVoice(encoderSession, audioData, manifest.numCodebooks()));
                 } finally {
                     encoderSession.close();
                 }
@@ -154,8 +154,11 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
                 dualAr.iterateFrames(prompt, config, consumer);
             };
 
+            VoiceData defaultVoice = defaultCodes != null
+                    ? new VoiceData.CodecVoiceData(defaultCodes) : null;
+
             return new Audio8TextToSpeech(tok, cfg, gen, dec,
-                                          manifest.sampleRate(), new VoiceRegistry(voiceEncoder),
+                                          manifest.sampleRate(), new VoiceRegistry(voiceEncoder, defaultVoice),
                                           defaultCodes, manifest.referenceText(),
                                           frameGen, StreamingConfig.from(manifest),
                                           dualAr, codecDec);
@@ -170,7 +173,7 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
         int[]  voiceCodes = null;
         String refText    = "";
         if (options.voice() != null && !options.voice().isEmpty()) {
-            voiceCodes = voiceRegistry.getVoiceCodes(options.voice());
+            voiceCodes = ((VoiceData.CodecVoiceData) voiceRegistry.get(options.voice())).codecTokens();
         } else if (defaultVoiceCodes != null) {
             voiceCodes = defaultVoiceCodes;
             refText    = defaultReferenceText;
@@ -196,7 +199,7 @@ public final class Audio8TextToSpeech implements TextToSpeechService, AutoClosea
         int[]  voiceCodes = null;
         String refText    = "";
         if (options.voice() != null && !options.voice().isEmpty()) {
-            voiceCodes = voiceRegistry.getVoiceCodes(options.voice());
+            voiceCodes = ((VoiceData.CodecVoiceData) voiceRegistry.get(options.voice())).codecTokens();
         } else if (defaultVoiceCodes != null) {
             voiceCodes = defaultVoiceCodes;
             refText    = defaultReferenceText;

@@ -105,7 +105,7 @@ class Audio8TextToSpeechTest {
 
         var tts = new Audio8TextToSpeech(tokenizer, config,
                                          (text, refText, voiceCodes, cfg, tok) -> new int[0][],
-                                         decoder, 22050, new VoiceRegistry(audio -> new int[]{1}),
+                                         decoder, 22050, new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1})),
                                          null, "", frameGen, streamingConfig);
 
         var chunks = new java.util.ArrayList<byte[]>();
@@ -151,7 +151,7 @@ class Audio8TextToSpeechTest {
                 (text, refText, voiceCodes, cfg, tok) -> new int[][]{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
                 (frames) -> new float[]{0.1f, 0.2f, 0.3f},
                 44100,
-                new VoiceRegistry(audio -> new int[]{1, 2, 3}));
+                new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1, 2, 3})));
     }
 
     private String buildMinimalTokenizer() {

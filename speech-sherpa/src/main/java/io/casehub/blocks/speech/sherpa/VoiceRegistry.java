@@ -1,5 +1,7 @@
 package io.casehub.blocks.speech.sherpa;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,37 +10,47 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-final class VoiceRegistry {
+final class VoiceRegistry implements AutoCloseable {
 
-    @FunctionalInterface
-    interface VoiceEncoder {
-        int[] encode(byte[] audioData);
+    private final           TtsVoiceEncoder        encoder;
+    private final           Map<String, VoiceData> voices = new ConcurrentHashMap<>();
+    private final @Nullable VoiceData              defaultVoice;
+
+    VoiceRegistry(TtsVoiceEncoder encoder) {
+        this(encoder, null);
     }
 
-    private final VoiceEncoder encoder;
-    private final Map<String, int[]> voices = new ConcurrentHashMap<>();
-
-    VoiceRegistry(VoiceEncoder encoder) {
-        this.encoder = encoder;
+    VoiceRegistry(TtsVoiceEncoder encoder, @Nullable VoiceData defaultVoice) {
+        this.encoder      = encoder;
+        this.defaultVoice = defaultVoice;
     }
 
     String register(Path referenceAudio) {
+        return register(referenceAudio, null);
+    }
+
+    String register(Path referenceAudio, @Nullable String transcript) {
         byte[] audioData;
         try {
             audioData = Files.readAllBytes(referenceAudio);
         } catch (IOException e) {
             throw new SherpaException("Failed to read reference audio: " + referenceAudio, e);
         }
-        int[] codes = encoder.encode(audioData);
-        String id = UUID.randomUUID().toString();
-        voices.put(id, codes);
+        VoiceData vd = encoder.encode(audioData, transcript);
+        String    id = UUID.randomUUID().toString();
+        voices.put(id, vd);
         return id;
     }
 
-    int[] getVoiceCodes(String voiceId) {
-        int[] codes = voices.get(voiceId);
-        if (codes == null) throw new IllegalArgumentException("Unknown voice: " + voiceId);
-        return codes.clone();
+    VoiceData get(String voiceId) {
+        VoiceData vd = voices.get(voiceId);
+        if (vd == null) {throw new IllegalArgumentException("Unknown voice: " + voiceId);}
+        return vd;
+    }
+
+    @Nullable
+    VoiceData defaultVoice() {
+        return defaultVoice;
     }
 
     void release(String voiceId) {
@@ -49,7 +61,7 @@ final class VoiceRegistry {
         return Set.copyOf(voices.keySet());
     }
 
-    void close() {
+    public void close() {
         voices.clear();
     }
 }

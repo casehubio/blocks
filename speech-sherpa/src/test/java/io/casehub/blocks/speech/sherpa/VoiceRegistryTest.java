@@ -13,7 +13,7 @@ class VoiceRegistryTest {
 
     @Test
     void registerReturnsUniqueIds(@TempDir Path tempDir) throws Exception {
-        var registry = new VoiceRegistry(audio -> new int[]{1, 2, 3});
+        var registry = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1, 2, 3}));
         Path wav1 = writeTestWav(tempDir, "v1.wav");
         Path wav2 = writeTestWav(tempDir, "v2.wav");
 
@@ -24,42 +24,42 @@ class VoiceRegistryTest {
     }
 
     @Test
-    void getVoiceCodesReturnsRegisteredCodes(@TempDir Path tempDir) throws Exception {
+    void getReturnsRegisteredVoiceData(@TempDir Path tempDir) throws Exception {
         int[] expectedCodes = {10, 20, 30, 40};
-        var registry = new VoiceRegistry(audio -> expectedCodes);
-        Path wav = writeTestWav(tempDir, "voice.wav");
+        var   registry      = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(expectedCodes));
+        Path  wav           = writeTestWav(tempDir, "voice.wav");
 
-        String id = registry.register(wav);
-        int[] codes = registry.getVoiceCodes(id);
+        String    id = registry.register(wav);
+        VoiceData vd = registry.get(id);
 
-        assertThat(codes).containsExactly(10, 20, 30, 40);
+        assertThat(vd).isInstanceOf(VoiceData.CodecVoiceData.class);
+        assertThat(((VoiceData.CodecVoiceData) vd).codecTokens()).containsExactly(10, 20, 30, 40);
     }
 
     @Test
-    void getVoiceCodesReturnsCopyNotReference(@TempDir Path tempDir) throws Exception {
+    void getReturnsSameVoiceDataInstance(@TempDir Path tempDir) throws Exception {
         int[] sourceCodes = {1, 2, 3};
-        var registry = new VoiceRegistry(audio -> sourceCodes);
-        Path wav = writeTestWav(tempDir, "voice.wav");
+        var   registry    = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(sourceCodes));
+        Path  wav         = writeTestWav(tempDir, "voice.wav");
 
-        String id = registry.register(wav);
-        int[] codes1 = registry.getVoiceCodes(id);
-        int[] codes2 = registry.getVoiceCodes(id);
+        String    id  = registry.register(wav);
+        VoiceData vd1 = registry.get(id);
+        VoiceData vd2 = registry.get(id);
 
-        assertThat(codes1).isNotSameAs(codes2);
-        assertThat(codes1).containsExactly(codes2);
+        assertThat(vd1).isSameAs(vd2);
     }
 
     @Test
-    void getVoiceCodesThrowsForUnknownId() {
-        var registry = new VoiceRegistry(audio -> new int[0]);
-        assertThatThrownBy(() -> registry.getVoiceCodes("unknown"))
+    void getThrowsForUnknownId() {
+        var registry = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[0]));
+        assertThatThrownBy(() -> registry.get("unknown"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unknown");
     }
 
     @Test
     void releaseRemovesVoice(@TempDir Path tempDir) throws Exception {
-        var registry = new VoiceRegistry(audio -> new int[]{1});
+        var registry = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1}));
         Path wav = writeTestWav(tempDir, "voice.wav");
 
         String id = registry.register(wav);
@@ -70,7 +70,7 @@ class VoiceRegistryTest {
 
     @Test
     void registeredVoicesReturnsAllIds(@TempDir Path tempDir) throws Exception {
-        var registry = new VoiceRegistry(audio -> new int[]{1});
+        var registry = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1}));
         Path wav1 = writeTestWav(tempDir, "v1.wav");
         Path wav2 = writeTestWav(tempDir, "v2.wav");
 
@@ -82,7 +82,7 @@ class VoiceRegistryTest {
 
     @Test
     void closeRemovesAllVoices(@TempDir Path tempDir) throws Exception {
-        var registry = new VoiceRegistry(audio -> new int[]{1});
+        var registry = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1}));
         Path wav = writeTestWav(tempDir, "voice.wav");
 
         registry.register(wav);
@@ -93,7 +93,7 @@ class VoiceRegistryTest {
 
     @Test
     void registerThrowsForNonExistentFile() {
-        var registry = new VoiceRegistry(audio -> new int[]{1});
+        var registry = new VoiceRegistry((audio, transcript) -> new VoiceData.CodecVoiceData(new int[]{1}));
         assertThatThrownBy(() -> registry.register(Path.of("/nonexistent/voice.wav")))
                 .isInstanceOf(SherpaException.class);
     }
