@@ -1,31 +1,32 @@
 package io.casehub.blocks.agentic.social.goal;
 
+import io.casehub.blocks.agentic.social.AttributedState;
+import io.casehub.blocks.agentic.social.BdiDimension;
+import io.casehub.blocks.agentic.social.MentalModelSnapshot;
+import io.casehub.blocks.agentic.social.drive.AutonomyDrive;
+import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.blocks.agentic.social.drive.DriveIntensity;
+import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.casehub.blocks.agentic.social.AttributedState;
-import io.casehub.blocks.agentic.social.BdiDimension;
-import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
-import io.casehub.blocks.agentic.social.MentalModelSnapshot;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
-import io.casehub.blocks.agentic.social.drive.DriveIntensity;
-import java.time.Instant;
-import java.util.List;
-import org.junit.jupiter.api.Test;
-
 class AutonomyGoalMapperTest {
 
-    private final MentalModelOrchestrator orchestrator = mock(MentalModelOrchestrator.class);
-    private final AutonomyGoalMapper mapper = new AutonomyGoalMapper(orchestrator, 0.7);
+    private final AutonomyDrive      drive  = mock(AutonomyDrive.class);
+    private final AutonomyGoalMapper mapper = new AutonomyGoalMapper(drive, 0.7);
 
     @Test
     void returnsProposal_whenHighConfidenceIntentions() {
         var intention = new AttributedState(
                 "manipulate", "trying to manipulate", 0.85, 3,
                 Instant.now(), BdiDimension.INTENTION);
-        var snapshot = snapshot("subject-x", List.of(intention));
-        when(orchestrator.activeSnapshots("a1", "t1")).thenReturn(List.of(snapshot));
+        when(drive.lastSnapshots()).thenReturn(List.of(
+                snapshot("subject-x", List.of(intention))));
 
         var proposal = mapper.evaluate("a1", "t1", intensity(0.6));
         assertThat(proposal).isNotNull();
@@ -38,15 +39,21 @@ class AutonomyGoalMapperTest {
         var intention = new AttributedState(
                 "curious", "might be curious", 0.3, 1,
                 Instant.now(), BdiDimension.INTENTION);
-        var snapshot = snapshot("subject-x", List.of(intention));
-        when(orchestrator.activeSnapshots("a1", "t1")).thenReturn(List.of(snapshot));
+        when(drive.lastSnapshots()).thenReturn(List.of(
+                snapshot("subject-x", List.of(intention))));
 
         assertThat(mapper.evaluate("a1", "t1", intensity(0.6))).isNull();
     }
 
     @Test
     void returnsNull_whenNoSnapshots() {
-        when(orchestrator.activeSnapshots("a1", "t1")).thenReturn(List.of());
+        when(drive.lastSnapshots()).thenReturn(List.of());
+        assertThat(mapper.evaluate("a1", "t1", intensity(0.6))).isNull();
+    }
+
+    @Test
+    void returnsNull_whenSnapshotsNull() {
+        when(drive.lastSnapshots()).thenReturn(null);
         assertThat(mapper.evaluate("a1", "t1", intensity(0.6))).isNull();
     }
 
@@ -58,8 +65,7 @@ class AutonomyGoalMapperTest {
                 "intent-b", "desc", 0.9, 3, Instant.now(), BdiDimension.INTENTION);
         var snapshot1 = snapshot("subject-a", List.of(i1));
         var snapshot2 = snapshot("subject-b", List.of(i1, i2));
-        when(orchestrator.activeSnapshots("a1", "t1"))
-                .thenReturn(List.of(snapshot1, snapshot2));
+        when(drive.lastSnapshots()).thenReturn(List.of(snapshot1, snapshot2));
 
         var proposal = mapper.evaluate("a1", "t1", intensity(0.6));
         assertThat(proposal).isNotNull();

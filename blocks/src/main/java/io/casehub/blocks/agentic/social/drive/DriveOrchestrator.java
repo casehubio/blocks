@@ -152,4 +152,21 @@ public class DriveOrchestrator {
     public Optional<DriveProfile> currentDrives(String agentId, String tenantId) {
         return Optional.ofNullable(profiles.get(agentId + ":" + tenantId));
     }
+
+    public @Nullable CuriosityDrive curiosityDrive() {
+        return curiosity instanceof CuriosityDrive cd ? cd : null;
+    }
+
+    public @Nullable CompetenceDrive competenceDrive() {
+        return competence instanceof CompetenceDrive cd ? cd : null;
+    }
+
+    public @Nullable AffiliationDrive affiliationDrive() {
+        return affiliation instanceof AffiliationDrive ad ? ad : null;
+    }
+
+    public @Nullable AutonomyDrive autonomyDrive() {
+        return autonomy instanceof AutonomyDrive ad ? ad : null;
+    }
+
 }

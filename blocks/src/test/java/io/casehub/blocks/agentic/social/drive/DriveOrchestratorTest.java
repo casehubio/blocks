@@ -24,8 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DriveOrchestratorTest {
 
@@ -257,5 +258,37 @@ class DriveOrchestratorTest {
         assertThat(tick).isInstanceOf(DriveTick.Updated.class);
         var profile = ((DriveTick.Updated) tick).current();
         assertThat(profile.drives().get(DriveAxis.AFFILIATION).intensity()).isEqualTo(0.1);
+    }
+
+    @Test
+    void curiosityDrive_returnsConcrete_whenCuriosityDriveInstance() {
+        var orchestrator = createOrchestrator();
+        assertThat(orchestrator.curiosityDrive()).isSameAs(curiosity);
+    }
+
+    @Test
+    void curiosityDrive_returnsNull_whenLambdaFallback() {
+        DriveSource lambda = (a, t) -> new DriveIntensity(DriveAxis.CURIOSITY, 0.0, "fallback");
+        var orchestrator = new DriveOrchestrator(lambda, competence, affiliation, autonomy,
+                                                 moodOrchestrator, composer, DriveConfig.defaults(), clock);
+        assertThat(orchestrator.curiosityDrive()).isNull();
+    }
+
+    @Test
+    void competenceDrive_returnsConcrete() {
+        var orchestrator = createOrchestrator();
+        assertThat(orchestrator.competenceDrive()).isSameAs(competence);
+    }
+
+    @Test
+    void affiliationDrive_returnsConcrete() {
+        var orchestrator = createOrchestrator();
+        assertThat(orchestrator.affiliationDrive()).isSameAs(affiliation);
+    }
+
+    @Test
+    void autonomyDrive_returnsConcrete() {
+        var orchestrator = createOrchestrator();
+        assertThat(orchestrator.autonomyDrive()).isSameAs(autonomy);
     }
 }

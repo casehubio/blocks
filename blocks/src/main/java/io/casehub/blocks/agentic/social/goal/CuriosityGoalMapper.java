@@ -1,23 +1,23 @@
 package io.casehub.blocks.agentic.social.goal;
 
+import io.casehub.blocks.agentic.social.drive.CuriosityDrive;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
-import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import org.jspecify.annotations.Nullable;
 
 public class CuriosityGoalMapper implements DriveGoalMapper {
 
-    private final MemoryHygieneOrchestrator hygieneOrchestrator;
+    private final CuriosityDrive curiosityDrive;
 
-    public CuriosityGoalMapper(MemoryHygieneOrchestrator hygieneOrchestrator) {
-        this.hygieneOrchestrator = hygieneOrchestrator;
+    public CuriosityGoalMapper(CuriosityDrive curiosityDrive) {
+        this.curiosityDrive = curiosityDrive;
     }
 
     @Override
     public @Nullable DriveGoalProposal evaluate(String agentId, String tenantId,
-                                                 DriveIntensity intensity) {
-        if (intensity.axis() != DriveAxis.CURIOSITY) return null;
-        var gaps = hygieneOrchestrator.knowledgeGaps(agentId, tenantId);
+                                                DriveIntensity intensity) {
+        if (intensity.axis() != DriveAxis.CURIOSITY) {return null;}
+        var gaps = curiosityDrive.lastGaps();
         if (gaps == null || gaps.lowRetentionCount() == 0) {
             return null;
         }
@@ -25,10 +25,10 @@ public class CuriosityGoalMapper implements DriveGoalMapper {
                 DriveAxis.CURIOSITY,
                 "explore-knowledge-gaps",
                 "Explore fragmented knowledge areas ("
-                        + gaps.lowRetentionCount() + " low-retention memories across "
-                        + gaps.consolidationGroups() + " groups)",
+                + gaps.lowRetentionCount() + " low-retention memories across "
+                + gaps.consolidationGroups() + " groups)",
                 "curiosity: " + gaps.lowRetentionCount() + " low-retention memories"
-                        + " across " + gaps.consolidationGroups() + " groups",
+                + " across " + gaps.consolidationGroups() + " groups",
                 intensity.intensity());
     }
 }

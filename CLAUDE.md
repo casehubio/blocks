@@ -386,12 +386,12 @@ Drive Architecture — intrinsic motivation system that reads existing social co
 | `DriveProfile` | Record: composite motivational state — per-axis intensities, weighted composite, dominant drive, timestamp |
 | `DriveTick` | Sealed: `NoChange(reason)`, `Updated(previous, current, changed)` |
 | `DriveConfig` | Record: per-axis weights, change threshold, modulation parameters, intensity bounds. `defaults()` factory. |
-| `DriveOrchestrator` | `@ApplicationScoped` compositor lifecycle: `tick(agentId, tenantId, AgentDescriptor)` evaluates all sources, delegates to `DriveComposer`, caches `DriveProfile`. `currentDrives()` returns cached state. Per-agent `ReentrantLock`. CDI constructor takes `Instance<MemoryHygieneOrchestrator>` (optional), `Instance<NarrativeOrchestrator>` (optional — narrative modulation via `NarrativeModulation.compute()`), source orchestrators, `DriveComposer`, `DriveConfig`. Drive sources constructed internally. Wired into `InnerLifeOrchestrator.doTick()` for lifecycle tick. |
+| `DriveOrchestrator` | `@ApplicationScoped` compositor lifecycle: `tick(agentId, tenantId, AgentDescriptor)` evaluates all sources, delegates to `DriveComposer`, caches `DriveProfile`. `currentDrives()` returns cached state. `curiosityDrive()`/`competenceDrive()`/`affiliationDrive()`/`autonomyDrive()` expose concrete sources (null when lambda fallback). Per-agent `ReentrantLock`. CDI constructor takes `Instance<MemoryHygieneOrchestrator>` (optional), `Instance<NarrativeOrchestrator>` (optional — narrative modulation via `NarrativeModulation.compute()`), source orchestrators, `DriveComposer`, `DriveConfig`. Drive sources constructed internally. Wired into `InnerLifeOrchestrator.doTick()` for lifecycle tick. |
 | `DriveComposer` | Modulation + composition algebra: mood modulation (PAD axes), personality modulation (disposition weight per axis), weighted composition, intensity clamping. Stateless. |
-| `CuriosityDrive` | `DriveSource` — reads `MemoryHygieneOrchestrator.knowledgeGaps()`. Intensity from low-retention memory count + consolidation group diversity. |
-| `CompetenceDrive` | `DriveSource` — reads `StrategyLearningOrchestrator.engagementTrend()`. Intensity from declining dimension ratio. |
-| `AffiliationDrive` | `DriveSource` — reads `UserModelOrchestrator.activeProfiles()`. Intensity from neglected relationships (low familiarity or stale interaction). |
-| `AutonomyDrive` | `DriveSource` — reads `MentalModelOrchestrator.activeSnapshots()`. Intensity from high-confidence intention count across subjects. |
+| `CuriosityDrive` | `DriveSource` — reads `MemoryHygieneOrchestrator.knowledgeGaps()`, caches as `lastGaps()`. Intensity from low-retention memory count + consolidation group diversity. |
+| `CompetenceDrive` | `DriveSource` — reads `StrategyLearningOrchestrator.engagementTrend()`, caches as `lastTrend()`. Intensity from declining dimension ratio. |
+| `AffiliationDrive` | `DriveSource` — reads `UserModelOrchestrator.activeProfiles()`, caches as `lastProfiles()`. Intensity from neglected relationships (low familiarity or stale interaction). |
+| `AutonomyDrive` | `DriveSource` — reads `MentalModelOrchestrator.activeSnapshots()`, caches as `lastSnapshots()`. Intensity from high-confidence intention count across subjects. |
 
 ## Package: `io.casehub.blocks.agentic.social.goal`
 
@@ -404,10 +404,10 @@ Autonomous goal proposal — Layer 2 of the autonomous intelligence stack. Trans
 | `GoalProposalTick` | Sealed: `NoChange(reason)`, `Proposed(newProposals, abandonedGoalNames)` |
 | `GoalProposalConfig` | Record: proposalThreshold, relevanceThreshold, maxDriveGoals, staleAfter, cooldown, failureAbandonmentThreshold. `defaults()` factory. |
 | `GoalProposalOrchestrator` | `@ApplicationScoped` compositor: `tick(agentId, tenantId, AgentDescriptor)` evaluates mappers, ranks by intensity, checks capacity and cooldown. `currentProposals()` returns cached state. Per-agent `ReentrantLock`. |
-| `CuriosityGoalMapper` | Reads `MemoryHygieneOrchestrator.knowledgeGaps()`. Proposes "explore-knowledge-gaps". |
-| `CompetenceGoalMapper` | Reads `StrategyLearningOrchestrator.engagementTrend()`. Proposes "improve-{dimension}" for most declining. |
-| `AffiliationGoalMapper` | Reads `UserModelOrchestrator.activeProfiles()`. Proposes "reconnect-{subjectId}" for most neglected. |
-| `AutonomyGoalMapper` | Reads `MentalModelOrchestrator.activeSnapshots()`. Proposes "reassess-{subjectId}" for most misaligned. |
+| `CuriosityGoalMapper` | Reads `CuriosityDrive.lastGaps()`. Proposes "explore-knowledge-gaps". |
+| `CompetenceGoalMapper` | Reads `CompetenceDrive.lastTrend()`. Proposes "improve-{dimension}" for most declining. |
+| `AffiliationGoalMapper` | Reads `AffiliationDrive.lastProfiles()`. Proposes "reconnect-{subjectId}" for most neglected. |
+| `AutonomyGoalMapper` | Reads `AutonomyDrive.lastSnapshots()`. Proposes "reassess-{subjectId}" for most misaligned. |
 
 ## Package: `io.casehub.blocks.routing`
 

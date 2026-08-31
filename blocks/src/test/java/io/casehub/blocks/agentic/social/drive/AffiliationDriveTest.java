@@ -9,8 +9,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AffiliationDriveTest {
 
@@ -71,5 +73,24 @@ class AffiliationDriveTest {
         var result = drive.evaluate("agent-1", "tenant-1");
 
         assertThat(result.intensity()).isCloseTo(0.5, within(0.01));
+    }
+
+    @Test
+    void lastProfiles_nullBeforeEvaluation() {
+        var orchestrator = mock(UserModelOrchestrator.class);
+        var drive        = new AffiliationDrive(orchestrator, 0.4, Duration.ofDays(7));
+        assertThat(drive.lastProfiles()).isNull();
+    }
+
+    @Test
+    void lastProfiles_cachedAfterEvaluation() {
+        var orchestrator = mock(UserModelOrchestrator.class);
+        var profiles     = List.of(profile("user-1", 0.3, now.minus(Duration.ofDays(10))));
+        when(orchestrator.activeProfiles("a1", "t1")).thenReturn(profiles);
+
+        var drive = new AffiliationDrive(orchestrator, 0.4, Duration.ofDays(7));
+        drive.evaluate("a1", "t1");
+
+        assertThat(drive.lastProfiles()).isSameAs(profiles);
     }
 }

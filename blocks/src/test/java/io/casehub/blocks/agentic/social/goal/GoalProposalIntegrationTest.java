@@ -55,8 +55,8 @@ class GoalProposalIntegrationTest {
                 .thenReturn(List.of());
         when(moodOrchestrator.currentMood("a1", "t1")).thenReturn(Optional.empty());
 
-        DriveSource curiosity = new CuriosityDrive(hygieneOrchestrator);
-        DriveSource affiliation = new AffiliationDrive(userModelOrchestrator, 0.3, Duration.ofDays(7));
+        var curiosityDrive = new CuriosityDrive(hygieneOrchestrator);
+        var affiliationDrive = new AffiliationDrive(userModelOrchestrator, 0.3, Duration.ofDays(7));
         DriveSource competence = (agentId, tenantId) ->
                 new io.casehub.blocks.agentic.social.drive.DriveIntensity(
                         DriveAxis.COMPETENCE, 0.0, "no data");
@@ -66,7 +66,7 @@ class GoalProposalIntegrationTest {
 
         var composer = new DriveComposer();
         var driveOrchestrator = new DriveOrchestrator(
-                curiosity, competence, affiliation, autonomy,
+                curiosityDrive, competence, affiliationDrive, autonomy,
                 moodOrchestrator, composer, DriveConfig.defaults());
 
         var descriptor = AgentDescriptor.builder()
@@ -77,9 +77,9 @@ class GoalProposalIntegrationTest {
 
         driveOrchestrator.tick("a1", "t1", descriptor);
 
-        var curiosityMapper = new CuriosityGoalMapper(hygieneOrchestrator);
+        var curiosityMapper = new CuriosityGoalMapper(curiosityDrive);
         var affiliationMapper = new AffiliationGoalMapper(
-                userModelOrchestrator, 0.3, Duration.ofDays(7));
+                affiliationDrive, 0.3, Duration.ofDays(7));
 
         Instance<GoalSignalStore> signalStoreInstance = mock(Instance.class);
         when(signalStoreInstance.isResolvable()).thenReturn(false);
@@ -122,18 +122,18 @@ class GoalProposalIntegrationTest {
                 .thenReturn(List.of());
         when(moodOrchestrator.currentMood("a1", "t1")).thenReturn(Optional.empty());
 
-        DriveSource curiosity = new CuriosityDrive(hygieneOrchestrator);
+        var curiosityDrive = new CuriosityDrive(hygieneOrchestrator);
         DriveSource competence = (agentId, tenantId) ->
                 new io.casehub.blocks.agentic.social.drive.DriveIntensity(
                         DriveAxis.COMPETENCE, 0.0, "no data");
-        DriveSource affiliation = new AffiliationDrive(userModelOrchestrator, 0.3, Duration.ofDays(7));
+        var affiliationDrive = new AffiliationDrive(userModelOrchestrator, 0.3, Duration.ofDays(7));
         DriveSource autonomy = (agentId, tenantId) ->
                 new io.casehub.blocks.agentic.social.drive.DriveIntensity(
                         DriveAxis.AUTONOMY, 0.0, "no data");
 
         var composer = new DriveComposer();
         var driveOrchestrator = new DriveOrchestrator(
-                curiosity, competence, affiliation, autonomy,
+                curiosityDrive, competence, affiliationDrive, autonomy,
                 moodOrchestrator, composer, DriveConfig.defaults());
 
         var descriptor = AgentDescriptor.builder()

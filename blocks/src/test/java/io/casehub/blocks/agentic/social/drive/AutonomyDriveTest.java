@@ -9,8 +9,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AutonomyDriveTest {
 
@@ -81,5 +82,25 @@ class AutonomyDriveTest {
         var result = drive.evaluate("agent-1", "tenant-1");
 
         assertThat(result.intensity()).isLessThanOrEqualTo(1.0);
+    }
+
+    @Test
+    void lastSnapshots_nullBeforeEvaluation() {
+        var orchestrator = mock(MentalModelOrchestrator.class);
+        var drive        = new AutonomyDrive(orchestrator, 0.5);
+        assertThat(drive.lastSnapshots()).isNull();
+    }
+
+    @Test
+    void lastSnapshots_cachedAfterEvaluation() {
+        var orchestrator = mock(MentalModelOrchestrator.class);
+        var snapshots = List.of(
+                snapshot("user-1", List.of(intention("redirect", 0.8))));
+        when(orchestrator.activeSnapshots("a1", "t1")).thenReturn(snapshots);
+
+        var drive = new AutonomyDrive(orchestrator, 0.5);
+        drive.evaluate("a1", "t1");
+
+        assertThat(drive.lastSnapshots()).isSameAs(snapshots);
     }
 }

@@ -7,8 +7,9 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class CompetenceDriveTest {
 
@@ -69,5 +70,36 @@ class CompetenceDriveTest {
         var result = drive.evaluate("agent-1", "tenant-1");
 
         assertThat(result.intensity()).isGreaterThan(0.0).isLessThan(0.5);
+    }
+
+    @Test
+    void lastTrend_nullBeforeEvaluation() {
+        var orchestrator = mock(StrategyLearningOrchestrator.class);
+        var drive        = new CompetenceDrive(orchestrator);
+        assertThat(drive.lastTrend()).isNull();
+    }
+
+    @Test
+    void lastTrend_cachedAfterEvaluation() {
+        var orchestrator = mock(StrategyLearningOrchestrator.class);
+        var trend = new EngagementTrend(
+                Map.of("clarity", EngagementTrend.TrendDirection.DECLINING), -0.3, 10);
+        when(orchestrator.engagementTrend("a1", "t1")).thenReturn(Optional.of(trend));
+
+        var drive = new CompetenceDrive(orchestrator);
+        drive.evaluate("a1", "t1");
+
+        assertThat(drive.lastTrend()).isSameAs(trend);
+    }
+
+    @Test
+    void lastTrend_nullWhenNoTrendData() {
+        var orchestrator = mock(StrategyLearningOrchestrator.class);
+        when(orchestrator.engagementTrend("a1", "t1")).thenReturn(Optional.empty());
+
+        var drive = new CompetenceDrive(orchestrator);
+        drive.evaluate("a1", "t1");
+
+        assertThat(drive.lastTrend()).isNull();
     }
 }

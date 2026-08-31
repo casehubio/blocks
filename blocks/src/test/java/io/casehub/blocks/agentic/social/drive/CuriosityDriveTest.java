@@ -4,8 +4,9 @@ import io.casehub.blocks.memory.KnowledgeGapSummary;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class CuriosityDriveTest {
 
@@ -58,4 +59,41 @@ class CuriosityDriveTest {
 
         assertThat(result.intensity()).isLessThanOrEqualTo(1.0);
     }
+
+    @Test
+    void lastGaps_nullBeforeEvaluation() {
+        var orchestrator = mock(MemoryHygieneOrchestrator.class);
+        var drive        = new CuriosityDrive(orchestrator);
+
+        assertThat(drive.lastGaps()).isNull();
+    }
+
+    @Test
+    void lastGaps_cachedAfterEvaluation() {
+        var orchestrator = mock(MemoryHygieneOrchestrator.class);
+        var gaps         = new KnowledgeGapSummary(5, 3, 20);
+        when(orchestrator.knowledgeGaps("agent-1", "tenant-1")).thenReturn(gaps);
+
+        var drive = new CuriosityDrive(orchestrator);
+        drive.evaluate("agent-1", "tenant-1");
+
+        assertThat(drive.lastGaps()).isSameAs(gaps);
+    }
+
+    @Test
+    void lastGaps_updatedOnSubsequentEvaluation() {
+        var orchestrator = mock(MemoryHygieneOrchestrator.class);
+        var gaps1        = new KnowledgeGapSummary(5, 3, 20);
+        var gaps2        = new KnowledgeGapSummary(10, 7, 30);
+        when(orchestrator.knowledgeGaps("agent-1", "tenant-1")).thenReturn(gaps1, gaps2);
+
+        var drive = new CuriosityDrive(orchestrator);
+        drive.evaluate("agent-1", "tenant-1");
+        assertThat(drive.lastGaps()).isSameAs(gaps1);
+
+        drive.evaluate("agent-1", "tenant-1");
+        assertThat(drive.lastGaps()).isSameAs(gaps2);
+    }
+
+
 }
