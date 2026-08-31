@@ -118,8 +118,10 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/channel/` | Tests for channel blocks |
 | `src/main/java/io/casehub/blocks/channel/summary/` | Channel summary integration — `ContentSummariser<Message>` implementations, `SummaryUpdateHook` adapter, `NoOpThreadSummaryStore` `@DefaultBean` |
 | `src/test/java/io/casehub/blocks/channel/summary/` | Tests for channel summary integration |
-| `src/main/java/io/casehub/blocks/agentic/` | Compositional agentic orchestration — five SPIs, execution drivers, pattern builders |
+| `src/main/java/io/casehub/blocks/agentic/` | Compositional agentic orchestration — six SPIs (routing, decomposition, activation, aggregation, judgment, termination), execution drivers, pattern builders |
 | `src/test/java/io/casehub/blocks/agentic/` | Tests for agentic orchestration blocks |
+| `src/main/java/io/casehub/blocks/agentic/judgment/` | Judgment orchestration — `JudgmentPhase<T>` SPI (from engine#994), `JudgmentPolicy<T>` composition root (implements `JudgmentPhase`), `JudgmentTrigger<T>` (conditional yielding: `AlwaysYield`, `NeverYield`, `IterationBased`, `ConfidenceThreshold`), `CallerStrategy` sealed hierarchy (Single/FanOut/EscalationChain), `CallerRef`, `AgreementPolicy` with `ConsensusAgreement`, `JudgmentDispatcher` with `DirectJudgmentDispatcher`, `CompositeVerifier` (chains engine-api `JudgmentVerifier` with most-restrictive-wins policy), `NoOpVerifier`, `RetryPolicy`/`ExhaustionPolicy`/`VerifierFailurePolicy`, `JudgmentResponse`, `AgreementResult` |
+| `src/test/java/io/casehub/blocks/agentic/judgment/` | Tests for judgment orchestration |
 | `src/main/java/io/casehub/blocks/agentic/channel/` | Inter-agent channel setup + supervisor observation — `ChannelBinding`, `ChannelConfig`, `ChannelExecutionStrategy` (Conversation/FanIn/Barrier), `ChannelObserver<S>` (projection-based observation + EventSource) |
 | `src/test/java/io/casehub/blocks/agentic/channel/` | Tests for agentic channel blocks |
 | `src/main/java/io/casehub/blocks/agentic/aggregation/` | Aggregation strategies including `AuctionAggregation` — English/Dutch iterative auction via `AggregationStrategy<AuctionState>` with `BidExtractor` SPI |
