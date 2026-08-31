@@ -8,4 +8,9 @@ import java.util.List;
 public record JudgmentResponse(
         Object decision,
         List<Evidence> evidence,
-        CallerIdentity callerIdentity) {}
+        CallerIdentity callerIdentity) {
+
+    public JudgmentResponse {
+        evidence = List.copyOf(evidence);
+    }
+}

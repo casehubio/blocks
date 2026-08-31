@@ -10,6 +10,8 @@ import java.util.Map;
 
 public final class DirectJudgmentDispatcher implements JudgmentDispatcher {
 
+    private final AgentInvoker<Object> invoker = AgentInvoker.defaultInvoker();
+
     @Override
     public JudgmentResponse dispatch(JudgmentDispatchRequest request) {
         AgentRef agentRef = request.caller().agentRef();
@@ -18,7 +20,6 @@ public final class DirectJudgmentDispatcher implements JudgmentDispatcher {
                     "DirectJudgmentDispatcher requires CallerRef with non-null agentRef");
         }
 
-        AgentInvoker<Object> invoker = AgentInvoker.defaultInvoker();
         AgentResult result = invoker.invoke(agentRef, request.context().executionContext())
                                      .await().indefinitely();
 
