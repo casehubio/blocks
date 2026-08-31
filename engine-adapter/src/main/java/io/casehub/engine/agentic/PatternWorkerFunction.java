@@ -17,22 +17,25 @@ package io.casehub.engine.agentic;
 
 import io.casehub.blocks.agentic.model.ExecutionModel;
 import io.casehub.blocks.agentic.model.PatternType;
+import io.casehub.engine.agentic.judgment.PatternJudgmentConfig;
 import io.casehub.engine.plan.PlanningConstraints;
 import io.casehub.engine.plan.TaskNode;
 import io.casehub.worker.api.WorkerFunction;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 public record PatternWorkerFunction(
     ExecutionModel<?> model,
     PatternType patternType,
     boolean checkpointingEnabled,
     PlanningConstraints planningConstraints,
-    TaskNode<?> rootTask)
+    TaskNode<?> rootTask,
+    @Nullable PatternJudgmentConfig judgmentConfig)
     implements WorkerFunction<Map, Map> {
 
   public PatternWorkerFunction(
       ExecutionModel<?> model, PatternType patternType, boolean checkpointingEnabled) {
-    this(model, patternType, checkpointingEnabled, null, null);
+    this(model, patternType, checkpointingEnabled, null, null, null);
   }
 
   public PatternWorkerFunction(
@@ -40,7 +43,16 @@ public record PatternWorkerFunction(
       PatternType patternType,
       boolean checkpointingEnabled,
       PlanningConstraints planningConstraints) {
-    this(model, patternType, checkpointingEnabled, planningConstraints, null);
+    this(model, patternType, checkpointingEnabled, planningConstraints, null, null);
+  }
+
+  public PatternWorkerFunction(
+      ExecutionModel<?> model,
+      PatternType patternType,
+      boolean checkpointingEnabled,
+      PlanningConstraints planningConstraints,
+      TaskNode<?> rootTask) {
+    this(model, patternType, checkpointingEnabled, planningConstraints, rootTask, null);
   }
 
   @Override

@@ -17,9 +17,14 @@ package io.casehub.engine.agentic;
 
 import io.casehub.api.engine.WorkerRuntime;
 import io.casehub.api.model.WorkerContext;
+import io.casehub.api.model.ai.ChatModelProvider;
+import io.casehub.api.spi.judgment.CallerConfig;
+import io.casehub.blocks.agentic.judgment.JudgmentPhase;
 import io.casehub.blocks.agentic.model.ExecutionModel;
 import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.model.OrchestratedDriver;
+import io.casehub.engine.agentic.judgment.LlmJudgmentPhase;
+import io.casehub.engine.agentic.judgment.PatternJudgmentConfig;
 import io.casehub.engine.common.internal.executor.ExecutionMetadata;
 import io.casehub.engine.common.internal.executor.HandlerResult;
 import io.casehub.engine.common.internal.executor.WorkerFunctionHandler;
@@ -28,14 +33,20 @@ import io.casehub.engine.plan.PlanningConstraints;
 import io.casehub.worker.api.WorkerFunction;
 import io.casehub.worker.api.WorkerResult;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.Map;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class PatternWorkerFunctionHandler implements WorkerFunctionHandler {
 
+  private static final Logger LOG = Logger.getLogger(PatternWorkerFunctionHandler.class);
+
   private final WorkerRuntimeFactory workerRuntimeFactory;
   private final PatternCheckpointStore checkpointStore;
+  @Inject Instance<ChatModelProvider> chatModelProviderInstance;
+  @Inject Instance<io.casehub.api.spi.judgment.JudgmentVerifier> judgmentVerifierInstance;
 
   @Inject
   public PatternWorkerFunctionHandler(
@@ -73,14 +84,21 @@ public class PatternWorkerFunctionHandler implements WorkerFunctionHandler {
               .orElse(null);
     }
 
-    final ExecutionModel<?> effectiveModel;
+    ExecutionModel<?> baseModel;
     if (patternFn.checkpointingEnabled() && metadata.tenancyId() != null) {
       var listener =
           new CheckpointingListener(
               context.caseId(), metadata.workerName(), metadata.tenancyId(), checkpointStore::save);
-      effectiveModel = addListener(patternFn.model(), listener);
+      baseModel = addListener(patternFn.model(), listener);
     } else {
-      effectiveModel = patternFn.model();
+      baseModel = patternFn.model();
+    }
+
+    final ExecutionModel<?> effectiveModel;
+    if (patternFn.judgmentConfig() != null) {
+      effectiveModel = injectJudgmentPhase(baseModel, patternFn.judgmentConfig());
+    } else {
+      effectiveModel = baseModel;
     }
 
     var useResumableDriver = checkpoint != null && patternFn.rootTask() == null;
@@ -197,7 +215,57 @@ public class PatternWorkerFunctionHandler implements WorkerFunctionHandler {
         model.failurePolicy(),
         model.listeners(),
         model.task(),
-        model.patternType());
+        model.patternType(),
+        model.backend(),
+        model.judgment());
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> ExecutionModel<T> injectJudgmentPhase(
+      ExecutionModel<T> model, PatternJudgmentConfig config) {
+    JudgmentPhase<T> phase = resolveJudgmentPhase(config);
+    if (phase == null) return model;
+    return new ExecutionModel<>(
+        model.routing(),
+        model.decomposition(),
+        model.activation(),
+        model.aggregation(),
+        model.termination(),
+        model.candidateSupplier(),
+        model.failurePolicy(),
+        model.listeners(),
+        model.task(),
+        model.patternType(),
+        model.backend(),
+        phase);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T> JudgmentPhase<T> resolveJudgmentPhase(PatternJudgmentConfig config) {
+    if (config.callerConfig() instanceof CallerConfig.Llm) {
+      if (!chatModelProviderInstance.isResolvable()) {
+        LOG.warn("No ChatModelProvider — skipping pattern judgment phase");
+        return null;
+      }
+      var verifier = resolveVerifier(config.verifierStrategy());
+      return (JudgmentPhase<T>)
+          new LlmJudgmentPhase<>(chatModelProviderInstance.get(), config, verifier);
+    }
+    LOG.warnf(
+        "Unsupported caller type for pattern judgment: %s",
+        config.callerConfig().getClass().getSimpleName());
+    return null;
+  }
+
+  private io.casehub.api.spi.judgment.JudgmentVerifier resolveVerifier(String strategyId) {
+    if (strategyId == null) return null;
+    for (var verifier : judgmentVerifierInstance) {
+      if (strategyId.equals(verifier.id())) {
+        return verifier;
+      }
+    }
+    LOG.warnf("JudgmentVerifier '%s' not found — proceeding without verification", strategyId);
+    return null;
   }
 
   private Map<String, Object> patternMetadata(PatternWorkerFunction fn) {
@@ -223,6 +291,8 @@ public class PatternWorkerFunctionHandler implements WorkerFunctionHandler {
         model.failurePolicy(),
         listeners,
         model.task(),
-        model.patternType());
+        model.patternType(),
+        model.backend(),
+        model.judgment());
   }
 }

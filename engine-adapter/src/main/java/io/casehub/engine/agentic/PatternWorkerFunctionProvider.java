@@ -17,9 +17,15 @@ package io.casehub.engine.agentic;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.casehub.api.spi.WorkerFunctionProvider;
+import io.casehub.api.spi.judgment.CallerConfig;
+import io.casehub.api.spi.judgment.EvidenceRequirement;
+import io.casehub.api.spi.judgment.EvidenceType;
 import io.casehub.blocks.agentic.model.PatternType;
+import io.casehub.engine.agentic.judgment.PatternJudgmentConfig;
 import io.casehub.worker.api.WorkerFunction;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.ArrayList;
+import java.util.List;
 
 @ApplicationScoped
 public class PatternWorkerFunctionProvider implements WorkerFunctionProvider {
@@ -57,6 +63,59 @@ public class PatternWorkerFunctionProvider implements WorkerFunctionProvider {
               timeBudget, resourceLimit, java.util.Map.of(), costBudgets);
     }
 
-    return new PatternWorkerFunction(null, patternType, checkpointing, constraints);
+    PatternJudgmentConfig judgmentConfig = null;
+    if (patternNode.has("judgment")) {
+      judgmentConfig = parseJudgmentConfig(patternNode.get("judgment"));
+    }
+
+    return new PatternWorkerFunction(null, patternType, checkpointing, constraints, null, judgmentConfig);
+  }
+
+  private PatternJudgmentConfig parseJudgmentConfig(JsonNode judgmentNode) {
+    String prompt = judgmentNode.path("prompt").asText(null);
+    boolean afterStep = judgmentNode.path("afterStep").asBoolean(false);
+
+    CallerConfig callerConfig = null;
+    if (judgmentNode.has("caller")) {
+      callerConfig = parseCallerConfig(judgmentNode.get("caller"));
+    }
+
+    String verifier = judgmentNode.path("verifier").asText(null);
+
+    List<EvidenceRequirement> evidenceRequirements = new ArrayList<>();
+    if (judgmentNode.has("evidence") && judgmentNode.get("evidence").isArray()) {
+      for (JsonNode req : judgmentNode.get("evidence")) {
+        evidenceRequirements.add(
+            new EvidenceRequirement(
+                req.path("name").asText(),
+                EvidenceType.valueOf(req.path("type").asText()),
+                req.path("required").asBoolean(false)));
+      }
+    }
+
+    PatternJudgmentConfig.JudgmentMode mode = null;
+    if (judgmentNode.has("mode")) {
+      String modeStr = judgmentNode.get("mode").asText().toUpperCase().replace("-", "_");
+      mode = PatternJudgmentConfig.JudgmentMode.valueOf(modeStr);
+    }
+
+    return new PatternJudgmentConfig(prompt, callerConfig, verifier, evidenceRequirements, mode, afterStep);
+  }
+
+  private CallerConfig parseCallerConfig(JsonNode callerNode) {
+    String type = callerNode.path("type").asText("llm");
+    return switch (type) {
+      case "llm" ->
+          new CallerConfig.Llm(
+              callerNode.path("model").asText(null),
+              callerNode.path("modelName").asText(null),
+              callerNode.path("systemPrompt").asText(null));
+      case "a2a" ->
+          new CallerConfig.A2A(
+              callerNode.path("endpoint").asText(null),
+              callerNode.path("skill").asText(null),
+              callerNode.path("streaming").asBoolean(false));
+      default -> new CallerConfig.Any();
+    };
   }
 }

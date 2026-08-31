@@ -7,6 +7,8 @@ import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.activation.ActivationContext;
 import io.casehub.blocks.agentic.aggregation.AggregationContext;
 import io.casehub.blocks.agentic.aggregation.AggregationResult;
+import io.casehub.blocks.agentic.judgment.JudgmentContext;
+import io.casehub.blocks.agentic.judgment.JudgmentDecision;
 import io.casehub.blocks.agentic.routing.RoutingContext;
 import io.casehub.blocks.agentic.routing.RoutingDecision;
 import io.casehub.blocks.agentic.termination.TerminationContext;
@@ -45,6 +47,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     protected final Map<AgentRef, Integer> activationCounts = new HashMap<>();
     protected final Map<AgentRef, Integer> consecutiveIdleCounts = new HashMap<>();
     protected AggregationResult lastAggregationResult = null;
+    protected String lastJudgmentFeedback = null;
     protected Instant executionStart;
     protected int iterationCount;
 
@@ -63,6 +66,7 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
             activationCounts.clear();
             consecutiveIdleCounts.clear();
             lastAggregationResult = null;
+            lastJudgmentFeedback = null;
             executionStart = Instant.now();
             iterationCount = 0;
 
@@ -128,7 +132,24 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
             return new ExecutionResult.Escalated(escalate.reason());
         }
 
-        // Phase 3: evaluate termination
+        // Phase 3.5: Judgment (if configured)
+        if (model.judgment() != null) {
+            var judgmentCtx = new JudgmentContext<>(
+                context, allResults, lastAggregationResult, iteration, lastJudgmentFeedback);
+            var judgmentDecision = model.judgment().evaluate(judgmentCtx);
+            notifyJudgment(model, judgmentDecision);
+
+            if (judgmentDecision instanceof JudgmentDecision.Rejected rejected) {
+                lastJudgmentFeedback = rejected.feedback();
+                return null;
+            } else if (judgmentDecision instanceof JudgmentDecision.Escalated escalated) {
+                return new ExecutionResult.Escalated(escalated.reason());
+            } else {
+                lastJudgmentFeedback = null;
+            }
+        }
+
+        // Phase 4: evaluate termination
         var elapsed = Duration.between(start, Instant.now());
         var termCtx = new TerminationContext<>(
                 context, iteration + 1, elapsed, List.copyOf(allResults));
@@ -252,6 +273,12 @@ public abstract class AbstractExecutionDriver<T> implements ExecutionDriver<T> {
     protected void notifyAgentResult(ExecutionModel<T> model, AgentResult result) {
         for (var listener : model.listeners()) {
             listener.onAgentResult(result);
+        }
+    }
+
+    protected void notifyJudgment(ExecutionModel<T> model, JudgmentDecision decision) {
+        for (var listener : model.listeners()) {
+            listener.onJudgment(decision);
         }
     }
 
