@@ -170,8 +170,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/summarisation/llm/` | Tests for LLM content summariser |
 | `src/main/java/io/casehub/blocks/summarisation/observation/` | Observation accumulator — tiered, demand-driven rendering for LLM agent prompts with RAG-able chunks |
 | `src/test/java/io/casehub/blocks/summarisation/observation/` | Tests for observation accumulator |
-| `src/main/java/io/casehub/blocks/summarisation/observation/affordance/` | Affordance grounding — per-entity observation rendering for LLM agents |
-| `src/test/java/io/casehub/blocks/summarisation/observation/affordance/` | Tests for affordance rendering |
+| `src/main/java/io/casehub/blocks/summarisation/observation/affordance/` | Affordance grounding + observation filtering — per-entity rendering, `AnnotatedSection` (capability-tagged sections with resolution alternatives), `ObservationFilter` SPI, `ObservationPipeline` (ordered filter composition), `PerceptionFilter` (visibility gating + resolution fallback), `ResolutionTier` |
+| `src/test/java/io/casehub/blocks/summarisation/observation/affordance/` | Tests for affordance rendering and observation filtering |
 | `src/test/java/io/casehub/blocks/summarisation/examples/clinical/` | Clinical temporal abstraction example (L1-L4 pipeline) |
 | `src/test/java/io/casehub/blocks/summarisation/examples/logistics/` | Logistics hub monitoring example (L1-L4 pipeline) |
 | `speech-api/src/main/java/io/casehub/blocks/speech/` | Speech SPI additions — `PhonemeAligner` (`@FunctionalInterface` SPI: `List<PhonemeTiming> align(text, audioData, sampleRate)`), `LipSyncEnricher` (decorator wrapping any `TextToSpeechService` — enriches with phoneme timing when delegate returns empty phonemes; pass-through when native phonemes present) |
@@ -538,6 +538,11 @@ Grounded observation rendering for LLM agents. Per-entity affordance chains (ide
 | `AffordanceRenderer` | Concrete class: `renderEntities()` (core grounding chains), `renderObservation()` (section assembly), `renderActionVocabulary()` (action vocabulary). Configurable header formatter via `withHeaderFormatter()` |
 | `WorldObservationProvider` | `@FunctionalInterface` SPI: `List<ObservationSection> worldSections()`. Returns world-specific observation sections (location, exits, objects, characters). Consumers accept a provider instead of a concrete world state, so cognitive sections (goals, plans, memories) become a shared utility. |
 | `CognitiveObservationSections` | Static utility: factory methods for cognitive observation sections — `goalsSection(List<AgentGoal>)`, `recentActivitySection(PartitionedDrain)`, `pastExperienceSection(List<Memory>)`, `insightsSection(List<Memory>)`, `relationshipNotesSection(String, List<Memory>)`, `motivationalStateSection(DriveProfile)`. Each returns an `ObservationSection`. |
+| `ResolutionTier` | Enum: `FULL`, `REDUCED`, `SUMMARY` — rendering fidelity levels for capability-driven observation filtering |
+| `AnnotatedSection` | Record wrapping `ObservationSection` with capability metadata (`requiredTags`, `resolutionAlternatives`, `interpretiveFrame`). Implements `ObservationSection` (sealed permit). |
+| `ObservationFilter` | `@FunctionalInterface` SPI: pipeline stage for filtering/transforming observation sections |
+| `ObservationPipeline` | Ordered filter stage composition — applies `ObservationFilter` chain, unwraps `AnnotatedSection` to base `ObservationSection` |
+| `PerceptionFilter` | Built-in `ObservationFilter` combining visibility gating (tag matching) + resolution fallback (tier degradation when tags partially match) |
 
 ## Sub-package: `io.casehub.blocks.summarisation.llm`
 

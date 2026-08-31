@@ -485,6 +485,11 @@ Affordance grounding -- per-entity observation rendering for LLM agents.
 | `ActionDescriptor` | record | Action type metadata: `actionType`, `description`, `parameterFormat` (nullable) |
 | `ObservationSection` | sealed interface | Document structure: `EntityGroup(header, emptyMessage, entities)`, `TextBlock(header, content)`, `ItemList(header, emptyMessage, items)`. Static factories: `entities()`, `text()`, `items()`. |
 | `AffordanceRenderer` | class | Renders `ObservableEntity` lists and `ObservationSection` trees into plain text. Methods: `renderEntities()`, `renderObservation()`, `renderActionVocabulary()`, `withHeaderFormatter()`. |
+| `ResolutionTier` | enum | Rendering fidelity: `FULL`, `REDUCED`, `SUMMARY`. Used by `AnnotatedSection` for capability-driven observation filtering. |
+| `AnnotatedSection` | record | Wraps `ObservationSection` with capability metadata: `requiredTags` (Set), `resolutionAlternatives` (Map<ResolutionTier, ObservationSection>), `interpretiveFrame` (nullable String). Implements `ObservationSection`. |
+| `ObservationFilter` | interface | `@FunctionalInterface` SPI: `List<ObservationSection> filter(List<ObservationSection>, Set<String> agentTags)`. Pipeline stage for filtering/transforming observation sections. |
+| `ObservationPipeline` | class | Ordered `ObservationFilter` composition. `apply(sections, agentTags)` runs all stages, then unwraps `AnnotatedSection` to base `ObservationSection`. |
+| `PerceptionFilter` | class | Built-in `ObservationFilter`: visibility gating (drop sections whose `requiredTags` don't intersect `agentTags`) + resolution fallback (degrade to lower `ResolutionTier` on partial match). |
 
 ### `io.casehub.blocks.speech` (module: `blocks-speech-api`)
 
