@@ -6,7 +6,7 @@
 
 ## Fields
 
-### `confidence` (`double`)
+### `origin` (`double`)
 
 ### `reason` (`java.lang.String`)
 
@@ -14,7 +14,7 @@
 
 ## Record Components
 
-### `confidence` (`double`)
+### `origin` (`double`)
 
 ### `reason` (`java.lang.String`)
 
@@ -27,7 +27,7 @@
 #### Parameters
 
 - `state` (`io.casehub.blocks.conversation.ConvergenceState`)
-- `confidence` (`double`)
+- `origin` (`double`)
 - `reason` (`java.lang.String`)
 
 ## Methods

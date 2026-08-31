@@ -111,7 +111,7 @@ Structured conversation protocol -- reusable infrastructure for multi-agent deli
 | Class | Type | What it does |
 |-------|------|-------------|
 | `ConvergenceAnalyser` | final class | `analyse(ConversationState, CommonGroundState, ConvergencePolicy, recentWindow) -> ConvergenceSignal`. Builds `ConvergenceContext` and delegates to policy. |
-| `ConvergenceSignal` | record | Assessment: `state` (ConvergenceState), `confidence`, `reason`. |
+| `ConvergenceSignal` | record | Assessment: `state` (ConvergenceState), `origin`, `reason`. |
 | `ConvergenceState` | enum | `PROGRESSING`, `CONVERGING`, `CONSENSUS`, `DEADLOCK`, `DIMINISHING_RETURNS` |
 | `ConvergenceContext` | record | Metrics: `totalPoints`, `establishedCount`, `pendingCount`, `disputedCount`, `recentSimilarity`, `messageLengthTrend`, `roundsSinceNewPoint`, `roundsSinceStatusChange`, `recentMessageTypeCounts`. |
 | `ConvergencePolicy` | @FunctionalInterface | Strategy for evaluating convergence: `evaluate(state, commonGround, context) -> ConvergenceSignal`. |
@@ -494,7 +494,7 @@ Speech capability SPIs — provider-agnostic interfaces for audio-to-text and te
 |-------|------|-------------|
 | `SpeechToTextService` | interface | `transcribe(Path audioFile, TranscriptionOptions) → TranscriptionResult` |
 | `TextToSpeechService` | interface | `synthesise(String text, SynthesisOptions) → SynthesisResult` |
-| `TranscriptionResult` | record | `text`, `language`, `confidence` |
+| `TranscriptionResult` | record | `text`, `language`, `origin` |
 | `SynthesisResult` | record | `audioData` (byte[]), `audioFormat`, `phonemes` (List<PhonemeTiming>) |
 | `PhonemeTiming` | record | `phoneme`, `startMs`, `endMs` — for downstream lip-sync |
 

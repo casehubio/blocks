@@ -129,7 +129,7 @@ class DriveOrchestratorTest {
     @Test
     void tick_withMood_modulatesResult() {
         var orchestrator = createOrchestrator();
-        var mood = new MoodState("agent-1", "tenant-1", 0.8, 0.5, 0.0, "happy", null, Map.of());
+        var mood = new MoodState("agent-1", "tenant-1", null, 0.8, 0.5, 0.0, "happy", null, Map.of());
         when(moodOrchestrator.currentMood("agent-1", "tenant-1")).thenReturn(Optional.of(mood));
 
         var tick = orchestrator.tick("agent-1", "tenant-1", descriptor);

@@ -172,8 +172,8 @@ class StrategyLearningOrchestratorTest {
 
     @Test void tick_nullEngagementFields_handledGracefully() {
         var event = new EngagementEvent("agent-1", "user-1", "tenant-1", "case-1",
-                "turn-1", "test", null, Map.of(),
-                null, null, null, null, null, null);
+                                        "turn-1", null, "test", null, Map.of(),
+                                        null, null, null, null, null, null);
         orchestrator.record(
                 new EngagementSignal.TurnOutcome(event, Map.of(), null),
                 "agent-1", "user-1", "tenant-1");
@@ -357,8 +357,8 @@ class StrategyLearningOrchestratorTest {
     private EngagementEvent engagementEvent(String caseId, boolean responded,
                                              double sentiment, int responseLength) {
         return new EngagementEvent("agent-1", "user-1", "tenant-1", caseId,
-                "turn-1", "test description", null, Map.of(),
-                responded, null, responseLength, sentiment, null, responded);
+                                   "turn-1", null, "test description", null, Map.of(),
+                                   responded, null, responseLength, sentiment, null, responded);
     }
 
     @SuppressWarnings("unchecked")

@@ -179,8 +179,8 @@ public class StrategyLearningOrchestrator {
             if (event.responded() != null && event.responded()) {
                 state.totalResponded++;
             }
-            if (event.sentimentShift() != null) {
-                state.sentimentSum += event.sentimentShift();
+            if (event.affectShift() != null) {
+                state.sentimentSum += event.affectShift();
             }
         }
 
@@ -273,8 +273,8 @@ public class StrategyLearningOrchestrator {
                 lenSum += event.responseLength();
                 lenCount++;
             }
-            if (event.sentimentShift() != null) {
-                sentSum += event.sentimentShift();
+            if (event.affectShift() != null) {
+                sentSum += event.affectShift();
                 sentCount++;
             }
             if (event.continued() != null) {

@@ -318,7 +318,7 @@ public enum ConvergenceState {
 | DEADLOCK | Introduce tiebreaker or escalate |
 | DIMINISHING_RETURNS | Close with partial result or escalate |
 
-`confidence` (0.0–1.0) lets the supervisor set its own threshold — a 0.6
+`origin` (0.0–1.0) lets the supervisor set its own threshold — a 0.6
 CONSENSUS might continue, a 0.95 CONSENSUS closes immediately.
 
 ### ConvergenceAnalyser

@@ -98,8 +98,8 @@ public class MoodOrchestrator {
         d = clampAxis(d, config.baseline().dominance(), config.maxDisplacement());
 
         var shifted = new MoodState(state.agentId, state.tenantId,
-                p, a, d, cause != null ? cause : "tick",
-                null, Map.of());
+                                    null, p, a, d, cause != null ? cause : "tick",
+                                    null, Map.of());
 
         boolean decayed = false;
         if (state.lastTickTimestamp != null) {
@@ -145,8 +145,8 @@ public class MoodOrchestrator {
             this.agentId = agentId;
             this.tenantId = tenantId;
             this.currentMood = new MoodState(agentId, tenantId,
-                    baseline.pleasure(), baseline.arousal(), baseline.dominance(),
-                    "initial", null, Map.of());
+                                             null, baseline.pleasure(), baseline.arousal(), baseline.dominance(),
+                                             "initial", null, Map.of());
         }
     }
 }

@@ -21,7 +21,7 @@ class InteractionSignalTest {
     @Test
     void relationshipSignalDelegatesToEvent() {
         var event = new RelationshipEvent(
-                "agent-1", "user-1", "t1", null, null, "chat",
+                "agent-1", "user-1", "t1", null, null, null, "chat",
                 QualitySignal.POSITIVE, "friendly exchange", null, Map.of());
         var signal = new InteractionSignal.RelationshipSignal(event);
         assertThat(signal.description()).isEqualTo("friendly exchange");
@@ -32,7 +32,7 @@ class InteractionSignalTest {
     void experienceSignalUsesProvidedQuality() {
         var event = new Observation(
                 "agent-1", "t1", "case-1", "turn-1",
-                "observed something", null, Map.of(), "user-1");
+                null, "observed something", null, Map.of(), "user-1");
         var signal = new InteractionSignal.ExperienceSignal(event, QualitySignal.NEUTRAL);
         assertThat(signal.description()).isEqualTo("observed something");
         assertThat(signal.quality()).isEqualTo(QualitySignal.NEUTRAL);

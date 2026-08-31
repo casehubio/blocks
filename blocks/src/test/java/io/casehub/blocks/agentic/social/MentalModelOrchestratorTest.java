@@ -244,8 +244,8 @@ class MentalModelOrchestratorTest {
     @Test
     void relationshipCueAccumulatesSignal() {
         var event = new RelationshipEvent("agent1", "user1", "tenant1",
-                "case1", "turn1", "conversation",
-                QualitySignal.POSITIVE, "user expressed trust", 0.8, Map.of());
+                                          "case1", "turn1", null, "conversation",
+                                          QualitySignal.POSITIVE, "user expressed trust", 0.8, Map.of());
         orchestrator.record(new MentalStateSignal.RelationshipCue(event),
                 "agent1", "user1", "tenant1");
         var tick = orchestrator.tick("agent1", "user1", "tenant1");

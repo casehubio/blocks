@@ -6,7 +6,7 @@
 
 ## Fields
 
-### `confidence` (`double`)
+### `origin` (`double`)
 
 ### `lane` (`java.lang.String`)
 
@@ -16,7 +16,7 @@
 
 ## Record Components
 
-### `confidence` (`double`)
+### `origin` (`double`)
 
 ### `lane` (`java.lang.String`)
 
@@ -31,7 +31,7 @@
 #### Parameters
 
 - `lane` (`java.lang.String`)
-- `confidence` (`double`)
+- `origin` (`double`)
 - `reason` (`java.lang.String`)
 
 ### `public IntakeResult(java.lang.String lane, double confidence, java.lang.String reason, java.util.Map<java.lang.String,java.lang.Object> metadata)`
@@ -39,7 +39,7 @@
 #### Parameters
 
 - `lane` (`java.lang.String`)
-- `confidence` (`double`)
+- `origin` (`double`)
 - `reason` (`java.lang.String`)
 - `metadata` (`java.util.Map<java.lang.String,java.lang.Object>`)
 

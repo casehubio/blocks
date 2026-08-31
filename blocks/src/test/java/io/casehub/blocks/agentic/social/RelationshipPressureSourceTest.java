@@ -27,7 +27,7 @@ class RelationshipPressureSourceTest {
 
     private RelationshipEvent eventWithQuality(QualitySignal quality) {
         return new RelationshipEvent("a1", "a2", "t1", "c1", "turn1",
-                "interaction", quality, "desc", 0.5, Map.of());
+                                     null, "interaction", quality, "desc", 0.5, Map.of());
     }
 
     @Test

@@ -67,7 +67,7 @@ absent from the reactor — the rest of the build succeeds unchanged.
 
 | Record | Fields |
 |--------|--------|
-| `TranscriptionResult` | `text`, `language`, `confidence` |
+| `TranscriptionResult` | `text`, `language`, `origin` |
 | `TranscriptionOptions` | `audioFormat`, `languageHint`, `modelSize` |
 | `SynthesisResult` | `audioData` (byte[]), `audioFormat`, `phonemes` (List<PhonemeTiming>) |
 | `SynthesisOptions` | `voice`, `language`, `audioFormat`, `includePhonemes` |

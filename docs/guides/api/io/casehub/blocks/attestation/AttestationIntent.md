@@ -16,7 +16,7 @@
 
 ### `causedByEntryId` (`java.util.UUID`)
 
-### `confidence` (`double`)
+### `origin` (`double`)
 
 ### `dimensions` (`java.util.Map<java.lang.String,java.lang.Double>`)
 
@@ -42,7 +42,7 @@
 
 ### `causedByEntryId` (`java.util.UUID`)
 
-### `confidence` (`double`)
+### `origin` (`double`)
 
 ### `dimensions` (`java.util.Map<java.lang.String,java.lang.Double>`)
 
@@ -65,7 +65,7 @@
 - `entryId` (`java.util.UUID`)
 - `subjectId` (`java.util.UUID`)
 - `verdict` (`AttestationVerdict`)
-- `confidence` (`double`)
+- `origin` (`double`)
 - `capabilityTag` (`java.lang.String`)
 - `attestorId` (`java.lang.String`)
 - `actorType` (`ActorType`)

@@ -64,7 +64,7 @@ class EngagementSignalTest {
 
     private EngagementEvent dummyEvent() {
         return new EngagementEvent("agent-1", "user-1", "tenant-1", "case-1",
-                "turn-1", "test description", null, Map.of(),
-                true, null, null, null, null, true);
+                                   "turn-1", null, "test description", null, Map.of(),
+                                   true, null, null, null, null, true);
     }
 }

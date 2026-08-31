@@ -46,9 +46,9 @@ class MentalStateSignalTest {
     @Test
     void relationshipCue() {
         var event = new RelationshipEvent("agent1", "user1", "tenant1",
-                "case1", "turn1", "conversation",
-                QualitySignal.POSITIVE, "user expressed agreement",
-                0.7, Map.of());
+                                          "case1", "turn1", null, "conversation",
+                                          QualitySignal.POSITIVE, "user expressed agreement",
+                                          0.7, Map.of());
         var signal = new MentalStateSignal.RelationshipCue(event);
         assertThat(signal.content()).isEqualTo("user expressed agreement");
         assertThat(signal.event()).isEqualTo(event);
