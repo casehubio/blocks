@@ -120,7 +120,7 @@ public record IntakeResult(
 }
 ```
 
-`lane` is a string, not an enum — domains define their own lanes (devtown: FAST_TRACK/STANDARD/TRIAGE; clinical: URGENT/ROUTINE/DEFERRED). `origin` is [0.0, 1.0] (validated in compact constructor). `reason` is human-readable for audit trails.
+`lane` is a string, not an enum — domains define their own lanes (devtown: FAST_TRACK/STANDARD/TRIAGE; clinical: URGENT/ROUTINE/DEFERRED). `confidence` is [0.0, 1.0] (validated in compact constructor). `reason` is human-readable for audit trails.
 
 **Deviation from issue #80:** The issue specifies `laneWeight`, `trustScore`, and `observationCount` as explicit fields. This spec drops them because `IntakeClassifier<S>` is a generic SPI — not all classification is trust-based. Trust-specific values belong in the `metadata` map: `metadata.put("trustScore", 0.85)`. This keeps the SPI contract domain-agnostic while preserving audit-trail capability for trust-based implementations.
 
@@ -194,7 +194,7 @@ public class VouchService {
 | `entryId` | Pre-generated | `UUID.randomUUID()` — returned in `Accepted` |
 | `subjectId` | `request.voucheeId()` | Direct (both UUID) |
 | `verdict` | Fixed | `AttestationVerdict.ENDORSED` |
-| `origin` | Fixed | `1.0` |
+| `confidence` | Fixed | `1.0` |
 | `capabilityTag` | `request.capabilityTag()` | Direct |
 | `attestorId` | `request.voucherId()` | Direct |
 | `actorType` | `request.voucherActorType()` | Direct |

@@ -8,6 +8,7 @@ import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentGoal;
 import io.casehub.eidos.api.GoalOutcomeCounts;
 import io.casehub.eidos.api.GoalSignalStore;
+import org.jspecify.annotations.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -30,6 +31,7 @@ public class GoalProposalOrchestrator {
 
     private final DriveOrchestrator driveOrchestrator;
     private final List<DriveGoalMapper> mappers;
+    private final @Nullable DriveGoalFormationStrategy formationStrategy;
     private final Instance<GoalSignalStore> goalSignalStore;
     private final GoalProposalConfig config;
     private final Clock clock;
@@ -41,10 +43,12 @@ public class GoalProposalOrchestrator {
     public GoalProposalOrchestrator(
             DriveOrchestrator driveOrchestrator,
             Instance<DriveGoalMapper> mapperInstances,
+            Instance<DriveGoalFormationStrategy> strategyInstance,
             Instance<GoalSignalStore> goalSignalStore,
             GoalProposalConfig config) {
-        this(driveOrchestrator, mapperInstances.stream().toList(), goalSignalStore, config,
-                Clock.systemUTC());
+        this(driveOrchestrator, mapperInstances.stream().toList(),
+             strategyInstance.isResolvable() ? strategyInstance.get() : null,
+             goalSignalStore, config, Clock.systemUTC());
     }
 
     GoalProposalOrchestrator(
@@ -53,11 +57,22 @@ public class GoalProposalOrchestrator {
             Instance<GoalSignalStore> goalSignalStore,
             GoalProposalConfig config,
             Clock clock) {
+        this(driveOrchestrator, mappers, null, goalSignalStore, config, clock);
+    }
+
+    GoalProposalOrchestrator(
+            DriveOrchestrator driveOrchestrator,
+            List<DriveGoalMapper> mappers,
+            @Nullable DriveGoalFormationStrategy formationStrategy,
+            Instance<GoalSignalStore> goalSignalStore,
+            GoalProposalConfig config,
+            Clock clock) {
         this.driveOrchestrator = driveOrchestrator;
-        this.mappers = List.copyOf(mappers);
-        this.goalSignalStore = goalSignalStore;
-        this.config = config;
-        this.clock = clock;
+        this.mappers           = List.copyOf(mappers);
+        this.formationStrategy = formationStrategy;
+        this.goalSignalStore   = goalSignalStore;
+        this.config            = config;
+        this.clock             = clock;
     }
 
     public GoalProposalTick tick(String agentId, String tenantId, AgentDescriptor descriptor) {
@@ -101,7 +116,8 @@ public class GoalProposalOrchestrator {
 
         List<DriveGoalProposal> proposals = new ArrayList<>();
         if (remainingCapacity > 0) {
-            proposals = evaluateMappers(agentId, tenantId, profile, state);
+            proposals = evaluateMappers(agentId, tenantId, profile, state,
+                    descriptor, remainingCapacity);
             proposals.sort(Comparator.comparingDouble(DriveGoalProposal::driveIntensity).reversed()
                     .thenComparing(p -> p.axis().ordinal()));
             if (proposals.size() > remainingCapacity) {
@@ -139,19 +155,39 @@ public class GoalProposalOrchestrator {
     }
 
     private List<DriveGoalProposal> evaluateMappers(String agentId, String tenantId,
-                                                     DriveProfile profile,
-                                                     GoalProposalState state) {
+                                                    DriveProfile profile,
+                                                    GoalProposalState state,
+                                                    AgentDescriptor descriptor,
+                                                    int remainingCapacity) {
         List<DriveGoalProposal> proposals = new ArrayList<>();
         for (Map.Entry<DriveAxis, DriveIntensity> entry : profile.drives().entrySet()) {
             DriveIntensity intensity = entry.getValue();
             if (intensity.intensity() < config.proposalThreshold()) {
                 continue;
             }
-            for (DriveGoalMapper mapper : mappers) {
-                DriveGoalProposal proposal = mapper.evaluate(agentId, tenantId, intensity);
-                if (proposal != null && !state.failureSuppressedGoalNames.contains(proposal.goalName())) {
-                    proposals.add(proposal);
+
+            DriveGoalProposal proposal = null;
+
+            if (formationStrategy != null) {
+                try {
+                    var context = new DriveGoalFormationContext(
+                            agentId, tenantId, intensity.axis(), intensity.intensity(),
+                            intensity.trigger(), descriptor.goals(), remainingCapacity);
+                    proposal = formationStrategy.propose(context);
+                } catch (Exception e) {
+                    proposal = null;
                 }
+            }
+
+            if (proposal == null) {
+                for (DriveGoalMapper mapper : mappers) {
+                    proposal = mapper.evaluate(agentId, tenantId, intensity);
+                    if (proposal != null) {break;}
+                }
+            }
+
+            if (proposal != null && !state.failureSuppressedGoalNames.contains(proposal.goalName())) {
+                proposals.add(proposal);
             }
         }
         return proposals;

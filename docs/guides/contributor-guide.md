@@ -239,6 +239,8 @@ The goal sub-package (`agentic.social.goal`) is Layer 2 of the autonomous intell
 
 **Engine integration (Batch 2):** `GoalFormationService` SPI in engine-api extracts case-independent goal registration (validation, deduplication, capacity, audit) from `GoalFormationEvaluator`. `GoalRemovalService` SPI provides reusable goal removal with audit. `ProposedGoal` gains `@Nullable Map<String, String> attributes` for goal provenance. Drive-sourced goals store `{"source": "drive", "driveAxis": "CURIOSITY"}`.
 
+**LLM goal formation:** `DriveGoalFormationStrategy` SPI with `LlmDriveGoalFormationStrategy` implementation provides drive-specific LLM prompt framing as an opt-in alternative to heuristic mappers. Accepts `DriveGoalFormationContext` (axis, intensity, trigger, existing goals, remaining capacity) and produces richer `DriveGoalProposal` descriptions via `AgentProvider`. Graceful degradation on LLM failure. Follows the heuristic/LLM tiering pattern from summarisation.
+
 **Consumer integration:** The scheduler (quarkmind, claudony, etc.) wires the full tick loop -- source orchestrators → DriveOrchestrator → GoalProposalOrchestrator → GoalFormationService. See spec §Consumer Integration Example for the complete flow.
 
 ### Narrative Identity (Compositor + Effectful Split)

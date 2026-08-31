@@ -4,46 +4,30 @@ title: "The Observation That Doesn't Know Its World"
 date: 2026-08-22
 entry_type: note
 subtype: diary
-projects: [casehubio/blocks]
-tags: [observation, spi, affordance, multi-agent, decoupling, architecture]
+projects: [casehub-blocks]
+tags: [observation, spi, affordance, multi-agent, decoupling]
 ---
 
-# The Observation That Doesn't Know Its World
+Wacky Manor's `ObservationBuilder` had been doing two things: assembling world perception (what's in the room, who's here, what you remember from the kitchen) and assembling cognitive state (your goals, your plans, your memories, your last action result). All twenty methods in one static utility, all taking `WorldState` and `CharacterState` directly.
 
-Every LLM agent needs a prompt that captures two things: what the agent perceives and what it's thinking. Build them as one function and it works. Build them as a composition and every agent you ever write can use the same cognitive stack.
+This works until a second world wants observations. An SC2 agent or a Godot character has no `Room`, no `CharacterState`, no `WorldState`. But it has the same cognitive needs — goals, memories, reflections, activity history. Those are platform types (`AgentGoal`, `Memory`, `PartitionedDrain`), not manor types.
 
-The observation architecture in casehub-blocks splits prompt assembly into three layers: a sealed type system that the renderer sees, a world-specific SPI that each application implements, and a cognitive utility that every agent shares. The interesting design question was where to draw those boundaries.
+The split was a `WorldObservationProvider` SPI in the affordance package — a `@FunctionalInterface` with a single method: `List<ObservationSection> worldSections()`. Each world implements it. The manor provides `ManorWorldObservationProvider`, which captures `WorldState`, `CharacterState`, `PartitionedDrain`, and observer tags, then produces location, exits, objects, characters, remembered rooms, and perception-filtered sections. A separate `ManorExchangeObservationProvider` handles the simpler two-character dialogue path.
 
-## The type system — three shapes, one renderer
+The cognitive side was the more interesting question. Five methods produce `ObservationSection` from pure platform types: `goalsSection(List<AgentGoal>)`, `recentActivitySection(PartitionedDrain)`, `pastExperienceSection(List<Memory>)`, `insightsSection(List<Memory>)`, `relationshipNotesSection(String, List<Memory>)`. These are formatters — 5-10 lines each, sorting goals by priority, filtering blank memory texts, prefixing relationship memories with "You recall:". Nothing deep. But they're the same for every agent, and they belong where the types they produce live.
 
-`ObservationSection` is a sealed interface with three permitted variants: `EntityGroup` (things with affordances — characters, objects, exits), `TextBlock` (free-form prose — location description, recent activity), and `ItemList` (enumerable items — goals, memories, inventory). Every piece of an agent's observation reduces to one of these three shapes.
+Where is that? Three candidates.
 
-The renderer — `AffordanceRenderer` — doesn't know about rooms or goals or memories. It knows how to render an `EntityGroup` (show each entity with its affordances), a `TextBlock` (print the content under a header), and an `ItemList` (bullet each item). That's the whole contract. A goals section and a location section look identical to the renderer. The domain knowledge lives elsewhere.
+**blocks** already depends on eidos-api and neocortex-memory-api. The cognitive formatters are `T → ObservationSection` factories — they sit alongside `ObservationSection.text()` and `ObservationSection.items()` as higher-level constructors that know about domain types. No new dependencies needed.
 
-The `EntityGroup` variant carries the affordance model: each `ObservableEntity` has a list of `Affordance` records — action type, label, required items, accepted items. When the renderer produces text, the agent sees not just "Kitchen Cabinet" but `Kitchen Cabinet [INTERACT, requires: brass-key]`. The action vocabulary is embedded in the perception, not passed as a separate tool list. The LLM gets what it can do in the same context as what it sees.
+**quarkmind-core** has `WorldPerception`, `WorldBridge`, `AgencyLoop` — the agent cognition framework. Conceptually, "how agents represent cognitive state in prompts" fits here. But quarkmind-core is intentionally lean: engine-api and eidos-api only. Adding blocks and neocortex-memory-api would widen a focused core module for five utility methods. And quarkmind-core doesn't touch rendering at all today — it defines behavioral SPIs, not observation formatting.
 
-## The world boundary — one method
+**Stay in the manor** defeats the purpose. The whole point is that a second world shouldn't have to rewrite `goalsSection`.
 
-`WorldObservationProvider` is a `@FunctionalInterface`:
+blocks won. Factory methods belong with the type they produce. `CognitiveObservationSections` went into the affordance package alongside `WorldObservationProvider` and `ObservationSection`.
 
-```java
-List<ObservationSection> worldSections();
-```
+That left four methods that depend on `CharacterState` — a manor type blocks can't see. `inventorySection`, `currentThinkingSection`, `planSections`, `lastActionResultSection`. These stay in the manor's `ObservationBuilder`, which is now just an assembly point: call `provider.worldSections()`, append character state, append cognitive sections from the blocks utility. Eighty lines where there were three hundred and forty.
 
-Each world implements it. The manor's implementation captures `WorldState`, `CharacterState`, the event drain, and observer tags, then produces location, exits, objects, characters, remembered rooms, and perception-filtered sections. The exchange path (two-character dialogue) has its own minimal provider — location, others present, dialogue text.
+The three-way split follows the type boundary exactly: methods using `WorldState`/`Room`/`GameObject` → provider; methods using `AgentGoal`/`Memory`/`PartitionedDrain` → blocks; methods using `CharacterState` → manor. If `CharacterState` gets abstracted into a platform type someday, those four methods move too. But that's a different issue with different evidence.
 
-An SC2 agent would return units, terrain, fog of war. A Godot character might return nearby nodes and navigation mesh data. The observation architecture doesn't care. It receives sections and renders them.
-
-## The cognitive side — the part every agent shares
-
-Five factory methods in `CognitiveObservationSections` produce `ObservationSection` from platform types that every CaseHub agent already has access to: `AgentGoal`, `Memory`, `PartitionedDrain`. Goals get sorted by priority. Memory texts get blank-filtered. Relationship memories get prefixed with "You recall:". These are simple formatters — ten lines each — but they're the same for every agent, and rewriting them per world is wasted effort.
-
-The split follows the type boundary: if a method's parameters are all platform types (`AgentGoal`, `Memory`, `PartitionedDrain`), it's cognitive — it goes in blocks. If it needs world-specific types (`WorldState`, `Room`, `GameObject`), it's perception — it stays in the world's provider. Four methods that depend on `CharacterState` (inventory, current thinking, plans, last action result) stay in the manor's assembler. If `CharacterState` gets abstracted into a platform type someday, those move too. But that's a different decision with different evidence.
-
-The architecture proved its boundary when motivational state and self-narrative sections were added later. `DriveProfile` and `NarrativeState` are platform types — they got two new factory methods in `CognitiveObservationSections`. No interface change, no provider change, no renderer change. Two methods, immediately available to every agent.
-
-## The assembly — thin by design
-
-The builder is now an orchestrator: call `provider.worldSections()`, append character state, append cognitive sections from the blocks utility, render. Eighty lines where there were three hundred and forty. The section ordering changed from interleaved (world, then cognitive, then world again) to grouped — all perception first, then all internal state. Cleaner for the LLM: "what's around you" before "what you're thinking."
-
-The composition has a property worth noting: the world provider controls world-section ordering, the builder controls the overall grouping, and the renderer controls the text format. Each layer owns one decision. Adding a new section — a trust score, a social norm assessment — means writing one factory method and one line in the builder. The architecture absorbs it.
+One thing changed beyond the extraction: section ordering. The old code interleaved world and cognitive sections — `recentActivity` appeared before `remembered`, keen observations appeared after both. The new layout groups perception together (location, exits, objects, characters, remembered, keen/directed), then character state (inventory, thinking), then cognitive state (goals, plans, activity, memories, insights, last action). Cleaner for the LLM — "what's around you" before "what you're thinking."

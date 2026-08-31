@@ -1,9 +1,5 @@
 package io.casehub.blocks.agentic.social.goal;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
@@ -15,6 +11,9 @@ import io.casehub.eidos.api.GoalPriority;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.eidos.api.Visibility;
 import jakarta.enterprise.inject.Instance;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,8 +21,10 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GoalProposalOrchestratorTest {
 
@@ -277,6 +278,118 @@ class GoalProposalOrchestratorTest {
                     .doesNotContain("explore-knowledge-gaps");
         }
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void usesFormationStrategy_whenPresent() {
+        Instance<GoalSignalStore> si = mock(Instance.class);
+        when(si.isResolvable()).thenReturn(false);
+
+        DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
+        var orch = new GoalProposalOrchestrator(
+                driveOrchestrator, List.of(curiosityMapper), strategy,
+                si, GoalProposalConfig.defaults(), clock);
+
+        setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
+        when(strategy.propose(org.mockito.ArgumentMatchers.any(DriveGoalFormationContext.class)))
+                .thenReturn(new DriveGoalProposal(
+                        DriveAxis.CURIOSITY, "llm-explore-physics",
+                        "Deep exploration of physics concepts", "curiosity: LLM refined", 0.7));
+
+        var tick = orch.tick("a1", "t1", descriptorWithGoals());
+
+        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
+        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(proposed.newProposals()).hasSize(1);
+        assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("llm-explore-physics");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void fallsBackToMapper_whenStrategyReturnsNull() {
+        Instance<GoalSignalStore> si = mock(Instance.class);
+        when(si.isResolvable()).thenReturn(false);
+
+        DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
+        var orch = new GoalProposalOrchestrator(
+                driveOrchestrator, List.of(curiosityMapper), strategy,
+                si, GoalProposalConfig.defaults(), clock);
+
+        setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
+        when(strategy.propose(org.mockito.ArgumentMatchers.any(DriveGoalFormationContext.class)))
+                .thenReturn(null);
+        when(curiosityMapper.evaluate("a1", "t1", driveIntensity(DriveAxis.CURIOSITY, 0.7)))
+                .thenReturn(new DriveGoalProposal(
+                        DriveAxis.CURIOSITY, "explore-knowledge-gaps",
+                        "Heuristic fallback", "curiosity: heuristic", 0.7));
+
+        var tick = orch.tick("a1", "t1", descriptorWithGoals());
+
+        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
+        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("explore-knowledge-gaps");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void strategyReceivesCorrectContext() {
+        Instance<GoalSignalStore> si = mock(Instance.class);
+        when(si.isResolvable()).thenReturn(false);
+
+        org.mockito.ArgumentCaptor<DriveGoalFormationContext> captor =
+                org.mockito.ArgumentCaptor.forClass(DriveGoalFormationContext.class);
+        DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
+        when(strategy.propose(captor.capture())).thenReturn(null);
+
+        var existing = new AgentGoal("assigned-goal", "Do work",
+                                     GoalPriority.PRIMARY, Visibility.PUBLIC, List.of(), null);
+        var descriptor = AgentDescriptor.builder()
+                                        .agentId("a1").name("A").slot("s").tenancyId("t1")
+                                        .goals(List.of(existing)).build();
+
+        var orch = new GoalProposalOrchestrator(
+                driveOrchestrator, List.of(), strategy,
+                si, GoalProposalConfig.defaults(), clock);
+
+        setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.65);
+        orch.tick("a1", "t1", descriptor);
+
+        var ctx = captor.getValue();
+        assertThat(ctx.agentId()).isEqualTo("a1");
+        assertThat(ctx.tenantId()).isEqualTo("t1");
+        assertThat(ctx.axis()).isEqualTo(DriveAxis.CURIOSITY);
+        assertThat(ctx.intensity()).isEqualTo(0.65);
+        assertThat(ctx.existingGoals()).containsExactly(existing);
+        assertThat(ctx.remainingCapacity()).isEqualTo(3);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void fallsBackToMapper_whenStrategyThrows() {
+        Instance<GoalSignalStore> si = mock(Instance.class);
+        when(si.isResolvable()).thenReturn(false);
+
+        DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
+        when(strategy.propose(org.mockito.ArgumentMatchers.any(DriveGoalFormationContext.class)))
+                .thenThrow(new RuntimeException("LLM unavailable"));
+
+        var orch = new GoalProposalOrchestrator(
+                driveOrchestrator, List.of(curiosityMapper), strategy,
+                si, GoalProposalConfig.defaults(), clock);
+
+        setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
+        when(curiosityMapper.evaluate("a1", "t1", driveIntensity(DriveAxis.CURIOSITY, 0.7)))
+                .thenReturn(new DriveGoalProposal(
+                        DriveAxis.CURIOSITY, "explore-knowledge-gaps",
+                        "Heuristic fallback after exception", "curiosity: heuristic", 0.7));
+
+        var tick = orch.tick("a1", "t1", descriptorWithGoals());
+
+        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
+        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("explore-knowledge-gaps");
+    }
+
 
     private void setupDrives(String agentId, String tenantId, DriveAxis axis, double intensity) {
         var profile = new DriveProfile(agentId, tenantId,
