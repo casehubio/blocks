@@ -25,7 +25,9 @@ class CognitiveObservationSectionsTest {
 
     private static Memory memory(String text) {
         return new Memory("m-1", "agent-1", DOMAIN, "t-1", "c-1",
-                          text, Map.of(), Instant.now(), 0.5, null, null, null);
+                          text, Map.of(), Instant.now(),
+                          io.casehub.neocortex.cognitive.Confidence.unknown(0.5),
+                          null, null, null);
     }
 
     private static AgentGoal goal(String name, String description, GoalPriority priority) {
