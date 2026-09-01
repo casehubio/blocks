@@ -241,7 +241,15 @@ The goal sub-package (`agentic.social.goal`) is Layer 2 of the autonomous intell
 
 **LLM goal formation:** `DriveGoalFormationStrategy` SPI with `LlmDriveGoalFormationStrategy` implementation provides drive-specific LLM prompt framing as an opt-in alternative to heuristic mappers. Accepts `DriveGoalFormationContext` (axis, intensity, trigger, existing goals, remaining capacity) and produces richer `DriveGoalProposal` descriptions via `AgentProvider`. Graceful degradation on LLM failure. Follows the heuristic/LLM tiering pattern from summarisation.
 
-**Consumer integration:** The scheduler (quarkmind, claudony, etc.) wires the full tick loop -- source orchestrators → DriveOrchestrator → GoalProposalOrchestrator → GoalFormationService. See spec §Consumer Integration Example for the complete flow.
+**Consumer integration:** The scheduler (quarkmind, claudony, etc.) wires the full tick loop -- source orchestrators → NarrativeSynthesiser → NarrativeOrchestrator → DriveOrchestrator → GoalProposalOrchestrator → GoalFormationService. The scheduler reads `GoalProposalTick.Changes` and applies all four signal types: register proposals via GoalFormationService, remove abandoned goals, apply priority adjustments via `AgentGoal.toBuilder().priority()`, apply governance attribute updates via `AgentGoal.toBuilder().attributes()`.
+
+**Governed priority escalation (#166):** GoalProposalOrchestrator pipeline extends with three phases after per-axis mapping: (1) cross-axis composition — detects `DerivedTheme`s with ≥2 positive axis weights above `crossAxisMinWeight`, creates compound proposals with dominant axis; (2) escalation evaluation — `GoalEscalationPolicy` SPI checks narrative alignment, synthesis-cycle tracking counts confirmed alignment cycles before escalating to PRIMARY; (3) demotion evaluation — checks existing PRIMARY drive-sourced goals for lost alignment with their escalation theme, demotes after sustained misalignment. All phases require `Instance<NarrativeOrchestrator>` (optional — when absent, phases are skipped and goals stay SECONDARY).
+
+**GoalEscalationPolicy SPI:** `@FunctionalInterface` returning `@Nullable EscalationResult`. `NarrativeGoalEscalationPolicy` implementation: selects strongest qualifying theme by `salience × axisWeight`, sign-aware (positive weights only), count-based cap via `maxPrimaryDriveGoals`. Escalation provenance flows into `ProposedGoal.attributes` (`escalatedBy`, `escalation.theme`, timestamps). Engine-side defence-in-depth: `DefaultGoalFormationService` rejects PRIMARY on drive-sourced goals without `escalatedBy` attribute.
+
+**Cross-axis composition (#159):** Inline pipeline step with optional `CrossAxisGoalEnricher` SPI for LLM enrichment. `LlmCrossAxisGoalEnricher` via `AgentProvider` with graceful degradation. Heuristic fallback creates template descriptions. Compound proposals carry `crossAxisWeights` in `proposalAttributes`.
+
+**GoalProposalTick.Changes:** Renamed from `Proposed`. Carries four signal types: `newProposals`, `abandonedGoalNames`, `priorityAdjustments` (`List<PriorityAdjustment>`), `governanceUpdates` (`List<GovernanceAttributeUpdate>`). The scheduler applies all four atomically.
 
 ### Narrative Identity (Compositor + Effectful Split)
 
