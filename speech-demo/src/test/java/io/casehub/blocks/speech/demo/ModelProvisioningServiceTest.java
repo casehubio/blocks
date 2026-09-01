@@ -20,7 +20,6 @@ class ModelProvisioningServiceTest {
 
         int expectedSize = ModelProvisioningService.MODELS.size()
                            + ModelProvisioningService.KOKORO_MODELS.size()
-                           + ModelProvisioningService.AUDIO8_MODELS.size()
                            + 1; // streaming-stt
         assertThat(service.status()).hasSize(expectedSize);
         assertThat(service.status().values()).allMatch(s -> s == ModelStatus.PENDING);
@@ -35,9 +34,6 @@ class ModelProvisioningServiceTest {
 
             @Override
             void provisionKokoro(String modelName) {}
-
-            @Override
-            void provisionAudio8(String variant)   {}
 
             @Override
             void provisionStreamingStt()           {}
@@ -64,9 +60,6 @@ class ModelProvisioningServiceTest {
             void provisionKokoro(String modelName) {}
 
             @Override
-            void provisionAudio8(String variant)   {}
-
-            @Override
             void provisionStreamingStt()           {}
         };
 
@@ -78,7 +71,6 @@ class ModelProvisioningServiceTest {
 
         int expectedReady = ModelProvisioningService.MODELS.size()
                             + ModelProvisioningService.KOKORO_MODELS.size()
-                            + ModelProvisioningService.AUDIO8_MODELS.size()
                             + 1  // streaming-stt
                             - 1; // amy failed
         var readyCount = service.status().values().stream()
@@ -94,9 +86,6 @@ class ModelProvisioningServiceTest {
 
             @Override
             void provisionKokoro(String modelName) {}
-
-            @Override
-            void provisionAudio8(String variant)   {}
 
             @Override
             void provisionStreamingStt()           {}
