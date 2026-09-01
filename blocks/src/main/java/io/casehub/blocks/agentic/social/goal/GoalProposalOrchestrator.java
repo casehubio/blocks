@@ -10,6 +10,7 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentGoal;
 import io.casehub.eidos.api.GoalOutcomeCounts;
+import io.casehub.eidos.api.GoalPriority;
 import io.casehub.eidos.api.GoalSignalStore;
 import org.jspecify.annotations.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -28,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class GoalProposalOrchestrator {
@@ -149,17 +151,25 @@ public class GoalProposalOrchestrator {
         int existingDriveGoals = countDriveGoals(descriptor);
         int remainingCapacity = config.maxDriveGoals() - existingDriveGoals + abandonments.size();
 
+        NarrativeState narrative = narrativeOrchestrator != null
+                ? narrativeOrchestrator.currentNarrative(agentId, tenantId).orElse(null)
+                : null;
+        boolean newSynthesis = false;
+        if (narrative != null) {
+            newSynthesis = state.lastSeenSynthesisAt == null
+                    || !narrative.synthesisedAt().equals(state.lastSeenSynthesisAt);
+            state.lastSeenSynthesisAt = narrative.synthesisedAt();
+        }
+
         List<DriveGoalProposal> proposals = new ArrayList<>();
         if (remainingCapacity > 0) {
             proposals = evaluateMappers(agentId, tenantId, profile, state,
                     descriptor, remainingCapacity);
 
-            // Phase 2: cross-axis composition
-            NarrativeState narrative = narrativeOrchestrator != null
-                    ? narrativeOrchestrator.currentNarrative(agentId, tenantId).orElse(null)
-                    : null;
             if (narrative != null) {
                 proposals.addAll(evaluateCrossAxis(agentId, tenantId, profile, narrative));
+                proposals = evaluateEscalation(proposals, narrative, profile,
+                        descriptor, state, newSynthesis);
             }
 
             proposals.sort(Comparator.comparingDouble(DriveGoalProposal::driveIntensity).reversed()
@@ -169,15 +179,25 @@ public class GoalProposalOrchestrator {
             }
         }
 
-        if (proposals.isEmpty() && abandonments.isEmpty()) {
-            return new GoalProposalTick.NoChange("no proposals or abandonments");
+        List<PriorityAdjustment> adjustments = List.of();
+        List<GovernanceAttributeUpdate> govUpdates = List.of();
+        if (narrative != null) {
+            var demotionSignals = evaluateDemotions(descriptor, narrative,
+                    state, newSynthesis);
+            adjustments = demotionSignals.adjustments();
+            govUpdates = demotionSignals.updates();
+        }
+
+        if (proposals.isEmpty() && abandonments.isEmpty()
+                && adjustments.isEmpty() && govUpdates.isEmpty()) {
+            return new GoalProposalTick.NoChange("no proposals, abandonments, or adjustments");
         }
 
         state.lastProposalTimestamp = Instant.now(clock);
         state.cachedProposals = List.copyOf(proposals);
         state.cachedAbandonments = List.copyOf(abandonments);
 
-        return new GoalProposalTick.Changes(proposals, abandonments, List.of(), List.of());
+        return new GoalProposalTick.Changes(proposals, abandonments, adjustments, govUpdates);
     }
 
     private boolean isCooldownActive(GoalProposalState state) {
@@ -309,6 +329,137 @@ public class GoalProposalOrchestrator {
         }
     }
 
+    private List<DriveGoalProposal> evaluateEscalation(List<DriveGoalProposal> proposals,
+                                                       NarrativeState narrative,
+                                                       DriveProfile profile,
+                                                       AgentDescriptor descriptor,
+                                                       GoalProposalState state,
+                                                       boolean newSynthesis) {
+        if (escalationPolicy == null) return proposals;
+
+        var context = new GoalEscalationContext(narrative, profile, descriptor);
+        List<DriveGoalProposal> result = new ArrayList<>();
+
+        for (var proposal : proposals) {
+            EscalationResult escalation = escalationPolicy.evaluate(proposal, context);
+            EscalationTracker tracker = state.escalationTrackers
+                    .computeIfAbsent(proposal.goalName(), k -> new EscalationTracker());
+
+            if (escalation != null && newSynthesis) {
+                if (tracker.firstAlignedSynthesisAt == null) {
+                    tracker.firstAlignedSynthesisAt = narrative.synthesisedAt();
+                }
+                tracker.alignedCycleCount++;
+
+                if (tracker.alignedCycleCount >= escalationConfig.escalationCycles()) {
+                    Instant now = Instant.now(clock);
+                    var attrs = new HashMap<String, String>();
+                    attrs.put("escalatedBy", "narrative");
+                    attrs.put("escalation.theme", escalation.themeLabel());
+                    attrs.put("escalation.escalatedAt", now.toString());
+                    attrs.put("escalation.firstAlignedSynthesisAt",
+                            tracker.firstAlignedSynthesisAt.toString());
+                    attrs.put("escalation.lastAlignedSynthesisAt",
+                            narrative.synthesisedAt().toString());
+                    if (proposal.proposalAttributes() != null) {
+                        attrs.putAll(proposal.proposalAttributes());
+                    }
+                    result.add(new DriveGoalProposal(proposal.axis(), proposal.goalName(),
+                            proposal.goalDescription(), proposal.formationReason(),
+                            proposal.driveIntensity(), escalation.priority(),
+                            Map.copyOf(attrs)));
+                    continue;
+                }
+            } else if (escalation == null && newSynthesis) {
+                state.escalationTrackers.remove(proposal.goalName());
+            }
+            result.add(proposal);
+        }
+
+        return enforcePrimaryCap(result);
+    }
+
+    private List<DriveGoalProposal> enforcePrimaryCap(List<DriveGoalProposal> proposals) {
+        List<DriveGoalProposal> escalated = proposals.stream()
+                .filter(p -> p.suggestedPriority() == GoalPriority.PRIMARY)
+                .sorted(Comparator.comparingDouble(DriveGoalProposal::driveIntensity).reversed())
+                .toList();
+        if (escalated.size() <= escalationConfig.maxPrimaryDriveGoals()) return proposals;
+
+        Set<String> keepPrimary = new HashSet<>();
+        for (int i = 0; i < escalationConfig.maxPrimaryDriveGoals(); i++) {
+            keepPrimary.add(escalated.get(i).goalName());
+        }
+        return proposals.stream().map(p -> {
+            if (p.suggestedPriority() == GoalPriority.PRIMARY
+                    && !keepPrimary.contains(p.goalName())) {
+                return new DriveGoalProposal(p.axis(), p.goalName(), p.goalDescription(),
+                        p.formationReason(), p.driveIntensity(), null, null);
+            }
+            return p;
+        }).toList();
+    }
+
+    private record DemotionSignals(List<PriorityAdjustment> adjustments,
+                                    List<GovernanceAttributeUpdate> updates) {}
+
+    private DemotionSignals evaluateDemotions(AgentDescriptor descriptor,
+                                               NarrativeState narrative,
+                                               GoalProposalState state,
+                                               boolean newSynthesis) {
+        List<PriorityAdjustment> adjustments = new ArrayList<>();
+        List<GovernanceAttributeUpdate> updates = new ArrayList<>();
+
+        for (AgentGoal goal : descriptor.goals()) {
+            if (goal.priority() != GoalPriority.PRIMARY) continue;
+            if (goal.attributes() == null || !"drive".equals(goal.attributes().get("source"))) continue;
+            if (!"narrative".equals(goal.attributes().get("escalatedBy"))) continue;
+
+            String themeLabel = goal.attributes().get("escalation.theme");
+            if (themeLabel == null) continue;
+
+            boolean aligned = false;
+            for (var theme : narrative.themes()) {
+                if (!theme.label().equalsIgnoreCase(themeLabel)) continue;
+                String axisName = goal.attributes().get("driveAxis");
+                if (axisName == null) break;
+                try {
+                    DriveAxis axis = DriveAxis.valueOf(axisName);
+                    Double weight = theme.axisModulationWeights().get(axis);
+                    if (weight != null && weight > escalationConfig.minAxisAlignmentWeight()
+                            && theme.salience() > escalationConfig.escalationSalienceThreshold()) {
+                        aligned = true;
+                    }
+                } catch (IllegalArgumentException ignored) {}
+                break;
+            }
+
+            if (newSynthesis) {
+                if (aligned) {
+                    state.demotionMisalignedCycles.remove(goal.name());
+                    updates.add(new GovernanceAttributeUpdate(goal.name(),
+                            Map.of("escalation.lastAlignedSynthesisAt",
+                                    narrative.synthesisedAt().toString())));
+                } else {
+                    int cycles = state.demotionMisalignedCycles
+                            .merge(goal.name(), 1, Integer::sum);
+                    if (cycles >= escalationConfig.demotionCycles()) {
+                        adjustments.add(new PriorityAdjustment(goal.name(),
+                                GoalPriority.SECONDARY,
+                                "narrative alignment lost for " + cycles
+                                + " synthesis cycles (theme: " + themeLabel + ")"));
+                        state.demotionMisalignedCycles.remove(goal.name());
+                    } else {
+                        updates.add(new GovernanceAttributeUpdate(goal.name(),
+                                Map.of("escalation.misalignedCycleCount",
+                                        String.valueOf(cycles))));
+                    }
+                }
+            }
+        }
+        return new DemotionSignals(adjustments, updates);
+    }
+
     private List<DriveGoalProposal> evaluateCrossAxis(String agentId, String tenantId,
                                                        DriveProfile profile,
                                                        NarrativeState narrative) {
@@ -333,7 +484,7 @@ public class GoalProposalOrchestrator {
 
             var weightsStr = positiveAxes.stream()
                     .map(e -> e.getKey().name() + ":" + String.format("%.2f", e.getValue()))
-                    .collect(java.util.stream.Collectors.joining(","));
+                    .collect(Collectors.joining(","));
 
             var attrs = Map.of("crossAxisWeights", weightsStr);
 
@@ -358,5 +509,13 @@ public class GoalProposalOrchestrator {
         List<String> cachedAbandonments = List.of();
         Map<String, Instant> driveGoalBelowThresholdSince = new HashMap<>();
         Set<String> failureSuppressedGoalNames = new HashSet<>();
+        Instant lastSeenSynthesisAt;
+        Map<String, EscalationTracker> escalationTrackers = new HashMap<>();
+        Map<String, Integer> demotionMisalignedCycles = new HashMap<>();
+    }
+
+    static final class EscalationTracker {
+        Instant firstAlignedSynthesisAt;
+        int alignedCycleCount;
     }
 }
