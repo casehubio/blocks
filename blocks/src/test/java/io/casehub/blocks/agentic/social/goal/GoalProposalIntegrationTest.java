@@ -94,8 +94,8 @@ class GoalProposalIntegrationTest {
 
         var tick = goalOrchestrator.tick("a1", "t1", descriptor);
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.newProposals()).isNotEmpty();
 
         var goalNames = proposed.newProposals().stream()

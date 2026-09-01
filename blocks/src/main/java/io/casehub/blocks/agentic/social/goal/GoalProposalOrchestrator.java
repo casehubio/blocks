@@ -133,7 +133,7 @@ public class GoalProposalOrchestrator {
         state.cachedProposals = List.copyOf(proposals);
         state.cachedAbandonments = List.copyOf(abandonments);
 
-        return new GoalProposalTick.Proposed(proposals, abandonments);
+        return new GoalProposalTick.Changes(proposals, abandonments, List.of(), List.of());
     }
 
     private boolean isCooldownActive(GoalProposalState state) {

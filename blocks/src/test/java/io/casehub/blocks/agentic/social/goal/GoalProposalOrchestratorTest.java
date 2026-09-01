@@ -73,8 +73,8 @@ class GoalProposalOrchestratorTest {
 
         var tick = orchestrator.tick("a1", "t1", descriptorWithGoals());
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.newProposals()).hasSize(1);
         assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("explore-knowledge-gaps");
     }
@@ -137,8 +137,8 @@ class GoalProposalOrchestratorTest {
 
         var tick = orch.tick("a1", "t1", descriptorWithGoals());
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.newProposals()).hasSize(1);
         assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("improve");
     }
@@ -161,8 +161,8 @@ class GoalProposalOrchestratorTest {
         setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.1);
         var tick = orch.tick("a1", "t1", descriptor);
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.abandonedGoalNames()).contains("explore-knowledge-gaps");
     }
 
@@ -195,7 +195,7 @@ class GoalProposalOrchestratorTest {
                         DriveAxis.CURIOSITY, "explore", "d", "r", 0.7));
 
         var tick1 = orchestrator.tick("a1", "t1", descriptorWithGoals());
-        assertThat(tick1).isInstanceOf(GoalProposalTick.Proposed.class);
+        assertThat(tick1).isInstanceOf(GoalProposalTick.Changes.class);
 
         assertThat(orchestrator.currentProposals("a1", "t1")).isPresent();
     }
@@ -238,8 +238,8 @@ class GoalProposalOrchestratorTest {
 
         var tick = orch.tick("a1", "t1", descriptor);
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.abandonedGoalNames()).contains("explore-knowledge-gaps");
     }
 
@@ -273,7 +273,7 @@ class GoalProposalOrchestratorTest {
         when(store.outcomeCounts("a1", "t1")).thenReturn(Map.of());
         var tick2 = orch.tick("a1", "t1", emptyDescriptor);
 
-        if (tick2 instanceof GoalProposalTick.Proposed p) {
+        if (tick2 instanceof GoalProposalTick.Changes p) {
             assertThat(p.newProposals().stream().map(DriveGoalProposal::goalName).toList())
                     .doesNotContain("explore-knowledge-gaps");
         }
@@ -298,8 +298,8 @@ class GoalProposalOrchestratorTest {
 
         var tick = orch.tick("a1", "t1", descriptorWithGoals());
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.newProposals()).hasSize(1);
         assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("llm-explore-physics");
     }
@@ -325,8 +325,8 @@ class GoalProposalOrchestratorTest {
 
         var tick = orch.tick("a1", "t1", descriptorWithGoals());
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("explore-knowledge-gaps");
     }
 
@@ -385,8 +385,8 @@ class GoalProposalOrchestratorTest {
 
         var tick = orch.tick("a1", "t1", descriptorWithGoals());
 
-        assertThat(tick).isInstanceOf(GoalProposalTick.Proposed.class);
-        var proposed = (GoalProposalTick.Proposed) tick;
+        assertThat(tick).isInstanceOf(GoalProposalTick.Changes.class);
+        var proposed = (GoalProposalTick.Changes) tick;
         assertThat(proposed.newProposals().get(0).goalName()).isEqualTo("explore-knowledge-gaps");
     }
 
