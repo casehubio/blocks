@@ -23,13 +23,13 @@ public final class KokoroTextToSpeech implements TextToSpeechService {
 
     public static KokoroTextToSpeech withDefaults(int voiceId) {
         Provisioner.ensureNativeLibrary();
-        Path modelDir = Provisioner.ensureKokoroModel("kokoro-en-v0_19");
+        Path modelDir = Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_1");
         return new KokoroTextToSpeech(KokoroConfig.defaults(modelDir, voiceId));
     }
 
     public static void ensureProvisioned() {
         Provisioner.ensureNativeLibrary();
-        Provisioner.ensureKokoroModel("kokoro-en-v0_19");
+        Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_1");
     }
 
     public KokoroTextToSpeech(KokoroConfig config) {
