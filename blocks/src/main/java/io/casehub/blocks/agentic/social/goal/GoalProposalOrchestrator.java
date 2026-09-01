@@ -4,6 +4,9 @@ import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveProfile;
+import io.casehub.blocks.agentic.social.narrative.DerivedTheme;
+import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentGoal;
 import io.casehub.eidos.api.GoalOutcomeCounts;
@@ -35,6 +38,10 @@ public class GoalProposalOrchestrator {
     private final Instance<GoalSignalStore> goalSignalStore;
     private final GoalProposalConfig config;
     private final Clock clock;
+    private final @Nullable NarrativeOrchestrator narrativeOrchestrator;
+    private final @Nullable GoalEscalationPolicy escalationPolicy;
+    private final @Nullable CrossAxisGoalEnricher crossAxisEnricher;
+    private final GoalEscalationConfig escalationConfig;
 
     private final ConcurrentHashMap<String, GoalProposalState> states = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
@@ -45,10 +52,18 @@ public class GoalProposalOrchestrator {
             Instance<DriveGoalMapper> mapperInstances,
             Instance<DriveGoalFormationStrategy> strategyInstance,
             Instance<GoalSignalStore> goalSignalStore,
-            GoalProposalConfig config) {
+            Instance<NarrativeOrchestrator> narrativeInstance,
+            Instance<GoalEscalationPolicy> escalationInstance,
+            Instance<CrossAxisGoalEnricher> enricherInstance,
+            GoalProposalConfig config,
+            GoalEscalationConfig escalationConfig) {
         this(driveOrchestrator, mapperInstances.stream().toList(),
              strategyInstance.isResolvable() ? strategyInstance.get() : null,
-             goalSignalStore, config, Clock.systemUTC());
+             goalSignalStore,
+             narrativeInstance.isResolvable() ? narrativeInstance.get() : null,
+             escalationInstance.isResolvable() ? escalationInstance.get() : null,
+             enricherInstance.isResolvable() ? enricherInstance.get() : null,
+             config, escalationConfig, Clock.systemUTC());
     }
 
     GoalProposalOrchestrator(
@@ -57,7 +72,19 @@ public class GoalProposalOrchestrator {
             Instance<GoalSignalStore> goalSignalStore,
             GoalProposalConfig config,
             Clock clock) {
-        this(driveOrchestrator, mappers, null, goalSignalStore, config, clock);
+        this(driveOrchestrator, mappers, null, goalSignalStore,
+             null, null, null, config, GoalEscalationConfig.defaults(), clock);
+    }
+
+    GoalProposalOrchestrator(
+            DriveOrchestrator driveOrchestrator,
+            List<DriveGoalMapper> mappers,
+            DriveGoalFormationStrategy formationStrategy,
+            Instance<GoalSignalStore> goalSignalStore,
+            GoalProposalConfig config,
+            Clock clock) {
+        this(driveOrchestrator, mappers, formationStrategy, goalSignalStore,
+             null, null, null, config, GoalEscalationConfig.defaults(), clock);
     }
 
     GoalProposalOrchestrator(
@@ -65,14 +92,22 @@ public class GoalProposalOrchestrator {
             List<DriveGoalMapper> mappers,
             @Nullable DriveGoalFormationStrategy formationStrategy,
             Instance<GoalSignalStore> goalSignalStore,
+            @Nullable NarrativeOrchestrator narrativeOrchestrator,
+            @Nullable GoalEscalationPolicy escalationPolicy,
+            @Nullable CrossAxisGoalEnricher crossAxisEnricher,
             GoalProposalConfig config,
+            GoalEscalationConfig escalationConfig,
             Clock clock) {
-        this.driveOrchestrator = driveOrchestrator;
-        this.mappers           = List.copyOf(mappers);
-        this.formationStrategy = formationStrategy;
-        this.goalSignalStore   = goalSignalStore;
-        this.config            = config;
-        this.clock             = clock;
+        this.driveOrchestrator      = driveOrchestrator;
+        this.mappers                = List.copyOf(mappers);
+        this.formationStrategy      = formationStrategy;
+        this.goalSignalStore        = goalSignalStore;
+        this.narrativeOrchestrator  = narrativeOrchestrator;
+        this.escalationPolicy       = escalationPolicy;
+        this.crossAxisEnricher      = crossAxisEnricher;
+        this.config                 = config;
+        this.escalationConfig       = escalationConfig;
+        this.clock                  = clock;
     }
 
     public GoalProposalTick tick(String agentId, String tenantId, AgentDescriptor descriptor) {
@@ -118,6 +153,15 @@ public class GoalProposalOrchestrator {
         if (remainingCapacity > 0) {
             proposals = evaluateMappers(agentId, tenantId, profile, state,
                     descriptor, remainingCapacity);
+
+            // Phase 2: cross-axis composition
+            NarrativeState narrative = narrativeOrchestrator != null
+                    ? narrativeOrchestrator.currentNarrative(agentId, tenantId).orElse(null)
+                    : null;
+            if (narrative != null) {
+                proposals.addAll(evaluateCrossAxis(agentId, tenantId, profile, narrative));
+            }
+
             proposals.sort(Comparator.comparingDouble(DriveGoalProposal::driveIntensity).reversed()
                     .thenComparing(p -> p.axis().ordinal()));
             if (proposals.size() > remainingCapacity) {
@@ -263,6 +307,49 @@ public class GoalProposalOrchestrator {
         } catch (Exception e) {
             return Map.of();
         }
+    }
+
+    private List<DriveGoalProposal> evaluateCrossAxis(String agentId, String tenantId,
+                                                       DriveProfile profile,
+                                                       NarrativeState narrative) {
+        List<DriveGoalProposal> compounds = new ArrayList<>();
+        for (var theme : narrative.themes()) {
+            var positiveAxes = theme.axisModulationWeights().entrySet().stream()
+                    .filter(e -> e.getValue() > escalationConfig.crossAxisMinWeight())
+                    .sorted(Map.Entry.<DriveAxis, Double>comparingByValue().reversed())
+                    .toList();
+
+            if (positiveAxes.size() < escalationConfig.minCrossAxisCount()) continue;
+
+            DriveAxis dominant = positiveAxes.get(0).getKey();
+            DriveAxis secondary = positiveAxes.get(1).getKey();
+
+            var dominantIntensity = profile.drives().get(dominant);
+            if (dominantIntensity == null) continue;
+
+            String goalName = "compound-" + dominant.name().toLowerCase()
+                    + "-" + secondary.name().toLowerCase()
+                    + "-" + theme.label().replaceAll("[^a-zA-Z0-9-]", "").toLowerCase();
+
+            var weightsStr = positiveAxes.stream()
+                    .map(e -> e.getKey().name() + ":" + String.format("%.2f", e.getValue()))
+                    .collect(java.util.stream.Collectors.joining(","));
+
+            var attrs = Map.of("crossAxisWeights", weightsStr);
+
+            var proposal = new DriveGoalProposal(dominant, goalName,
+                    "Compound goal: " + theme.label() + " across " + dominant + " and " + secondary,
+                    "cross-axis theme '" + theme.label() + "' with weights: " + weightsStr,
+                    dominantIntensity.intensity(), null, attrs);
+
+            if (crossAxisEnricher != null) {
+                var enriched = crossAxisEnricher.enrich(proposal, narrative, theme);
+                if (enriched != null) proposal = enriched;
+            }
+
+            compounds.add(proposal);
+        }
+        return compounds;
     }
 
     static final class GoalProposalState {
