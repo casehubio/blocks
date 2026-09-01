@@ -40,6 +40,7 @@ find "${BUILD_DIR}/build" -name '*.dylib' -exec cp {} "$OUTPUT_DIR/" \;
 # --- Build the shim ---
 cc -shared -o "${OUTPUT_DIR}/libwhisper_shim.dylib" \
     -I "${WHISPER_SRC}/include" \
+    -I "${WHISPER_SRC}/ggml/include" \
     -L "$OUTPUT_DIR" -lwhisper \
     "${SCRIPT_DIR}/whisper_shim.c"
 
