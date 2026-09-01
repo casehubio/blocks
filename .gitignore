@@ -12,3 +12,4 @@ proj
 .worktrees/
 .claude/
 .playwright-mcp/
+tmp/
