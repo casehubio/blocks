@@ -349,12 +349,6 @@ Compositional agentic orchestration framework -- ten sub-packages implementing f
 | `JudgeConvergence<T>` | class | Invokes a judge agent with accumulated results; convergence predicate maps result to continue/complete. Safety cap at `maxIterations`. |
 | `ConvergenceTermination<T>` | class | Uses `CommonGroundAnalyser` and `ConvergenceAnalyser` from the conversation package. Terminates on CONSENSUS (Complete), DEADLOCK (Escalate), or DIMINISHING_RETURNS (Complete) when confidence exceeds threshold. |
 
-#### `agentic.plan`
-
-| Class | Type | What it does |
-|-------|------|-------------|
-| `ExecutionPlan<T>` | record | DAG expressing task dependencies. Validated: no cycles, all references exist. Factory methods: `singleton()`, `sequence()`, `parallel()`, `fromList()`. |
-
 #### `agentic.model` -- Execution Model
 
 | Class | Type | What it does |
