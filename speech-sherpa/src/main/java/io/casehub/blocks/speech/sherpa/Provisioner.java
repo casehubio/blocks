@@ -67,6 +67,7 @@ final class Provisioner {
         "gector-deberta-large-5k", "model.onnx"
     );
     private static final Map<String, String> KOKORO_MODEL_EXPECTED_FILES = Map.of(
+            "kokoro-multi-lang-v1_0", "model.onnx",
             "kokoro-multi-lang-v1_1", "model.onnx"
                                                                                  );
     private static final Map<String, String> STREAMING_STT_MODEL_EXPECTED_FILES = Map.of(
