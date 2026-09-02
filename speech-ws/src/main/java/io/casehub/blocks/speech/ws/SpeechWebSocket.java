@@ -46,7 +46,8 @@ public class SpeechWebSocket {
         var assembler = new DefaultPromptAssembler(
                 avatarConfig.systemPrompt().orElse(null));
 
-        java.util.function.Function<AssembledPrompt, String> generator = null;
+        java.util.function.Function<AssembledPrompt, String> generator    = null;
+        SpeechSession.StreamingResponseGenerator             streamingGen = null;
         if (agentProvider.isResolvable()) {
             var agent = agentProvider.get();
             generator = prompt -> {
@@ -62,6 +63,43 @@ public class SpeechWebSocket {
                             .map(parts -> String.join("", parts))
                             .await().atMost(java.time.Duration.ofSeconds(60));
             };
+
+            streamingGen = (prompt, onSentence) -> {
+                var config = prompt.model() != null
+                             ? io.casehub.platform.agent.AgentSessionConfig.of(
+                        prompt.systemPrompt(), prompt.userPrompt(), prompt.model())
+                             : io.casehub.platform.agent.AgentSessionConfig.of(
+                        prompt.systemPrompt(), prompt.userPrompt());
+                var buffer   = new StringBuilder();
+                var fullText = new StringBuilder();
+
+                agent.invoke(config)
+                     .filter(e -> e instanceof io.casehub.platform.agent.AgentEvent.TextDelta)
+                     .map(e -> ((io.casehub.platform.agent.AgentEvent.TextDelta) e).text())
+                     .onItem().invoke(delta -> {
+                         fullText.append(delta);
+                         buffer.append(delta);
+                         int boundary = findSentenceBoundary(buffer);
+                         while (boundary > 0) {
+                             String sentence = buffer.substring(0, boundary).trim();
+                             buffer.delete(0, boundary);
+                             if (!sentence.isEmpty()) {
+                                 onSentence.accept(sentence);
+                             }
+                             boundary = findSentenceBoundary(buffer);
+                         }
+                     })
+                     .collect().last()
+                     .await().atMost(java.time.Duration.ofSeconds(120));
+
+                if (!buffer.isEmpty()) {
+                    String remaining = buffer.toString().trim();
+                    if (!remaining.isEmpty()) {
+                        onSentence.accept(remaining);
+                    }
+                }
+                return fullText.toString();
+            };
         }
 
         CorrectionHooks hooks = correctionHooks.isResolvable() ? correctionHooks.get() : null;
@@ -69,6 +107,7 @@ public class SpeechWebSocket {
         session = new SpeechSession(
                 sttService, ttsService, cleanupConfig,
                 generator,
+                streamingGen,
                 assembler,
                 text -> connection.sendTextAndAwait(text),
                 data -> connection.sendBinaryAndAwait(data),
@@ -102,4 +141,15 @@ public class SpeechWebSocket {
             session.close();
         }
     }
+
+    private static int findSentenceBoundary(StringBuilder buffer) {
+        for (int i = 0; i < buffer.length() - 1; i++) {
+            char c = buffer.charAt(i);
+            if ((c == '.' || c == '!' || c == '?') && Character.isWhitespace(buffer.charAt(i + 1))) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
 }
