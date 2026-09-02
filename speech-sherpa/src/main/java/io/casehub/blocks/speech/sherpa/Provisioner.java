@@ -74,6 +74,10 @@ final class Provisioner {
             "dpdfnet_baseline", "dpdfnet_baseline.onnx",
             "gtcrn_simple", "gtcrn_simple.onnx"
                                                                                    );
+    private static final Map<String, String> VAD_MODEL_EXPECTED_FILES      = Map.of(
+            "silero_vad", "silero_vad.onnx"
+                                                                                   );
+
 
     private static final Map<String, String> STREAMING_STT_MODEL_EXPECTED_FILES = Map.of(
             "sherpa-onnx-streaming-zipformer-en-2023-06-26", "tokens.txt"
@@ -470,6 +474,48 @@ final class Provisioner {
                 }
             } catch (IOException e) {
                 throw new SherpaException("Failed to download denoiser model: " + modelName
+                                          + ". Download manually to " + targetDir, e);
+            }
+            return targetDir;
+        }
+    }
+
+    static Path vadModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static String vadModelUrl(String modelName) {
+        return baseUrl() + "vad-models/" + modelName + ".onnx";
+    }
+
+    static Path ensureVadModel(String modelName) {
+        String expectedFile = VAD_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown VAD model: " + modelName
+                    + ". Known models: " + VAD_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = vadModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            try {
+                Files.createDirectories(targetDir);
+                String url = vadModelUrl(modelName);
+                LOG.log(System.Logger.Level.INFO, "Downloading {0}...", url);
+                Path downloaded = downloadWithRetry(url, targetDir, 3);
+                Path dest       = targetDir.resolve(expectedFile);
+                if (!downloaded.getFileName().toString().equals(expectedFile)) {
+                    Files.move(downloaded, dest, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new SherpaException("Failed to download VAD model: " + modelName
                                           + ". Download manually to " + targetDir, e);
             }
             return targetDir;

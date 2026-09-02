@@ -61,6 +61,13 @@ final class SherpaLibrary {
     final MethodHandle destroyOnlineDenoiser;
     final MethodHandle onlineDenoiserRun;
     final MethodHandle onlineDenoiserReset;
+    // Voice Activity Detector handles
+    final MethodHandle createVad;
+    final MethodHandle destroyVad;
+    final MethodHandle vadAcceptWaveform;
+    final MethodHandle vadDetected;
+    final MethodHandle vadReset;
+    final MethodHandle vadFlush;
 
 
     private SherpaLibrary(SymbolLookup lookup) {
@@ -146,6 +153,20 @@ final class SherpaLibrary {
         onlineDenoiserRun = downcall(linker, "SherpaOnnxOnlineSpeechDenoiserRun",
                 FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT));
         onlineDenoiserReset = downcall(linker, "SherpaOnnxOnlineSpeechDenoiserReset",
+                FunctionDescriptor.ofVoid(ADDRESS));
+
+        // Voice Activity Detector handles
+        createVad = downcall(linker, "SherpaOnnxCreateVoiceActivityDetector",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, JAVA_FLOAT));
+        destroyVad = downcall(linker, "SherpaOnnxDestroyVoiceActivityDetector",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        vadAcceptWaveform = downcall(linker, "SherpaOnnxVoiceActivityDetectorAcceptWaveform",
+                FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_INT));
+        vadDetected = downcall(linker, "SherpaOnnxVoiceActivityDetectorDetected",
+                FunctionDescriptor.of(JAVA_INT, ADDRESS));
+        vadReset = downcall(linker, "SherpaOnnxVoiceActivityDetectorReset",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        vadFlush = downcall(linker, "SherpaOnnxVoiceActivityDetectorFlush",
                 FunctionDescriptor.ofVoid(ADDRESS));
     }
 

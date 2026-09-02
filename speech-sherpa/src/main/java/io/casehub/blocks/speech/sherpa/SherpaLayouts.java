@@ -98,5 +98,18 @@ final class SherpaLayouts {
     static final long                       DENOISER_DEBUG = 12;
     static final long                       DENOISER_PROVIDER = 16;
     static final long                       DENOISER_DPDFNET_MODEL = 24;  // offline only
+    // === SherpaOnnxVadModelConfig offsets ===
+// silero_vad sub-struct at offset 0 (28 bytes + 4 pad = 32)
+    static final long                       VAD_SILERO_MODEL       = 0;
+    static final long                       VAD_SILERO_THRESHOLD   = 8;
+    static final long                       VAD_SILERO_MIN_SILENCE = 12;
+    static final long                       VAD_SILERO_MIN_SPEECH  = 16;
+    static final long                       VAD_SILERO_WINDOW_SIZE = 20;
+    static final long                       VAD_SILERO_MAX_SPEECH  = 24;
+    // after silero_vad
+    static final long                       VAD_SAMPLE_RATE        = 32;
+    static final long                       VAD_NUM_THREADS        = 36;
+    static final long                       VAD_PROVIDER           = 40;
+
 
 }
