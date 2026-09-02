@@ -15,6 +15,8 @@ public final class SherpaOnnxSpeechToText implements SpeechToTextService {
 
     private final SherpaConfig config;
     private final SherpaLibrary lib;
+    private io.casehub.blocks.speech.SpeechDenoiser denoiser;
+    private java.util.function.BooleanSupplier denoiserEnabled;
 
     public static SherpaOnnxSpeechToText withDefaults() {
         SherpaLibrary lib = SherpaLibrary.load();
@@ -39,6 +41,14 @@ public final class SherpaOnnxSpeechToText implements SpeechToTextService {
         this.lib    = lib;
     }
 
+    public SherpaOnnxSpeechToText withDenoiser(
+            io.casehub.blocks.speech.SpeechDenoiser denoiser,
+            java.util.function.BooleanSupplier enabled) {
+        this.denoiser = denoiser;
+        this.denoiserEnabled = enabled;
+        return this;
+    }
+
     @Override
     public TranscriptionResult transcribe(Path audioFile, TranscriptionOptions options) {
         Objects.requireNonNull(audioFile, "audioFile");
@@ -49,6 +59,11 @@ public final class SherpaOnnxSpeechToText implements SpeechToTextService {
             wav = WavReader.read(audioFile);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read audio file: " + audioFile, e);
+        }
+
+        if (denoiser != null && denoiserEnabled != null && denoiserEnabled.getAsBoolean()) {
+            float[] denoised = denoiser.denoise(wav.samples(), wav.sampleRate());
+            wav = new WavData(denoised, wav.sampleRate(), wav.channels());
         }
 
         try (Arena arena = Arena.ofConfined()) {

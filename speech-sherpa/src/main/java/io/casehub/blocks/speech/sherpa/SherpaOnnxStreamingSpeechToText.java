@@ -19,6 +19,8 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     private final MemorySegment recognizer;
     private final Arena recognizerArena;
     private final @org.jspecify.annotations.Nullable CleanupConfig cleanupConfig;
+    private io.casehub.blocks.speech.StreamingSpeechDenoiserFactory denoiserFactory;
+    private java.util.function.BooleanSupplier denoiserEnabled;
 
 
     private static final String DEFAULT_STREAMING_MODEL = "sherpa-onnx-streaming-zipformer-en-2023-06-26";
@@ -50,6 +52,14 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     public RecognitionStream startStream(TranscriptionOptions options) {
         Objects.requireNonNull(options, "options");
         return new SherpaRecognitionStream();
+    }
+
+    public SherpaOnnxStreamingSpeechToText withStreamingDenoiser(
+            io.casehub.blocks.speech.StreamingSpeechDenoiserFactory factory,
+            java.util.function.BooleanSupplier enabled) {
+        this.denoiserFactory = factory;
+        this.denoiserEnabled = enabled;
+        return this;
     }
 
     public void close() {
@@ -151,8 +161,10 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
         private final    Arena                                    streamArena;
         private final    java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
         private volatile boolean                                  closed;
+        private final io.casehub.blocks.speech.StreamingSpeechDenoiser denoiser;
 
         SherpaRecognitionStream() {
+            this.denoiser = (denoiserFactory != null) ? denoiserFactory.create() : null;
             this.streamArena = Arena.ofShared();
             try {
                 this.stream = (MemorySegment) lib.createOnlineStream.invokeExact(recognizer);
@@ -165,10 +177,14 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
         @Override
         public void acceptSamples(float[] samples, int sampleRate) {
             if (closed) {throw new IllegalStateException("Stream is closed");}
+            float[] processed = samples;
+            if (denoiser != null && denoiserEnabled != null && denoiserEnabled.getAsBoolean()) {
+                processed = denoiser.processChunk(samples, sampleRate);
+            }
             lock.lock();
             try (Arena temp = Arena.ofConfined()) {
-                MemorySegment samplesSeg = temp.allocateFrom(ValueLayout.JAVA_FLOAT, samples);
-                lib.onlineStreamAcceptWaveform.invokeExact(stream, sampleRate, samplesSeg, samples.length);
+                MemorySegment samplesSeg = temp.allocateFrom(ValueLayout.JAVA_FLOAT, processed);
+                lib.onlineStreamAcceptWaveform.invokeExact(stream, sampleRate, samplesSeg, processed.length);
                 decode();
             } catch (SherpaException e) {
                 throw e;
@@ -233,6 +249,7 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
                 lock.unlock();
             }
             streamArena.close();
+            if (denoiser != null) { denoiser.close(); }
         }
 
         private void decode() {
