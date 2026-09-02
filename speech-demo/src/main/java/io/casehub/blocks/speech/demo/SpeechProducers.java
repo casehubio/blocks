@@ -45,71 +45,40 @@ public class SpeechProducers {
         models.put("sherpa:ryan", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_US-ryan-high"), aligner));
         models.put("sherpa:jenny", wrapIfAvailable(io.casehub.blocks.speech.sherpa.SherpaOnnxTextToSpeech.withDefaults("vits-piper-en_GB-jenny_dioco-medium"), aligner));
 
-        // Kokoro v1.0 — 53 multilingual voices, wrap with LipSyncEnricher
-        // American English female
-        models.put("kokoro:af_alloy", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(0), aligner));
-        models.put("kokoro:af_aoede", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(1), aligner));
-        models.put("kokoro:af_bella", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(2), aligner));
-        models.put("kokoro:af_heart", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(3), aligner));
-        models.put("kokoro:af_jessica", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(4), aligner));
-        models.put("kokoro:af_kore", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(5), aligner));
-        models.put("kokoro:af_nicole", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(6), aligner));
-        models.put("kokoro:af_nova", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(7), aligner));
-        models.put("kokoro:af_river", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(8), aligner));
-        models.put("kokoro:af_sarah", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(9), aligner));
-        models.put("kokoro:af_sky", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(10), aligner));
-        // American English male
-        models.put("kokoro:am_adam", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(11), aligner));
-        models.put("kokoro:am_echo", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(12), aligner));
-        models.put("kokoro:am_eric", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(13), aligner));
-        models.put("kokoro:am_fenrir", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(14), aligner));
-        models.put("kokoro:am_liam", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(15), aligner));
-        models.put("kokoro:am_michael", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(16), aligner));
-        models.put("kokoro:am_onyx", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(17), aligner));
-        models.put("kokoro:am_puck", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(18), aligner));
-        models.put("kokoro:am_santa", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(19), aligner));
-        // British English female
-        models.put("kokoro:bf_alice", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(20), aligner));
-        models.put("kokoro:bf_emma", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(21), aligner));
-        models.put("kokoro:bf_isabella", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(22), aligner));
-        models.put("kokoro:bf_lily", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(23), aligner));
-        // British English male
-        models.put("kokoro:bm_daniel", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(24), aligner));
-        models.put("kokoro:bm_fable", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(25), aligner));
-        models.put("kokoro:bm_george", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(26), aligner));
-        models.put("kokoro:bm_lewis", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(27), aligner));
-        // Spanish
-        models.put("kokoro:ef_dora", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(28), aligner));
-        models.put("kokoro:em_alex", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(29), aligner));
-        // French
-        models.put("kokoro:ff_siwis", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(30), aligner));
-        // Hindi
-        models.put("kokoro:hf_alpha", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(31), aligner));
-        models.put("kokoro:hf_beta", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(32), aligner));
-        models.put("kokoro:hm_omega", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(33), aligner));
-        models.put("kokoro:hm_psi", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(34), aligner));
-        // Italian
-        models.put("kokoro:if_sara", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(35), aligner));
-        models.put("kokoro:im_nicola", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(36), aligner));
-        // Japanese
-        models.put("kokoro:jf_alpha", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(37), aligner));
-        models.put("kokoro:jf_gongitsune", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(38), aligner));
-        models.put("kokoro:jf_nezumi", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(39), aligner));
-        models.put("kokoro:jf_tebukuro", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(40), aligner));
-        models.put("kokoro:jm_kumo", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(41), aligner));
-        // Portuguese
-        models.put("kokoro:pf_dora", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(42), aligner));
-        models.put("kokoro:pm_alex", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(43), aligner));
-        models.put("kokoro:pm_santa", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(44), aligner));
-        // Chinese
-        models.put("kokoro:zf_xiaobei", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(45), aligner));
-        models.put("kokoro:zf_xiaoni", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(46), aligner));
-        models.put("kokoro:zf_xiaoxiao", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(47), aligner));
-        models.put("kokoro:zf_xiaoyi", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(48), aligner));
-        models.put("kokoro:zm_yunjian", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(49), aligner));
-        models.put("kokoro:zm_yunxi", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(50), aligner));
-        models.put("kokoro:zm_yunxia", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(51), aligner));
-        models.put("kokoro:zm_yunyang", wrapIfAvailable(io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(52), aligner));
+        // Kokoro v1.0 — one shared engine, 53 voice wrappers
+        var kokoro = io.casehub.blocks.speech.sherpa.KokoroTextToSpeech.withDefaults(0);
+        for (var entry : java.util.Map.ofEntries(
+                java.util.Map.entry("kokoro:af_alloy", 0), java.util.Map.entry("kokoro:af_aoede", 1),
+                java.util.Map.entry("kokoro:af_bella", 2), java.util.Map.entry("kokoro:af_heart", 3),
+                java.util.Map.entry("kokoro:af_jessica", 4), java.util.Map.entry("kokoro:af_kore", 5),
+                java.util.Map.entry("kokoro:af_nicole", 6), java.util.Map.entry("kokoro:af_nova", 7),
+                java.util.Map.entry("kokoro:af_river", 8), java.util.Map.entry("kokoro:af_sarah", 9),
+                java.util.Map.entry("kokoro:af_sky", 10), java.util.Map.entry("kokoro:am_adam", 11),
+                java.util.Map.entry("kokoro:am_echo", 12), java.util.Map.entry("kokoro:am_eric", 13),
+                java.util.Map.entry("kokoro:am_fenrir", 14), java.util.Map.entry("kokoro:am_liam", 15),
+                java.util.Map.entry("kokoro:am_michael", 16), java.util.Map.entry("kokoro:am_onyx", 17),
+                java.util.Map.entry("kokoro:am_puck", 18), java.util.Map.entry("kokoro:am_santa", 19),
+                java.util.Map.entry("kokoro:bf_alice", 20), java.util.Map.entry("kokoro:bf_emma", 21),
+                java.util.Map.entry("kokoro:bf_isabella", 22), java.util.Map.entry("kokoro:bf_lily", 23),
+                java.util.Map.entry("kokoro:bm_daniel", 24), java.util.Map.entry("kokoro:bm_fable", 25),
+                java.util.Map.entry("kokoro:bm_george", 26), java.util.Map.entry("kokoro:bm_lewis", 27),
+                java.util.Map.entry("kokoro:ef_dora", 28), java.util.Map.entry("kokoro:em_alex", 29),
+                java.util.Map.entry("kokoro:ff_siwis", 30),
+                java.util.Map.entry("kokoro:hf_alpha", 31), java.util.Map.entry("kokoro:hf_beta", 32),
+                java.util.Map.entry("kokoro:hm_omega", 33), java.util.Map.entry("kokoro:hm_psi", 34),
+                java.util.Map.entry("kokoro:if_sara", 35), java.util.Map.entry("kokoro:im_nicola", 36),
+                java.util.Map.entry("kokoro:jf_alpha", 37), java.util.Map.entry("kokoro:jf_gongitsune", 38),
+                java.util.Map.entry("kokoro:jf_nezumi", 39), java.util.Map.entry("kokoro:jf_tebukuro", 40),
+                java.util.Map.entry("kokoro:jm_kumo", 41),
+                java.util.Map.entry("kokoro:pf_dora", 42), java.util.Map.entry("kokoro:pm_alex", 43),
+                java.util.Map.entry("kokoro:pm_santa", 44),
+                java.util.Map.entry("kokoro:zf_xiaobei", 45), java.util.Map.entry("kokoro:zf_xiaoni", 46),
+                java.util.Map.entry("kokoro:zf_xiaoxiao", 47), java.util.Map.entry("kokoro:zf_xiaoyi", 48),
+                java.util.Map.entry("kokoro:zm_yunjian", 49), java.util.Map.entry("kokoro:zm_yunxi", 50),
+                java.util.Map.entry("kokoro:zm_yunxia", 51), java.util.Map.entry("kokoro:zm_yunyang", 52)
+        ).entrySet()) {
+            models.put(entry.getKey(), wrapIfAvailable(kokoro.forVoice(entry.getValue()), aligner));
+        }
 
         return new io.casehub.blocks.speech.ws.TtsModelRegistry(java.util.Collections.unmodifiableMap(models));}
 

@@ -12,11 +12,15 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
-public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
+public final class SherpaOnnxTextToSpeech implements TextToSpeechService, AutoCloseable {
 
-    private final SherpaConfig config;
-    private final SherpaLibrary lib;
+    private static final System.Logger LOG = System.getLogger("casehub-speech");
 
+    private final SherpaConfig                             config;
+    private final SherpaLibrary                            lib;
+    private final Arena                                    engineArena;
+    private final MemorySegment                            ttsHandle;
+    private final java.util.concurrent.locks.ReentrantLock synthesiseLock = new java.util.concurrent.locks.ReentrantLock();
 
     public static SherpaOnnxTextToSpeech withDefaults() {
         return withDefaults("vits-piper-en_US-lessac-medium");
@@ -43,40 +47,54 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
     }
 
     SherpaOnnxTextToSpeech(SherpaConfig config, SherpaLibrary lib) {
-        this.config = Objects.requireNonNull(config);
-        this.lib = lib;
+        this.config      = Objects.requireNonNull(config);
+        this.lib         = lib;
+        this.engineArena = Arena.ofShared();
+        MemorySegment configSeg = buildTtsConfig(engineArena);
+        try {
+            this.ttsHandle = (MemorySegment) lib.createTts.invokeExact(configSeg);
+        } catch (Throwable t) {
+            engineArena.close();
+            throw new SherpaException("Failed to create TTS engine", t);
+        }
+        if (ttsHandle.equals(MemorySegment.NULL)) {
+            engineArena.close();
+            throw new SherpaException("sherpa-onnx returned null TTS — check model paths in " + config.modelDir());
+        }
+        LOG.log(System.Logger.Level.INFO, "VITS TTS engine cached — model {0}", config.modelDir().getFileName());
     }
+
+    @Override
+    public void warmUp() {}
 
     @Override
     public SynthesisResult synthesise(String text, SynthesisOptions options) {
         Objects.requireNonNull(text, "text");
         Objects.requireNonNull(options, "options");
 
+        synthesiseLock.lock();
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment configSeg = buildTtsConfig(arena);
-            MemorySegment tts;
-            try {
-                tts = (MemorySegment) lib.createTts.invokeExact(configSeg);
-            } catch (Throwable t) {
-                throw new SherpaException("Failed to create TTS engine", t);
-            }
+            return doSynthesise(arena, ttsHandle, text, options);
+        } finally {
+            synthesiseLock.unlock();
+        }
+    }
 
-            if (tts.equals(MemorySegment.NULL)) {
-                throw new SherpaException("sherpa-onnx returned null TTS — check model paths in " + config.modelDir());
-            }
-
-            try {
-                return doSynthesise(arena, tts, text, options);
-            } finally {
-                destroyQuietly(() -> lib.destroyTts.invokeExact(tts));
-            }
+    @Override
+    public void close() {
+        synthesiseLock.lock();
+        try {
+            destroyQuietly(() -> lib.destroyTts.invokeExact(ttsHandle));
+        } finally {
+            synthesiseLock.unlock();
+            engineArena.close();
         }
     }
 
     private SynthesisResult doSynthesise(Arena arena, MemorySegment tts, String text, SynthesisOptions options) {
-        MemorySegment textSeg = arena.allocateFrom(text);
-        int speakerId = 0;
-        float speed = 1.0f;
+        MemorySegment textSeg   = arena.allocateFrom(text);
+        int           speakerId = 0;
+        float         speed     = 1.0f;
 
         MemorySegment audioPtr;
         try {
@@ -90,18 +108,18 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
         }
 
         try {
-            MemorySegment audio = audioPtr.reinterpret(SherpaLayouts.GENERATED_AUDIO.byteSize());
-            int sampleCount = (int) SherpaLayouts.AUDIO_N.get(audio, 0L);
-            int sampleRate = (int) SherpaLayouts.AUDIO_SAMPLE_RATE.get(audio, 0L);
-            MemorySegment samplesPtr = (MemorySegment) SherpaLayouts.AUDIO_SAMPLES.get(audio, 0L);
+            MemorySegment audio       = audioPtr.reinterpret(SherpaLayouts.GENERATED_AUDIO.byteSize());
+            int           sampleCount = (int) SherpaLayouts.AUDIO_N.get(audio, 0L);
+            int           sampleRate  = (int) SherpaLayouts.AUDIO_SAMPLE_RATE.get(audio, 0L);
+            MemorySegment samplesPtr  = (MemorySegment) SherpaLayouts.AUDIO_SAMPLES.get(audio, 0L);
 
             float[] samples = samplesPtr
-                    .reinterpret((long) sampleCount * ValueLayout.JAVA_FLOAT.byteSize())
-                    .toArray(ValueLayout.JAVA_FLOAT);
+                                      .reinterpret((long) sampleCount * ValueLayout.JAVA_FLOAT.byteSize())
+                                      .toArray(ValueLayout.JAVA_FLOAT);
 
-            String format = options.audioFormat() != null ? options.audioFormat() : "wav";
-            byte[] audioData = WavWriter.encode(samples, sampleRate, 1);
-            List<PhonemeTiming> phonemes = List.of();
+            String              format    = options.audioFormat() != null ? options.audioFormat() : "wav";
+            byte[]              audioData = WavWriter.encode(samples, sampleRate, 1);
+            List<PhonemeTiming> phonemes  = List.of();
 
             return new SynthesisResult(audioData, format, phonemes);
         } finally {
@@ -126,7 +144,8 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
         seg.set(java.lang.foreign.ValueLayout.ADDRESS, SherpaLayouts.TTS_PROVIDER,
                 arena.allocateFrom(config.provider()));
 
-        return seg;}
+        return seg;
+    }
 
     static String findTtsModel(java.nio.file.Path modelDir) {
         return findTtsModel(modelDir, false);
@@ -163,7 +182,6 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService {
             throw new SherpaException("Failed to scan model directory: " + modelDir, e);
         }
     }
-
 
     private static void destroyQuietly(DestroyAction action) {
         try {
