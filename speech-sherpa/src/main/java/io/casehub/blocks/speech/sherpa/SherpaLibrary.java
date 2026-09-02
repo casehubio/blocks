@@ -51,6 +51,16 @@ final class SherpaLibrary {
     final MethodHandle destroyOnlinePunctuation;
     final MethodHandle onlinePunctuationAddPunct;
     final MethodHandle onlinePunctuationFreeText;
+    // Offline speech denoiser handles
+    final MethodHandle createOfflineDenoiser;
+    final MethodHandle destroyOfflineDenoiser;
+    final MethodHandle offlineDenoiserRun;
+    final MethodHandle destroyDenoisedAudio;
+    // Online speech denoiser handles
+    final MethodHandle createOnlineDenoiser;
+    final MethodHandle destroyOnlineDenoiser;
+    final MethodHandle onlineDenoiserRun;
+    final MethodHandle onlineDenoiserReset;
 
 
     private SherpaLibrary(SymbolLookup lookup) {
@@ -117,6 +127,25 @@ final class SherpaLibrary {
         onlinePunctuationAddPunct = downcall(linker, "SherpaOnnxOnlinePunctuationAddPunct",
                 FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS));
         onlinePunctuationFreeText = downcall(linker, "SherpaOnnxOnlinePunctuationFreeText",
+                FunctionDescriptor.ofVoid(ADDRESS));
+
+        // Offline speech denoiser handles
+        createOfflineDenoiser = downcall(linker, "SherpaOnnxCreateOfflineSpeechDenoiser",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        destroyOfflineDenoiser = downcall(linker, "SherpaOnnxDestroyOfflineSpeechDenoiser",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        offlineDenoiserRun = downcall(linker, "SherpaOnnxOfflineSpeechDenoiserRun",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT));
+        destroyDenoisedAudio = downcall(linker, "SherpaOnnxDestroyDenoisedAudio",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        // Online speech denoiser handles
+        createOnlineDenoiser = downcall(linker, "SherpaOnnxCreateOnlineSpeechDenoiser",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        destroyOnlineDenoiser = downcall(linker, "SherpaOnnxDestroyOnlineSpeechDenoiser",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        onlineDenoiserRun = downcall(linker, "SherpaOnnxOnlineSpeechDenoiserRun",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT));
+        onlineDenoiserReset = downcall(linker, "SherpaOnnxOnlineSpeechDenoiserReset",
                 FunctionDescriptor.ofVoid(ADDRESS));
     }
 

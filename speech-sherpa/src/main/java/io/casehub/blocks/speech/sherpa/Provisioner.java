@@ -70,6 +70,11 @@ final class Provisioner {
             "kokoro-multi-lang-v1_0", "model.onnx",
             "kokoro-multi-lang-v1_1", "model.onnx"
                                                                                  );
+    private static final Map<String, String> DENOISER_MODEL_EXPECTED_FILES = Map.of(
+            "dpdfnet_baseline", "dpdfnet_baseline.onnx",
+            "gtcrn_simple", "gtcrn_simple.onnx"
+                                                                                   );
+
     private static final Map<String, String> STREAMING_STT_MODEL_EXPECTED_FILES = Map.of(
             "sherpa-onnx-streaming-zipformer-en-2023-06-26", "tokens.txt"
                                                                                         );
@@ -428,6 +433,49 @@ final class Provisioner {
             return provision(url, targetDir, null, 1, expectedFile);
         }
     }
+
+    static Path denoiserModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static String denoiserModelUrl(String modelName) {
+        return baseUrl() + "speech-enhancement-models/" + modelName + ".onnx";
+    }
+
+    static Path ensureDenoiserModel(String modelName) {
+        String expectedFile = DENOISER_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown denoiser model: " + modelName
+                    + ". Known models: " + DENOISER_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = denoiserModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            try {
+                Files.createDirectories(targetDir);
+                String url = denoiserModelUrl(modelName);
+                LOG.log(System.Logger.Level.INFO, "Downloading {0}...", url);
+                Path downloaded = downloadWithRetry(url, targetDir, 3);
+                Path dest       = targetDir.resolve(expectedFile);
+                if (!downloaded.getFileName().toString().equals(expectedFile)) {
+                    Files.move(downloaded, dest, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new SherpaException("Failed to download denoiser model: " + modelName
+                                          + ". Download manually to " + targetDir, e);
+            }
+            return targetDir;
+        }
+    }
+
 
     static Path streamingSttModelDir(String modelName) {
         return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);

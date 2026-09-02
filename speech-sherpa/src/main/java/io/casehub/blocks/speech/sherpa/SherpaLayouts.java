@@ -91,4 +91,12 @@ final class SherpaLayouts {
             java.lang.foreign.MemoryLayout.PathElement.groupElement("n"));
     static final java.lang.invoke.VarHandle AUDIO_SAMPLE_RATE = GENERATED_AUDIO.varHandle(
             java.lang.foreign.MemoryLayout.PathElement.groupElement("sample_rate"));
+    // === SherpaOnnxOffline/OnlineSpeechDenoiserConfig offsets ===
+// Both configs share the first 24 bytes. Offline adds dpdfnet at offset 24.
+    static final long                       DENOISER_GTCRN_MODEL = 0;
+    static final long                       DENOISER_NUM_THREADS = 8;
+    static final long                       DENOISER_DEBUG = 12;
+    static final long                       DENOISER_PROVIDER = 16;
+    static final long                       DENOISER_DPDFNET_MODEL = 24;  // offline only
+
 }
