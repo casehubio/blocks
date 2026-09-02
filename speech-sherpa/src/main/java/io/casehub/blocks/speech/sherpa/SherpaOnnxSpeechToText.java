@@ -11,12 +11,17 @@ import java.lang.foreign.MemorySegment;
 import java.nio.file.Path;
 import java.util.Objects;
 
-public final class SherpaOnnxSpeechToText implements SpeechToTextService {
+public final class SherpaOnnxSpeechToText implements SpeechToTextService, AutoCloseable {
 
     private final SherpaConfig config;
     private final SherpaLibrary lib;
     private io.casehub.blocks.speech.SpeechDenoiser denoiser;
     private java.util.function.BooleanSupplier denoiserEnabled;
+
+    private Arena cachedArena;
+    private MemorySegment cachedRecognizer;
+    private String cachedModelSize;
+    private String cachedLanguageHint;
 
     public static SherpaOnnxSpeechToText withDefaults() {
         SherpaLibrary lib = SherpaLibrary.load();
@@ -66,26 +71,65 @@ public final class SherpaOnnxSpeechToText implements SpeechToTextService {
             wav = new WavData(denoised, wav.sampleRate(), wav.channels());
         }
 
+        MemorySegment recognizer = getOrCreateRecognizer(options);
+
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment configSeg = buildRecognizerConfig(arena, options);
-            MemorySegment recognizer;
-            try {
-                recognizer = (MemorySegment) lib.createRecognizer.invokeExact(configSeg);
-            } catch (Throwable t) {
-                throw new SherpaException("Failed to create recognizer", t);
-            }
-
-            if (recognizer.equals(MemorySegment.NULL)) {
-                throw new SherpaException("sherpa-onnx returned null recognizer — check model paths in " + config.modelDir());
-            }
-
-            try {
-                return doTranscribe(arena, recognizer, wav);
-            } finally {
-                destroyQuietly(() -> lib.destroyRecognizer.invokeExact(recognizer));
-            }
+            return doTranscribe(arena, recognizer, wav);
         }
     }
+
+    private MemorySegment getOrCreateRecognizer(TranscriptionOptions options) {
+        String modelSize = options.modelSize() != null ? options.modelSize() : "tiny";
+        String langHint  = options.languageHint();
+
+        if (cachedRecognizer != null
+            && Objects.equals(modelSize, cachedModelSize)
+            && Objects.equals(langHint, cachedLanguageHint)) {
+            return cachedRecognizer;
+        }
+
+        destroyCachedRecognizer();
+
+        Arena         arena     = Arena.ofShared();
+        MemorySegment configSeg = buildRecognizerConfig(arena, options);
+        MemorySegment recognizer;
+        try {
+            recognizer = (MemorySegment) lib.createRecognizer.invokeExact(configSeg);
+        } catch (Throwable t) {
+            arena.close();
+            throw new SherpaException("Failed to create recognizer", t);
+        }
+
+        if (recognizer.equals(MemorySegment.NULL)) {
+            arena.close();
+            throw new SherpaException("sherpa-onnx returned null recognizer — check model paths in " + config.modelDir());
+        }
+
+        cachedArena        = arena;
+        cachedRecognizer   = recognizer;
+        cachedModelSize    = modelSize;
+        cachedLanguageHint = langHint;
+        return recognizer;
+    }
+
+    private void destroyCachedRecognizer() {
+        if (cachedRecognizer != null) {
+            destroyQuietly(() -> lib.destroyRecognizer.invokeExact(cachedRecognizer));
+            cachedRecognizer   = null;
+            cachedModelSize    = null;
+            cachedLanguageHint = null;
+        }
+        if (cachedArena != null) {
+            cachedArena.close();
+            cachedArena = null;
+        }
+    }
+
+    @Override
+    public void close() {
+        destroyCachedRecognizer();
+    }
+
 
     private TranscriptionResult doTranscribe(Arena arena, MemorySegment recognizer, WavData wav) {
         MemorySegment stream;
