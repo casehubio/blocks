@@ -23,6 +23,8 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
     private final ReentrantLock inferenceLock = new ReentrantLock();
     private io.casehub.blocks.speech.StreamingSpeechDenoiserFactory denoiserFactory;
     private java.util.function.BooleanSupplier denoiserEnabled;
+    private io.casehub.blocks.speech.VoiceActivityFilterFactory vadFactory;
+    private java.util.function.BooleanSupplier vadEnabled;
 
     WhisperSpeechToText(WhisperLibrary lib, Path modelPath) {
         this.lib = lib;
@@ -67,6 +69,14 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
         return this;
     }
 
+    public WhisperSpeechToText withVoiceActivityFilter(
+            io.casehub.blocks.speech.VoiceActivityFilterFactory factory,
+            java.util.function.BooleanSupplier enabled) {
+        this.vadFactory = factory;
+        this.vadEnabled = enabled;
+        return this;
+    }
+
     @Override
     public void close() {
         try {
@@ -87,11 +97,13 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
         private long lastPartialTime = 0;
         private boolean closed = false;
         private final io.casehub.blocks.speech.StreamingSpeechDenoiser denoiser;
+        private final io.casehub.blocks.speech.VoiceActivityFilter vadFilter;
 
         WhisperRecognitionStream(TranscriptionOptions options) {
             this.vocabularyHint = options.vocabularyHint();
             this.language = options.languageHint() != null ? options.languageHint() : "en";
             this.denoiser = (denoiserFactory != null) ? denoiserFactory.create() : null;
+            this.vadFilter = (vadFactory != null) ? vadFactory.create() : null;
         }
 
         @Override
@@ -104,6 +116,10 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
             if (denoiser != null && denoiserEnabled != null && denoiserEnabled.getAsBoolean()) {
                 processed = denoiser.processChunk(samples, sampleRate);
             }
+            if (vadFilter != null && vadEnabled != null && vadEnabled.getAsBoolean()) {
+                processed = vadFilter.filterChunk(processed, sampleRate);
+            }
+            if (processed.length == 0) { return; }
             int newCount = sampleCount + processed.length;
             if (newCount > MAX_BUFFER_SAMPLES) {
                 int drop = newCount - MAX_BUFFER_SAMPLES;
@@ -153,6 +169,7 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
             buffer = null;
             sampleCount = 0;
             if (denoiser != null) { denoiser.close(); }
+            if (vadFilter != null) { vadFilter.close(); }
         }
 
         private String runInference(@Nullable String initialPrompt) {

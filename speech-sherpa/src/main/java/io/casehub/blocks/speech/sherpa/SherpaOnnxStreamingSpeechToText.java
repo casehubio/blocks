@@ -21,6 +21,8 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
     private final @org.jspecify.annotations.Nullable CleanupConfig cleanupConfig;
     private io.casehub.blocks.speech.StreamingSpeechDenoiserFactory denoiserFactory;
     private java.util.function.BooleanSupplier denoiserEnabled;
+    private io.casehub.blocks.speech.VoiceActivityFilterFactory vadFactory;
+    private java.util.function.BooleanSupplier vadEnabled;
 
 
     private static final String DEFAULT_STREAMING_MODEL = "sherpa-onnx-streaming-zipformer-en-2023-06-26";
@@ -59,6 +61,14 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
             java.util.function.BooleanSupplier enabled) {
         this.denoiserFactory = factory;
         this.denoiserEnabled = enabled;
+        return this;
+    }
+
+    public SherpaOnnxStreamingSpeechToText withVoiceActivityFilter(
+            io.casehub.blocks.speech.VoiceActivityFilterFactory factory,
+            java.util.function.BooleanSupplier enabled) {
+        this.vadFactory = factory;
+        this.vadEnabled = enabled;
         return this;
     }
 
@@ -162,9 +172,11 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
         private final    java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
         private volatile boolean                                  closed;
         private final io.casehub.blocks.speech.StreamingSpeechDenoiser denoiser;
+        private final io.casehub.blocks.speech.VoiceActivityFilter vadFilter;
 
         SherpaRecognitionStream() {
             this.denoiser = (denoiserFactory != null) ? denoiserFactory.create() : null;
+            this.vadFilter = (vadFactory != null) ? vadFactory.create() : null;
             this.streamArena = Arena.ofShared();
             try {
                 this.stream = (MemorySegment) lib.createOnlineStream.invokeExact(recognizer);
@@ -181,6 +193,10 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
             if (denoiser != null && denoiserEnabled != null && denoiserEnabled.getAsBoolean()) {
                 processed = denoiser.processChunk(samples, sampleRate);
             }
+            if (vadFilter != null && vadEnabled != null && vadEnabled.getAsBoolean()) {
+                processed = vadFilter.filterChunk(processed, sampleRate);
+            }
+            if (processed.length == 0) { return; }
             lock.lock();
             try (Arena temp = Arena.ofConfined()) {
                 MemorySegment samplesSeg = temp.allocateFrom(ValueLayout.JAVA_FLOAT, processed);
@@ -250,6 +266,7 @@ public final class SherpaOnnxStreamingSpeechToText implements StreamingSpeechToT
             }
             streamArena.close();
             if (denoiser != null) { denoiser.close(); }
+            if (vadFilter != null) { vadFilter.close(); }
         }
 
         private void decode() {
