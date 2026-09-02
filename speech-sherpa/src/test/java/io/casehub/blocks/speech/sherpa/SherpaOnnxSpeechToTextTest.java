@@ -58,6 +58,12 @@ class SherpaOnnxSpeechToTextTest {
         stt.close();
     }
 
+    @Test
+    void classpathExtractionFallsThroughWhenNoNativeJar(@TempDir Path cacheDir) {
+        boolean extracted = NativeJarExtractor.extractIfAvailable(cacheDir.resolve("nonexistent-platform"));
+        assertThat(extracted).isFalse();
+    }
+
 
     @Test
     @EnabledIf("hasModels")

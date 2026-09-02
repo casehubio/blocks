@@ -183,9 +183,18 @@ final class SherpaLibrary {
             } catch (IllegalArgumentException | UnsatisfiedLinkError ignored) {
             }
 
+            // Tier 1.5: classpath JAR extraction
+            Path cacheDir = defaultCacheDir();
+            if (!java.nio.file.Files.isDirectory(cacheDir)) {
+                try {
+                    java.nio.file.Files.createDirectories(cacheDir.getParent());
+                } catch (java.io.IOException ignored) {
+                }
+                NativeJarExtractor.extractIfAvailable(cacheDir);
+            }
+
             // Tier 2: local cache
-            Path cacheDir = resolveNativeDir();
-            if (cacheDir != null) {
+            if (java.nio.file.Files.isDirectory(cacheDir)) {
                 Path onnxRuntime = cacheDir.resolve(onnxRuntimeLibName());
                 Path sherpaLib   = cacheDir.resolve(sherpaLibName());
                 if (java.nio.file.Files.exists(sherpaLib) && java.nio.file.Files.exists(onnxRuntime)) {
@@ -199,8 +208,8 @@ final class SherpaLibrary {
             // Tier 3: auto-download (opt-in via system property)
             if (Provisioner.isAutoDownloadEnabled()) {
                 Path downloadedDir = Provisioner.ensureNativeLibrary();
-                Path onnxRuntime = downloadedDir.resolve(onnxRuntimeLibName());
-                Path sherpaLib   = downloadedDir.resolve(sherpaLibName());
+                Path onnxRuntime   = downloadedDir.resolve(onnxRuntimeLibName());
+                Path sherpaLib     = downloadedDir.resolve(sherpaLibName());
                 if (java.nio.file.Files.exists(sherpaLib) && java.nio.file.Files.exists(onnxRuntime)) {
                     SymbolLookup.libraryLookup(onnxRuntime, Arena.global());
                     SymbolLookup lookup = SymbolLookup.libraryLookup(sherpaLib, Arena.global());
