@@ -3,6 +3,7 @@
 #
 # Usage:
 #   ./build-whisper.sh [version]     # default: 1.7.3
+#   METAL=OFF ./build-whisper.sh    # disable Metal GPU acceleration
 #
 # Output goes to ~/.casehub/native/whisper/no-metal/
 # The shim requires whisper.h from the whisper.cpp source tree.
@@ -26,9 +27,10 @@ else
 fi
 
 # --- Build whisper.cpp (no Metal, shared libs) ---
+METAL=${METAL:-ON}
 cmake -S "$WHISPER_SRC" -B "${BUILD_DIR}/build" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DGGML_METAL=OFF \
+    -DGGML_METAL=${METAL} \
     -DBUILD_SHARED_LIBS=ON \
     -DWHISPER_BUILD_EXAMPLES=OFF \
     -DWHISPER_BUILD_TESTS=OFF

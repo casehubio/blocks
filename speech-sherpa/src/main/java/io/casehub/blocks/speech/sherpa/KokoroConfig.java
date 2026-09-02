@@ -21,6 +21,7 @@ public record KokoroConfig(Path modelDir, int voiceId, float lengthScale,
     }
 
     public static KokoroConfig defaults(Path modelDir, int voiceId) {
-        return new KokoroConfig(modelDir, voiceId, 1.0f, 2, "cpu");
+        int threads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        return new KokoroConfig(modelDir, voiceId, 1.0f, threads, "cpu");
     }
 }

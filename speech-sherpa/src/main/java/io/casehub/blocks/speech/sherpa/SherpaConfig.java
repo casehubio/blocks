@@ -20,11 +20,13 @@ public record SherpaConfig(Path modelDir, int numThreads, String provider,
     }
 
     public static SherpaConfig defaults(Path modelDir) {
-        return new SherpaConfig(modelDir, 2, "cpu", null, null);
+        int threads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        return new SherpaConfig(modelDir, threads, "cpu", null, null);
     }
 
     public static SherpaConfig defaults() {
-        return new SherpaConfig(Provisioner.defaultModelDir(), 2, "cpu", null, null);
+        int threads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        return new SherpaConfig(Provisioner.defaultModelDir(), threads, "cpu", null, null);
     }
 
     public SherpaConfig withPunctuation(Path punctuationModelDir) {
