@@ -122,10 +122,13 @@ public class SpeechSession {
             return;
         }
         try {
+            long t0 = System.nanoTime();
+
             LOG.log(System.Logger.Level.INFO, "[STT] finalResult() called");
             TranscriptionResult result = stream.finalResult();
             stream.close();
             stream = null;
+            long sttDone = System.nanoTime();
 
             String raw = result.text();
             LOG.log(System.Logger.Level.INFO, "[STT] raw: \"{0}\"", raw);
@@ -135,13 +138,16 @@ public class SpeechSession {
                 LOG.log(System.Logger.Level.INFO, "[STT] corrected: \"{0}\"", corrected);
             }
 
-            String cleanText = cleanupConfig.apply(corrected);
+            String cleanText   = cleanupConfig.apply(corrected);
+            long   cleanupDone = System.nanoTime();
             LOG.log(System.Logger.Level.INFO, "[STT] after cleanup ({0} filters): \"{1}\"",
                     cleanupConfig.filters().size(), cleanText);
             send(new AvatarMessage.Transcript(cleanText));
             history.add(new ConversationTurn("user", cleanText));
 
             String responseText = generateResponse(cleanText, activeLlmModel);
+            long   llmDone      = System.nanoTime();
+
             if (responseText != null) {
                 send(new AvatarMessage.Response(responseText));
                 history.add(new ConversationTurn("assistant", responseText));
@@ -152,14 +158,36 @@ public class SpeechSession {
 
                 TextToSpeechService tts       = resolveTts(activeTtsModel);
                 String[]            sentences = responseText.split("(?<=[.!?])\\s+");
-                for (String sentence : sentences) {
-                    if (sentence.isBlank()) {continue;}
-                    SynthesisResult synthesis = tts.synthesise(sentence,
+                for (int i = 0; i < sentences.length; i++) {
+                    if (sentences[i].isBlank()) {continue;}
+                    long sentenceStart = System.nanoTime();
+                    SynthesisResult synthesis = tts.synthesise(sentences[i],
                                                                new SynthesisOptions(null, null, "wav", true));
+                    long sentenceDone = System.nanoTime();
+                    LOG.log(System.Logger.Level.INFO, "[TTS] sentence {0}/{1}: {2}ms — \"{3}\"",
+                            i + 1, sentences.length,
+                            (sentenceDone - sentenceStart) / 1_000_000,
+                            sentences[i].length() > 60 ? sentences[i].substring(0, 60) + "..." : sentences[i]);
                     var visemeFrames = VisemeMapping.convert(synthesis.phonemes());
                     send(new AvatarMessage.Phonemes(visemeFrames));
                     binarySink.accept(synthesis.audioData());
                 }
+                long ttsDone = System.nanoTime();
+
+                long sttMs     = (sttDone - t0) / 1_000_000;
+                long cleanupMs = (cleanupDone - sttDone) / 1_000_000;
+                long llmMs     = (llmDone - cleanupDone) / 1_000_000;
+                long ttsMs     = (ttsDone - llmDone) / 1_000_000;
+                long totalMs   = (ttsDone - t0) / 1_000_000;
+
+                LOG.log(System.Logger.Level.INFO, "[TIMING] STT: {0}ms | Cleanup: {1}ms | LLM: {2}ms | TTS: {3}ms | Total: {4}ms",
+                        sttMs, cleanupMs, llmMs, ttsMs, totalMs);
+
+                send(new AvatarMessage.Timing(
+                        cleanupMs,
+                        llmMs,
+                        ttsMs,
+                        totalMs));
             }
         } catch (Exception e) {
             send(new AvatarMessage.Error(e.getMessage()));
@@ -191,21 +219,35 @@ public class SpeechSession {
 
                 TextToSpeechService tts       = resolveTts(ttsModel);
                 String[]            sentences = responseText.split("(?<=[.!?])\\s+");
-                for (String sentence : sentences) {
-                    if (sentence.isBlank()) {continue;}
-                    SynthesisResult synthesis = tts.synthesise(sentence,
+                for (int i = 0; i < sentences.length; i++) {
+                    if (sentences[i].isBlank()) {continue;}
+                    long sentenceStart = System.nanoTime();
+                    SynthesisResult synthesis = tts.synthesise(sentences[i],
                                                                new SynthesisOptions(null, null, "wav", true));
+                    long sentenceDone = System.nanoTime();
+                    LOG.log(System.Logger.Level.INFO, "[TTS] sentence {0}/{1}: {2}ms — \"{3}\"",
+                            i + 1, sentences.length,
+                            (sentenceDone - sentenceStart) / 1_000_000,
+                            sentences[i].length() > 60 ? sentences[i].substring(0, 60) + "..." : sentences[i]);
                     var visemeFrames = VisemeMapping.convert(synthesis.phonemes());
                     send(new AvatarMessage.Phonemes(visemeFrames));
                     binarySink.accept(synthesis.audioData());
                 }
                 long ttsDone = System.nanoTime();
 
+                long cleanupMs = (cleanupDone - t0) / 1_000_000;
+                long llmMs     = (llmDone - cleanupDone) / 1_000_000;
+                long ttsMs     = (ttsDone - llmDone) / 1_000_000;
+                long totalMs   = (ttsDone - t0) / 1_000_000;
+
+                LOG.log(System.Logger.Level.INFO, "[TIMING] Cleanup: {0}ms | LLM: {1}ms | TTS: {2}ms | Total: {3}ms",
+                        cleanupMs, llmMs, ttsMs, totalMs);
+
                 send(new AvatarMessage.Timing(
-                        (cleanupDone - t0) / 1_000_000,
-                        (llmDone - cleanupDone) / 1_000_000,
-                        (ttsDone - llmDone) / 1_000_000,
-                        (ttsDone - t0) / 1_000_000));
+                        cleanupMs,
+                        llmMs,
+                        ttsMs,
+                        totalMs));
             }
         } catch (Exception e) {
             send(new AvatarMessage.Error(e.getMessage()));
