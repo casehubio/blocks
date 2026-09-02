@@ -260,14 +260,14 @@ final class SherpaLibrary {
         return osKey + "-" + archKey;
     }
 
-    private static String sherpaLibName() {
+    static String sherpaLibName() {
         String os = System.getProperty("os.name", "").toLowerCase();
         if (os.contains("mac")) {return "libsherpa-onnx-c-api.dylib";}
         if (os.contains("win")) {return "sherpa-onnx-c-api.dll";}
         return "libsherpa-onnx-c-api.so";
     }
 
-    private static String onnxRuntimeLibName() {
+    static String onnxRuntimeLibName() {
         String os = System.getProperty("os.name", "").toLowerCase();
         if (os.contains("mac")) {return "libonnxruntime.dylib";}
         if (os.contains("win")) {return "onnxruntime.dll";}
