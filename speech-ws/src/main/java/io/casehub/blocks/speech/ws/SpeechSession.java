@@ -161,7 +161,7 @@ public class SpeechSession {
                 LOG.log(System.Logger.Level.INFO, "[STT] corrected: \"{0}\"", corrected);
             }
 
-            String cleanText   = cleanupConfig.apply(corrected);
+            String cleanText   = ensureTrailingPunctuation(cleanupConfig.apply(corrected));
             long   cleanupDone = System.nanoTime();
             LOG.log(System.Logger.Level.INFO, "[STT] after cleanup ({0} filters): \"{1}\"",
                     cleanupConfig.filters().size(), cleanText);
@@ -297,6 +297,15 @@ public class SpeechSession {
             send(new AvatarMessage.Error(e.getMessage()));
         }}
 
+
+    private static String ensureTrailingPunctuation(String text) {
+        if (text.isEmpty()) {return text;}
+        char last = text.charAt(text.length() - 1);
+        if (last == '.' || last == '!' || last == '?' || last == '"' || last == '\'' || last == ')') {
+            return text;
+        }
+        return text + ".";
+    }
 
     private void synthesiseAndSend(TextToSpeechService tts, String sentence, int index) {
         long            start     = System.nanoTime();
