@@ -138,6 +138,12 @@ final class Provisioner {
             .resolve(SherpaLibrary.VERSION).resolve(SherpaLibrary.platformId());
     }
 
+    static Path nativeCacheDir(String platformId) {
+        return cacheBaseDir().resolve("native").resolve("sherpa-onnx")
+                             .resolve(SherpaLibrary.VERSION).resolve(platformId);
+    }
+
+
     static String baseUrl() {
         return System.getProperty("casehub.speech.download-url", DEFAULT_BASE_URL);
     }
