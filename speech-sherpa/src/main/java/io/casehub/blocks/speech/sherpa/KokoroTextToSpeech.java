@@ -148,6 +148,12 @@ public final class KokoroTextToSpeech implements TextToSpeechService, AutoClosea
                 arena.allocateFrom(modelDir.resolve("espeak-ng-data").toString()));
         seg.set(ValueLayout.JAVA_FLOAT, SherpaLayouts.KOKORO_LENGTH_SCALE, config.lengthScale());
 
+        String lexicon = detectLexicon(modelDir);
+        if (lexicon != null) {
+            seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_LEXICON,
+                    arena.allocateFrom(lexicon));
+        }
+
         seg.set(ValueLayout.JAVA_INT, SherpaLayouts.TTS_NUM_THREADS, config.numThreads());
         seg.set(ValueLayout.ADDRESS, SherpaLayouts.TTS_PROVIDER,
                 arena.allocateFrom(config.provider()));
