@@ -630,6 +630,22 @@ final class Provisioner {
         }
     }
 
+
+    static Path campplusModelDir() {
+        return cacheBaseDir().resolve("models").resolve("campplus");
+    }
+
+    static Path ensureCampplusModel() {
+        Path targetDir = campplusModelDir();
+        Path modelFile = targetDir.resolve("campplus.onnx");
+        if (Files.exists(modelFile)) {return targetDir;}
+        synchronized (MODEL_LOCK) {
+            if (Files.exists(modelFile)) {return targetDir;}
+            provisionFromHuggingFace(COSYVOICE3_REPO, List.of("campplus.onnx"), targetDir);
+            return targetDir;
+        }
+    }
+
     static Path cosyVoice3ModelDir() {
         return cacheBaseDir().resolve("models").resolve("cosyvoice3");
     }
