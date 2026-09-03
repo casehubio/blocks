@@ -19,11 +19,23 @@ public class DefaultPromptAssembler implements PromptAssembler {
     @Override
     public AssembledPrompt assemble(String userMessage, List<ConversationTurn> history) {
         var sb = new StringBuilder();
+        var speakers = new java.util.LinkedHashSet<String>();
         for (ConversationTurn turn : history) {
-            sb.append(turn.role().equals("user") ? "User" : "Assistant");
-            sb.append(": ").append(turn.text()).append("\n");
+            String label;
+            if (turn.speaker() != null) {
+                label = turn.speaker() + " (User)";
+                speakers.add(turn.speaker());
+            } else {
+                label = turn.role().equals("user") ? "User" : "Assistant";
+            }
+            sb.append(label).append(": ").append(turn.text()).append("\n");
         }
         sb.append("User: ").append(userMessage);
-        return new AssembledPrompt(systemPrompt, sb.toString());
+
+        String effectiveSystemPrompt = systemPrompt;
+        if (!speakers.isEmpty()) {
+            effectiveSystemPrompt = systemPrompt + "\nSpeaking with: " + String.join(", ", speakers) + ".";
+        }
+        return new AssembledPrompt(effectiveSystemPrompt, sb.toString());
     }
 }
