@@ -58,32 +58,32 @@
     <option value="claude-opus-4@20250514">Opus 4</option>
   </select></label>
   <label>Voice: <select id="ttsModel">
-    <optgroup label="VITS (fast)">
-      <option value="lessac-medium">Lessac medium</option>
-      <option value="lessac-high">Lessac high</option>
-      <option value="amy">Amy (US)</option>
-      <option value="ryan">Ryan (US)</option>
-      <option value="jenny">Jenny (UK)</option>
+    <optgroup label="Piper VITS — MOS ~3.7">
+      <option value="lessac-medium">Lessac medium · 3.6</option>
+      <option value="lessac-high">Lessac high · 3.9</option>
+      <option value="amy">Amy (US) · 3.7</option>
+      <option value="ryan">Ryan (US) · 3.8</option>
+      <option value="jenny">Jenny (UK) · 3.7</option>
     </optgroup>
-    <optgroup label="Sherpa VITS (fast)">
-      <option value="sherpa:lessac-medium">Lessac</option>
-      <option value="sherpa:amy">Amy</option>
-      <option value="sherpa:ryan">Ryan</option>
-      <option value="sherpa:jenny">Jenny</option>
+    <optgroup label="Sherpa VITS — MOS ~3.7">
+      <option value="sherpa:lessac-medium">Lessac · 3.6</option>
+      <option value="sherpa:amy">Amy · 3.7</option>
+      <option value="sherpa:ryan">Ryan · 3.8</option>
+      <option value="sherpa:jenny">Jenny · 3.7</option>
     </optgroup>
-    <optgroup label="Kokoro (best quality)">
-      <option value="kokoro:af">AF Heart</option>
-      <option value="kokoro:af_bella">Bella</option>
-      <option value="kokoro:af_sarah">Sarah</option>
-      <option value="kokoro:am_adam">Adam</option>
-      <option value="kokoro:am_michael">Michael</option>
-      <option value="kokoro:bf_emma">Emma (UK)</option>
-      <option value="kokoro:bm_george">George (UK)</option>
+    <optgroup label="Kokoro — MOS ~4.3">
+      <option value="kokoro:af_heart">Heart (US) · 4.3</option>
+      <option value="kokoro:af_bella">Bella (US) · 4.2</option>
+      <option value="kokoro:af_sarah">Sarah (US) · 4.3</option>
+      <option value="kokoro:am_adam">Adam (US) · 4.2</option>
+      <option value="kokoro:am_michael">Michael (US) · 4.1</option>
+      <option value="kokoro:bf_emma">Emma (UK) · 4.3</option>
+      <option value="kokoro:bm_george">George (UK) · 4.2</option>
     </optgroup>
     <optgroup label="Experimental (slow)">
-      <option value="audio8">Audio8 0.1B</option>
-      <option value="audio8:0.6b">Audio8 0.6B</option>
-      <option value="cosyvoice3">CosyVoice3</option>
+      <option value="audio8">Audio8 0.1B · ~2.8</option>
+      <option value="audio8:0.6b">Audio8 0.6B · ~3.2</option>
+      <option value="cosyvoice3">CosyVoice3 · cloning</option>
     </optgroup>
   </select></label>
   <label>Speed: <input id="speed" type="range" min="0.6" max="1.4" step="0.05" value="0.9" style="width:80px;vertical-align:middle"> <span id="speedVal">0.9x</span></label>
