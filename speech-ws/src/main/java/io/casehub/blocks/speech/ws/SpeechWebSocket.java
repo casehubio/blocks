@@ -39,6 +39,12 @@ public class SpeechWebSocket {
     @Inject
     jakarta.enterprise.inject.Instance<CorrectionHooks>  correctionHooks;
 
+    @Inject
+    jakarta.enterprise.inject.Instance<io.casehub.blocks.speech.SpeakerEmbeddingExtractor> embeddingExtractor;
+
+    @Inject
+    jakarta.enterprise.inject.Instance<io.casehub.blocks.speech.SpeakerRegistry> speakerRegistryInstance;
+
     private SpeechSession session;
 
     @OnOpen
@@ -114,7 +120,12 @@ public class SpeechWebSocket {
                 ttsRegistry.isResolvable() ? ttsRegistry.get().models() : java.util.Map.of(),
                 hooks != null ? hooks.corrector() : null,
                 hooks != null ? hooks.onResponse() : null,
-                hooks != null ? hooks.vocabularyHintSupplier() : null);}
+                hooks != null ? hooks.vocabularyHintSupplier() : null);
+
+        if (embeddingExtractor.isResolvable() && speakerRegistryInstance.isResolvable()) {
+            session.withSpeakerServices(embeddingExtractor.get(), speakerRegistryInstance.get());
+        }
+    }
 
     @OnTextMessage
     public void onText(String message) {
@@ -123,6 +134,7 @@ public class SpeechWebSocket {
             case AvatarMessage.Start s -> session.handleStart(s);
             case AvatarMessage.Stop s -> session.handleStop();
             case AvatarMessage.Text t -> session.handleText(t.text(), t.llmModel(), t.ttsModel());
+            case AvatarMessage.SpeakerIdentify si -> session.handleSpeakerIdentify(si.name());
             default -> {}
         }
     }

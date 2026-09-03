@@ -6,6 +6,9 @@ import io.casehub.blocks.speech.StreamingSpeechToTextService;
 import io.casehub.blocks.speech.SynthesisOptions;
 import io.casehub.blocks.speech.SynthesisResult;
 import io.casehub.blocks.speech.TextToSpeechService;
+import io.casehub.blocks.speech.SpeakerEmbedding;
+import io.casehub.blocks.speech.SpeakerEmbeddingExtractor;
+import io.casehub.blocks.speech.SpeakerRegistry;
 import io.casehub.blocks.speech.TranscriptionResult;
 import io.casehub.blocks.speech.ws.protocol.AvatarMessage;
 import io.casehub.blocks.speech.ws.protocol.ConversationTurn;
@@ -47,6 +50,17 @@ public class SpeechSession {
     private @Nullable Thread            pollingThread;
     private @Nullable String            activeLlmModel;
     private @Nullable String            activeTtsModel;
+    private static final int            RING_BUFFER_SECONDS       = 5;
+    private static final int            RING_BUFFER_SIZE          = 16000 * RING_BUFFER_SECONDS;
+    private static final int            MIN_SAMPLES_FOR_EMBEDDING = 16000 * 3 / 2;
+
+    private @Nullable SpeakerEmbeddingExtractor embeddingExtractor;
+    private @Nullable SpeakerRegistry           speakerRegistry;
+    private final     float[]                   ringBuffer    = new float[RING_BUFFER_SIZE];
+    private           int                       ringBufferPos = 0;
+    private @Nullable SpeakerEmbedding          pendingEmbedding;
+    private           boolean                   enrollmentPending;
+    private @Nullable String                    explicitEnrollmentName;
 
 
     public SpeechSession(StreamingSpeechToTextService sttService,
@@ -132,9 +146,23 @@ public class SpeechSession {
         stream = sttService.startStream(opts);
         startPolling();}
 
+    public SpeechSession withSpeakerServices(
+            @Nullable SpeakerEmbeddingExtractor embeddingExtractor,
+            @Nullable SpeakerRegistry speakerRegistry) {
+        this.embeddingExtractor = embeddingExtractor;
+        this.speakerRegistry    = speakerRegistry;
+        return this;
+    }
+
+
     public void handleAudio(float[] samples) {
         if (stream != null) {
             stream.acceptSamples(samples, sampleRate);
+        }
+        if (embeddingExtractor != null && ringBufferPos < RING_BUFFER_SIZE) {
+            int toCopy = Math.min(samples.length, RING_BUFFER_SIZE - ringBufferPos);
+            System.arraycopy(samples, 0, ringBuffer, ringBufferPos, toCopy);
+            ringBufferPos += toCopy;
         }
     }
 
@@ -166,7 +194,9 @@ public class SpeechSession {
             LOG.log(System.Logger.Level.INFO, "[STT] after cleanup ({0} filters): \"{1}\"",
                     cleanupConfig.filters().size(), cleanText);
             send(new AvatarMessage.Transcript(cleanText));
-            history.add(new ConversationTurn("user", cleanText));
+
+            String speakerLabel = identifySpeaker();
+            history.add(new ConversationTurn("user", cleanText, speakerLabel));
 
             TextToSpeechService tts           = resolveTts(activeTtsModel);
             int[]               sentenceCount = {0};
@@ -225,6 +255,55 @@ public class SpeechSession {
         } catch (Exception e) {
             send(new AvatarMessage.Error(e.getMessage()));
         }}
+
+
+    private @Nullable String identifySpeaker() {
+        if (embeddingExtractor == null || speakerRegistry == null || ringBufferPos < MIN_SAMPLES_FOR_EMBEDDING) {
+            ringBufferPos = 0;
+            return null;
+        }
+        try {
+            float[] audioForEmbedding = java.util.Arrays.copyOf(ringBuffer, ringBufferPos);
+            var     embedding         = embeddingExtractor.extract(audioForEmbedding, 16000);
+
+            if (explicitEnrollmentName != null) {
+                speakerRegistry.register(explicitEnrollmentName, embedding);
+                send(new AvatarMessage.SpeakerIdentified(explicitEnrollmentName, 1.0));
+                String name = explicitEnrollmentName;
+                explicitEnrollmentName = null;
+                ringBufferPos          = 0;
+                return name;
+            }
+
+            var match = speakerRegistry.identify(embedding, 0.7);
+            if (match.isPresent()) {
+                send(new AvatarMessage.SpeakerIdentified(match.get().name(), match.get().confidence()));
+                ringBufferPos = 0;
+                return match.get().name();
+            }
+
+            pendingEmbedding = embedding;
+            if (!enrollmentPending) {
+                enrollmentPending = true;
+                send(new AvatarMessage.SpeakerPrompt("I don't recognise your voice — what's your name?"));
+            }
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "Speaker identification failed: " + e.getMessage());
+        }
+        ringBufferPos = 0;
+        return null;
+    }
+
+    public void handleSpeakerIdentify(String name) {
+        if (pendingEmbedding != null && speakerRegistry != null) {
+            speakerRegistry.register(name, pendingEmbedding);
+            send(new AvatarMessage.SpeakerIdentified(name, 1.0));
+            pendingEmbedding  = null;
+            enrollmentPending = false;
+        } else if (explicitEnrollmentName == null) {
+            explicitEnrollmentName = name;
+        }
+    }
 
     public void handleText(String text) {
         handleText(text, null, null);

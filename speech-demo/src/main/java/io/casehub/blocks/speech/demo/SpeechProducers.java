@@ -94,6 +94,40 @@ public class SpeechProducers {
 
     @Produces
     @ApplicationScoped
+    io.casehub.blocks.speech.SpeakerEmbeddingExtractor embeddingExtractor() {
+        java.nio.file.Path campplusPath = io.casehub.blocks.speech.sherpa.Provisioner.ensureCampplusModel();
+        io.casehub.blocks.speech.sherpa.OnnxRuntimeLibrary.Session session =
+                io.casehub.blocks.speech.sherpa.OnnxRuntimeLibrary.load()
+                                                                  .createSession(campplusPath.resolve("campplus.onnx"), 2);
+        return new io.casehub.blocks.speech.sherpa.CampplusSpeakerEmbeddingExtractor(session);
+    }
+
+    @Produces
+    @jakarta.inject.Singleton
+    io.casehub.blocks.speech.SpeakerRegistry speakerRegistry(io.casehub.blocks.speech.VoiceprintStore store) {
+        return new io.casehub.blocks.speech.sherpa.CosineDistanceSpeakerRegistry(store);
+    }
+
+    @Produces
+    @jakarta.inject.Singleton
+    io.casehub.blocks.speech.VoiceprintStore voiceprintStore() {
+        return new io.casehub.blocks.speech.sherpa.FileVoiceprintStore(
+                java.nio.file.Path.of(System.getProperty("user.home"), ".casehub", "voiceprints"));
+    }
+
+    @Produces
+    @ApplicationScoped
+    io.casehub.blocks.speech.SpeakerDiarizationService diarizer() {
+        java.nio.file.Path segModelDir = io.casehub.blocks.speech.sherpa.Provisioner.ensureDiarizationModels();
+        java.nio.file.Path campplusDir = io.casehub.blocks.speech.sherpa.Provisioner.ensureCampplusModel();
+        return new io.casehub.blocks.speech.sherpa.SherpaOnnxDiarizationService(
+                io.casehub.blocks.speech.sherpa.SherpaLibrary.load(),
+                segModelDir.resolve("model.onnx"),
+                campplusDir.resolve("campplus.onnx"));
+    }
+
+    @Produces
+    @ApplicationScoped
     io.casehub.platform.agent.AgentProvider agentProvider() {
         String region    = System.getenv("CLOUD_ML_REGION");
         String projectId = System.getenv("ANTHROPIC_VERTEX_PROJECT_ID");
