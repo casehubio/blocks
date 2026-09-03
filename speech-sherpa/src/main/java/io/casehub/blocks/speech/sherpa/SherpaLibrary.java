@@ -13,7 +13,7 @@ import static java.lang.foreign.ValueLayout.ADDRESS;
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 import static java.lang.foreign.ValueLayout.JAVA_INT;
 
-final class SherpaLibrary {
+public final class SherpaLibrary {
 
     private static volatile SherpaLibrary INSTANCE;
 
@@ -200,7 +200,7 @@ final class SherpaLibrary {
                 FunctionDescriptor.ofVoid(ADDRESS));
     }
 
-    static SherpaLibrary load() {
+    public static SherpaLibrary load() {
         if (INSTANCE != null) {return INSTANCE;}
         synchronized (SherpaLibrary.class) {
             if (INSTANCE != null) {return INSTANCE;}

@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-final class Provisioner {
+public final class Provisioner {
 
     private static final System.Logger LOG = System.getLogger("casehub-speech");
     private static final String DEFAULT_BASE_URL =
@@ -635,7 +635,7 @@ final class Provisioner {
         return cacheBaseDir().resolve("models").resolve("campplus");
     }
 
-    static Path ensureCampplusModel() {
+    public static Path ensureCampplusModel() {
         Path targetDir = campplusModelDir();
         Path modelFile = targetDir.resolve("campplus.onnx");
         if (Files.exists(modelFile)) {return targetDir;}
@@ -651,7 +651,7 @@ final class Provisioner {
                              .resolve("sherpa-onnx-pyannote-segmentation-3-0");
     }
 
-    static Path ensureDiarizationModels() {
+    public static Path ensureDiarizationModels() {
         Path targetDir = diarizationModelDir();
         Path modelFile = targetDir.resolve("model.onnx");
         if (Files.exists(modelFile)) {return targetDir;}
