@@ -2,6 +2,7 @@ package io.casehub.blocks.agentic.pattern;
 
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.AgentResult;
+import io.casehub.blocks.agentic.RoutingCandidate;
 import io.casehub.blocks.agentic.model.ExecutionResult;
 import io.casehub.blocks.agentic.model.OrchestratedDriver;
 import org.junit.jupiter.api.Test;
@@ -71,5 +72,25 @@ class SequenceBuilderTest {
         assertThat(result2).isInstanceOf(ExecutionResult.Completed.class);
         assertThat(order1).containsExactly("a1", "a2");
         assertThat(order2).containsExactly("b1", "b2");
+    }
+
+    @Test
+    void executesRoutingCandidatesInOrder() {
+        var order = new ArrayList<String>();
+        var a1 = AgentRef.external((Object i) -> {
+            order.add("first");
+            return CompletableFuture.completedFuture(AgentResult.success(null, "1"));
+        });
+        var a2 = AgentRef.external((Object i) -> {
+            order.add("second");
+            return CompletableFuture.completedFuture(AgentResult.success(null, "2"));
+        });
+
+        var result = sequence()
+                .agents(new RoutingCandidate(a1, null), new RoutingCandidate(a2, null))
+                .execute("state").await().indefinitely();
+
+        assertThat(result).isInstanceOf(ExecutionResult.Completed.class);
+        assertThat(order).containsExactly("first", "second");
     }
 }

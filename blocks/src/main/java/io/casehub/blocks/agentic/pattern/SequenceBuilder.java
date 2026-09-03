@@ -39,6 +39,15 @@ public class SequenceBuilder<T> extends AbstractPatternBuilder<T, SequenceBuilde
     @Override
     public SequenceBuilder<T> agents(RoutingCandidate... candidates) {
         this.agentCount = candidates.length;
+        int count = this.agentCount;
+        this.routing = new SequentialRouting<>();
+        this.termination = ctx -> {
+            if (ctx.iterationCount() >= count) {
+                return new TerminationDecision.Complete(ctx.results().isEmpty() ? null :
+                        ctx.results().get(ctx.results().size() - 1).output());
+            }
+            return TerminationDecision.Continue.INSTANCE;
+        };
         return (SequenceBuilder<T>) super.agents(candidates);
     }
 }
