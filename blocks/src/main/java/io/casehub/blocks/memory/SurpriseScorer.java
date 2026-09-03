@@ -7,7 +7,7 @@ import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
 import java.time.Instant;
 import java.util.Map;
 
-public final class SurpriseScorer implements ImportanceScorer {
+public final class SurpriseScorer implements ConfidenceScorer {
 
     @Override
     public double score(ScoredCbrCase<? extends CbrCase> memory, Instant now) {

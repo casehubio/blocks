@@ -6,6 +6,6 @@ import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
 import java.time.Instant;
 
 @FunctionalInterface
-public interface ImportanceScorer {
+public interface ConfidenceScorer {
     double score(ScoredCbrCase<? extends CbrCase> memory, Instant now);
 }

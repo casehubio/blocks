@@ -180,14 +180,14 @@ public class StrategyLearningOrchestrator {
                 state.totalResponded++;
             }
             if (event.affectShift() != null) {
-                state.sentimentSum += event.affectShift();
+                state.affectSum += event.affectShift();
             }
         }
 
         double engagementRate = state.totalSignals > 0
                 ? (double) state.totalResponded / state.totalSignals : 0.0;
         double meanSentiment = state.totalSignals > 0
-                ? state.sentimentSum / state.totalSignals : 0.0;
+                ? state.affectSum / state.totalSignals : 0.0;
         state.lastTickTimestamp = clock.instant();
 
         if (state.pendingConversations.isEmpty()
@@ -287,7 +287,7 @@ public class StrategyLearningOrchestrator {
                 FeatureValue.number(lenCount > 0 ? lenSum / lenCount : 0));
         features.put("continuationRate",
                 FeatureValue.number(contTotal > 0 ? (double) continued / contTotal : 0));
-        features.put("meanSentimentShift",
+        features.put("meanAffectShift",
                 FeatureValue.number(sentCount > 0 ? sentSum / sentCount : 0));
 
         for (String dim : DEFAULT_DIMENSIONS) {
@@ -383,7 +383,7 @@ public class StrategyLearningOrchestrator {
                     List.of(
                             FeatureField.numeric("conversationTimestamp", 0, Double.MAX_VALUE),
                             FeatureField.numeric("continuationRate", 0, 1),
-                            FeatureField.numeric("meanSentimentShift", -1, 1),
+                            FeatureField.numeric("meanAffectShift", -1, 1),
                             FeatureField.numeric("avgResponseLength", 0, 10000)),
                     "conversationTimestamp",
                     null,
@@ -410,7 +410,7 @@ public class StrategyLearningOrchestrator {
                     .mapToDouble(f -> numericFeature(f, "continuationRate", 0))
                     .average().orElse(0);
             double avgSent = entry.getValue().stream()
-                    .mapToDouble(f -> numericFeature(f, "meanSentimentShift", 0))
+                    .mapToDouble(f -> numericFeature(f, "meanAffectShift", 0))
                     .average().orElse(0);
             sb.append(String.format("  %s: engagement %.0f%%, sentiment %+.2f (%d conversations)\n",
                     entry.getKey(), avgCont * 100, avgSent, entry.getValue().size()));
@@ -588,7 +588,7 @@ public class StrategyLearningOrchestrator {
         final ArrayDeque<ConversationEntry> pendingConversations;
         int totalSignals;
         int totalResponded;
-        double sentimentSum;
+        double affectSum;
         Instant lastSignalTimestamp;
         Instant lastTickTimestamp;
         Instant lastReflectTimestamp;

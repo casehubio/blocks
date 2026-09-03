@@ -72,7 +72,7 @@ public class CbrStrategyStore implements StrategyStore {
 
             double contRate = numberVal(features, "continuationRate", -1);
             double avgLen = numberVal(features, "avgResponseLength", -1);
-            double sentiment = numberVal(features, "meanSentimentShift", 0);
+            double sentiment = numberVal(features, "meanAffectShift", 0);
 
             if (contRate >= 0 || avgLen >= 0) {
                 insights.add(String.format(
