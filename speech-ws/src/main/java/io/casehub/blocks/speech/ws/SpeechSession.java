@@ -184,12 +184,7 @@ public class SpeechSession {
             String raw = result.text();
             LOG.log(System.Logger.Level.INFO, "[STT] raw: \"{0}\"", raw);
 
-            String corrected = corrector != null ? corrector.apply(raw) : raw;
-            if (corrector != null && !corrected.equals(raw)) {
-                LOG.log(System.Logger.Level.INFO, "[STT] corrected: \"{0}\"", corrected);
-            }
-
-            String cleanText   = ensureTrailingPunctuation(cleanupConfig.apply(corrected));
+            String cleanText   = ensureTrailingPunctuation(cleanupConfig.apply(raw));
             long   cleanupDone = System.nanoTime();
             LOG.log(System.Logger.Level.INFO, "[STT] after cleanup ({0} filters): \"{1}\"",
                     cleanupConfig.filters().size(), cleanText);

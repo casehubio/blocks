@@ -451,7 +451,7 @@ class SpeechSessionTest {
     }
 
     @Test
-    void handleStopAppliesCorrectorToSttOutput() {
+    void handleStopSkipsCorrectorOnSttOutput() {
         when(recognitionStream.finalResult()).thenReturn(
                 new TranscriptionResult("tell me a limaric", "en", 0.9));
 
@@ -469,8 +469,8 @@ class SpeechSessionTest {
         session.handleStart(new AvatarMessage.Start(16000));
         session.handleStop();
 
-        assertThat(corrected).containsExactly("tell me a limaric");
-        verify(cleanupConfig).apply("tell me a limerick");
+        assertThat(corrected).as("corrector should not be called on STT output").isEmpty();
+        verify(cleanupConfig).apply("tell me a limaric");
     }
 
     @Test
@@ -809,6 +809,38 @@ class SpeechSessionTest {
         });
         assertThat(sentTextMessages).anySatisfy(json ->
                                                         assertThat(json).contains("\"type\":\"timing\""));
+    }
+
+
+// --- Corrector interference regression guard ---
+
+    @Test
+    void handleStopDoesNotApplyCorrectorToSttOutput() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("can you read me a limerick", "en", 0.9));
+
+        var correctorCalls = new ArrayList<String>();
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null, new DefaultPromptAssembler(null),
+                sentTextMessages::add, sentBinaryMessages::add, java.util.Map.of(),
+                text -> {
+                    correctorCalls.add(text);
+                    return text.replace("limerick", "lemon rick");
+                },
+                null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        assertThat(correctorCalls)
+                .as("corrector should NOT be called on STT output — it corrupts clean transcripts")
+                .isEmpty();
+
+        assertThat(sentTextMessages).anySatisfy(json -> {
+            assertThat(json).contains("\"type\":\"transcript\"");
+            assertThat(json).contains("can you read me a limerick");
+        });
     }
 
 }
