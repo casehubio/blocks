@@ -68,6 +68,16 @@ final class SherpaLibrary {
     final MethodHandle vadDetected;
     final MethodHandle vadReset;
     final MethodHandle vadFlush;
+    // Offline speaker diarization handles
+    final MethodHandle createDiarization;
+    final MethodHandle destroyDiarization;
+    final MethodHandle diarizationGetSampleRate;
+    final MethodHandle diarizationSetConfig;
+    final MethodHandle diarizationProcess;
+    final MethodHandle diarizationProcessWithCallback;
+    final MethodHandle diarizationResultGetNumSegments;
+    final MethodHandle diarizationResultSortByStartTime;
+    final MethodHandle diarizationDestroyResult;
 
 
     private SherpaLibrary(SymbolLookup lookup) {
@@ -167,6 +177,26 @@ final class SherpaLibrary {
         vadReset = downcall(linker, "SherpaOnnxVoiceActivityDetectorReset",
                 FunctionDescriptor.ofVoid(ADDRESS));
         vadFlush = downcall(linker, "SherpaOnnxVoiceActivityDetectorFlush",
+                FunctionDescriptor.ofVoid(ADDRESS));
+
+        // Offline speaker diarization handles
+        createDiarization = downcall(linker, "SherpaOnnxCreateOfflineSpeakerDiarization",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        destroyDiarization = downcall(linker, "SherpaOnnxDestroyOfflineSpeakerDiarization",
+                FunctionDescriptor.ofVoid(ADDRESS));
+        diarizationGetSampleRate = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationGetSampleRate",
+                FunctionDescriptor.of(JAVA_INT, ADDRESS));
+        diarizationSetConfig = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationSetConfig",
+                FunctionDescriptor.ofVoid(ADDRESS, ADDRESS));
+        diarizationProcess = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationProcess",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_INT));
+        diarizationProcessWithCallback = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationProcessWithCallback",
+                FunctionDescriptor.of(ADDRESS, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS));
+        diarizationResultGetNumSegments = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationResultGetNumSegments",
+                FunctionDescriptor.of(JAVA_INT, ADDRESS));
+        diarizationResultSortByStartTime = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationResultSortByStartTime",
+                FunctionDescriptor.of(ADDRESS, ADDRESS));
+        diarizationDestroyResult = downcall(linker, "SherpaOnnxOfflineSpeakerDiarizationDestroyResult",
                 FunctionDescriptor.ofVoid(ADDRESS));
     }
 

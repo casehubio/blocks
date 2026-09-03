@@ -646,6 +646,24 @@ final class Provisioner {
         }
     }
 
+    static Path diarizationModelDir() {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx")
+                             .resolve("sherpa-onnx-pyannote-segmentation-3-0");
+    }
+
+    static Path ensureDiarizationModels() {
+        Path targetDir = diarizationModelDir();
+        Path modelFile = targetDir.resolve("model.onnx");
+        if (Files.exists(modelFile)) {return targetDir;}
+        synchronized (MODEL_LOCK) {
+            if (Files.exists(modelFile)) {return targetDir;}
+            String url = baseUrl() + "speaker-segmentation-models/"
+                         + "sherpa-onnx-pyannote-segmentation-3-0.tar.bz2";
+            return provision(url, targetDir, null, 1, "model.onnx");
+        }
+    }
+
+
     static Path cosyVoice3ModelDir() {
         return cacheBaseDir().resolve("models").resolve("cosyvoice3");
     }

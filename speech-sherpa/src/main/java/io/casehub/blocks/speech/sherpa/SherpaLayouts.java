@@ -112,4 +112,21 @@ final class SherpaLayouts {
     static final long                       VAD_PROVIDER           = 40;
 
 
+    // === SherpaOnnxOfflineSpeakerDiarizationConfig offsets (72 bytes total) ===
+    // Segmentation sub-config (32 bytes: pyannote 16 + num_threads 4 + debug 4 + provider 8)
+    static final long DIARIZATION_SEGMENTATION_PYANNOTE    = 0;
+    static final long DIARIZATION_SEGMENTATION_NUM_THREADS = 16;
+    static final long DIARIZATION_SEGMENTATION_DEBUG       = 20;
+    static final long DIARIZATION_SEGMENTATION_PROVIDER    = 24;
+    // Embedding sub-config (24 bytes)
+    static final long DIARIZATION_EMBEDDING_MODEL          = 32;
+    static final long DIARIZATION_EMBEDDING_NUM_THREADS    = 40;
+    static final long DIARIZATION_EMBEDDING_DEBUG          = 44;
+    static final long DIARIZATION_EMBEDDING_PROVIDER       = 48;
+    // Clustering sub-config (8 bytes)
+    static final long DIARIZATION_CLUSTERING_NUM_CLUSTERS  = 56;
+    static final long DIARIZATION_CLUSTERING_THRESHOLD     = 60;
+    // Top-level fields
+    static final long DIARIZATION_MIN_DURATION_ON          = 64;
+    static final long DIARIZATION_MIN_DURATION_OFF         = 68;
 }
