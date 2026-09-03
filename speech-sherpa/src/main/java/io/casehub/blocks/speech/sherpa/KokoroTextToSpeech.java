@@ -28,13 +28,13 @@ public final class KokoroTextToSpeech implements TextToSpeechService, AutoClosea
 
     public static KokoroTextToSpeech withDefaults(int voiceId) {
         Provisioner.ensureNativeLibrary();
-        Path modelDir = Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_1");
+        Path modelDir = Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_0");
         return new KokoroTextToSpeech(KokoroConfig.defaults(modelDir, voiceId));
     }
 
     public static void ensureProvisioned() {
         Provisioner.ensureNativeLibrary();
-        Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_1");
+        Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_0");
     }
 
     public KokoroTextToSpeech(KokoroConfig config) {
