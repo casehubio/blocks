@@ -523,4 +523,292 @@ class SpeechSessionTest {
 
         verify(cleanupConfig).apply("limaric");
     }
+
+
+// --- Streaming generator path tests (the path the demo actually uses) ---
+
+    @Test
+    void stopWithStreamingGeneratorSendsTranscriptAndResponse() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("hello streaming", "en", 0.9));
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1, 2, 3}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("Streamed reply.");
+            return "Streamed reply.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"transcript\""));
+        assertThat(sentTextMessages).anySatisfy(json -> {
+            assertThat(json).contains("\"type\":\"response\"");
+            assertThat(json).contains("Streamed reply.");
+        });
+        assertThat(sentBinaryMessages).isNotEmpty();
+    }
+
+    @Test
+    void stopWithStreamingGeneratorSendsTimingMessage() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("timing test", "en", 0.9));
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("Reply.");
+            return "Reply.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"timing\""));
+    }
+
+    @Test
+    void stopWithStreamingGeneratorPrefersStreamingOverNonStreaming() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("which path", "en", 0.9));
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1}, "wav", List.of()));
+
+        var streamingCalled    = new java.util.concurrent.atomic.AtomicBoolean(false);
+        var nonStreamingCalled = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            streamingCalled.set(true);
+            onSentence.accept("Streamed.");
+            return "Streamed.";
+        };
+        java.util.function.Function<AssembledPrompt, String> nonStreamGen = prompt -> {
+            nonStreamingCalled.set(true);
+            return "Non-streamed.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                nonStreamGen,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        assertThat(streamingCalled.get()).as("streaming generator should be used").isTrue();
+        assertThat(nonStreamingCalled.get()).as("non-streaming generator should NOT be used").isFalse();
+    }
+
+    @Test
+    void stopWithStreamingGeneratorSynthesisesEachSentence() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("multi sentence", "en", 0.9));
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("First sentence.");
+            onSentence.accept("Second sentence.");
+            return "First sentence. Second sentence.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        session.handleStop();
+
+        // TTS should be called once per sentence callback
+        org.mockito.Mockito.verify(ttsService, org.mockito.Mockito.times(2)).synthesise(any(), any());
+        assertThat(sentBinaryMessages).hasSize(2);
+    }
+
+    @Test
+    void stopWithStreamingGeneratorUsesSelectedTtsModel() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("model test", "en", 0.9));
+
+        var altTts = mock(TextToSpeechService.class);
+        when(altTts.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{9}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("Reply.");
+            return "Reply.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of("kokoro:af_heart", altTts),
+                null, null, null);
+
+        session.handleStart(new AvatarMessage.Start(16000, null, "kokoro:af_heart"));
+        session.handleStop();
+
+        verify(altTts, atLeastOnce()).synthesise(any(), any());
+        verify(ttsService, never()).synthesise(any(), any());
+    }
+
+
+    @Test
+    void handleTextWithStreamingGeneratorProducesFullPipeline() {
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1, 2}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("Streamed text reply.");
+            return "Streamed text reply.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+
+        session.handleText("Hello from text");
+
+        verify(sttService, never()).startStream(any());
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"transcript\""));
+        assertThat(sentTextMessages).anySatisfy(json -> {
+            assertThat(json).contains("\"type\":\"response\"");
+            assertThat(json).contains("Streamed text reply.");
+        });
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"timing\""));
+        assertThat(sentBinaryMessages).isNotEmpty();
+    }
+
+    @Test
+    void handleTextWithStreamingGeneratorSendsTimingWithLlmAndTtsSplit() {
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("Reply.");
+            return "Reply.";
+        };
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+
+        session.handleText("Timing check");
+
+        String timingJson = sentTextMessages.stream()
+                                            .filter(json -> json.contains("\"type\":\"timing\""))
+                                            .findFirst()
+                                            .orElseThrow(() -> new AssertionError("No timing message sent"));
+
+        // timing message should have cleanup, llm, tts, and total fields
+        assertThat(timingJson).contains("\"cleanupMs\":");
+        assertThat(timingJson).contains("\"llmMs\":");
+        assertThat(timingJson).contains("\"ttsMs\":");
+        assertThat(timingJson).contains("\"totalMs\":");
+    }
+
+// --- Full demo configuration: streaming + speaker ID + cleanup ---
+
+    @Test
+    void stopWithStreamingAndSpeakerServicesSendsFullPipeline() {
+        when(recognitionStream.finalResult()).thenReturn(
+                new TranscriptionResult("hello with speaker", "en", 0.9));
+        when(ttsService.synthesise(any(), any())).thenReturn(
+                new SynthesisResult(new byte[]{1, 2}, "wav", List.of()));
+
+        SpeechSession.StreamingResponseGenerator streamGen = (prompt, onSentence) -> {
+            onSentence.accept("Response with speaker.");
+            return "Response with speaker.";
+        };
+
+        var extractor = mock(io.casehub.blocks.speech.SpeakerEmbeddingExtractor.class);
+        var registry  = mock(io.casehub.blocks.speech.SpeakerRegistry.class);
+        when(extractor.extract(any(), eq(16000))).thenReturn(
+                new io.casehub.blocks.speech.SpeakerEmbedding(new float[192], 192));
+        when(registry.identify(any(), org.mockito.ArgumentMatchers.anyDouble()))
+                .thenReturn(java.util.Optional.of(
+                        new io.casehub.blocks.speech.SpeakerMatch("Mark", 0.85)));
+
+        session = new SpeechSession(
+                sttService, ttsService, cleanupConfig,
+                null,
+                streamGen,
+                new DefaultPromptAssembler(null),
+                sentTextMessages::add,
+                sentBinaryMessages::add,
+                java.util.Map.of(),
+                null, null, null);
+        session.withSpeakerServices(extractor, registry);
+
+        session.handleStart(new AvatarMessage.Start(16000));
+        // Feed enough audio for speaker identification (>= MIN_SAMPLES_FOR_EMBEDDING)
+        float[] audio = new float[24000]; // 1.5s at 16kHz
+        java.util.Arrays.fill(audio, 0.1f);
+        session.handleAudio(audio);
+        session.handleStop();
+
+        // Should have transcript, speaker identified, response, and timing
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"transcript\""));
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"speakerIdentified\""));
+        assertThat(sentTextMessages).anySatisfy(json -> {
+            assertThat(json).contains("\"type\":\"response\"");
+            assertThat(json).contains("Response with speaker.");
+        });
+        assertThat(sentTextMessages).anySatisfy(json ->
+                                                        assertThat(json).contains("\"type\":\"timing\""));
+    }
+
 }
