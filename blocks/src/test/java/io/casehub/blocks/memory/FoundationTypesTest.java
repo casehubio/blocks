@@ -17,7 +17,7 @@ class FoundationTypesTest {
         assertThat(score.composite()).isBetween(0.0, 1.0);
         assertThat(score.caseId()).isEqualTo("c1");
         assertThat(score.entityId()).isEqualTo("e1");
-        assertThat(score.importance()).isEqualTo(0.8);
+        assertThat(score.confidence()).isEqualTo(0.8);
         assertThat(score.recencyFactor()).isEqualTo(0.6);
     }
 
@@ -50,7 +50,7 @@ class FoundationTypesTest {
     @Test
     void retentionConfigDefaultHasExpectedValues() {
         assertThat(RetentionConfig.DEFAULT.retentionThreshold()).isEqualTo(0.1);
-        assertThat(RetentionConfig.DEFAULT.importanceWeight()).isEqualTo(1.0);
+        assertThat(RetentionConfig.DEFAULT.confidenceWeight()).isEqualTo(1.0);
     }
 
     @Test
@@ -82,7 +82,7 @@ class FoundationTypesTest {
     @Test
     void hygieneEventSealedVariants() {
         var score = RetentionScore.compute("c1", "e1", 0.1, 0.1, 0.1, 0.1,
-                new RetentionConfig(0.5, 1.0, 1.0, 0.5, 0.5));
+                                           new RetentionConfig(0.5, 1.0, 1.0, 0.5, 0.5));
         HygieneEvent evicted = new HygieneEvent.MemoryEvicted("c1", score);
         HygieneEvent consolidated = new HygieneEvent.MemoryConsolidated("m1", List.of("s1", "s2"));
         HygieneEvent reflected = new HygieneEvent.ReflectionGenerated("a1", "insight");

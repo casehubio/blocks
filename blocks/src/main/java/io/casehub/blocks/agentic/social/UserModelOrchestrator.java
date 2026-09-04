@@ -116,11 +116,11 @@ public class UserModelOrchestrator {
                                      long ticksSinceLastInteraction) {
         int total = positive + negative + neutral;
         if (total == 0) return 0.0;
-        double sentiment = (positive * stageConfig.positiveWeight()
+        double affect = (positive * stageConfig.positiveWeight()
                 - negative * stageConfig.negativeWeight()) / total;
-        double sentimentNorm = Math.max(0.0, Math.min(1.0, (sentiment + 1.0) / 2.0));
+        double affectNorm = Math.max(0.0, Math.min(1.0, (affect + 1.0) / 2.0));
         double volumeFactor = 1.0 - 1.0 / (1.0 + total * 0.1);
-        double score = sentimentNorm * volumeFactor;
+        double score = affectNorm * volumeFactor;
         return score * Math.pow(1.0 - stageConfig.decayRate(), ticksSinceLastInteraction);
     }
 

@@ -31,14 +31,14 @@ public class MemoryHygieneOrchestrator {
 
 
     private final CbrCaseMemoryStore store;
-    private final ImportanceScorer importanceScorer;
-    private final TemporalDecay temporalDecay;
+    private final ConfidenceScorer   confidenceScorer;
+    private final TemporalDecay      temporalDecay;
     private final ScopeDecay scopeDecay;
     private final ContentSummariser<ScoredCbrCase<? extends CbrCase>> summariser;
     private final MemoryDomain domain;
-    private final List<String> caseTypes;
-    private final RetentionConfig retentionConfig;
-    private final int consolidationBatchSize;
+    private final List<String>    caseTypes;
+    private final RetentionConfig RetentionConfig;
+    private final int             consolidationBatchSize;
     private final double crossLinkSimilarityThreshold;
     private final Consumer<HygieneEvent> eventSink;
 
@@ -48,24 +48,24 @@ public class MemoryHygieneOrchestrator {
 
     public MemoryHygieneOrchestrator(
             CbrCaseMemoryStore store,
-            ImportanceScorer importanceScorer,
+            ConfidenceScorer confidenceScorer,
             TemporalDecay temporalDecay,
             ScopeDecay scopeDecay,
             ContentSummariser<ScoredCbrCase<? extends CbrCase>> summariser,
             MemoryDomain domain,
             List<String> caseTypes,
-            RetentionConfig retentionConfig,
+            RetentionConfig RetentionConfig,
             int consolidationBatchSize,
             double crossLinkSimilarityThreshold,
             Consumer<HygieneEvent> eventSink) {
-        this.store = store;
-        this.importanceScorer = importanceScorer;
-        this.temporalDecay = temporalDecay;
+        this.store            = store;
+        this.confidenceScorer = confidenceScorer;
+        this.temporalDecay    = temporalDecay;
         this.scopeDecay = scopeDecay;
         this.summariser = summariser;
         this.domain = domain;
-        this.caseTypes = List.copyOf(caseTypes);
-        this.retentionConfig = retentionConfig;
+        this.caseTypes              = List.copyOf(caseTypes);
+        this.RetentionConfig        = RetentionConfig;
         this.consolidationBatchSize = consolidationBatchSize;
         this.crossLinkSimilarityThreshold = crossLinkSimilarityThreshold;
         this.eventSink = eventSink;
@@ -112,17 +112,17 @@ public class MemoryHygieneOrchestrator {
                     .map(m -> RetentionScore.compute(
                             m.caseId(),
                             entityId(m),
-                            importanceScorer.score(m, now),
+                            confidenceScorer.score(m, now),
                             temporalDecay.factor(m.storedAt(), now),
                             scopeDecay.factor(0),
                             m.cbrCase().trustScore() != null ? m.cbrCase().trustScore() : 1.0,
-                            retentionConfig))
+                            RetentionConfig))
                     .toList();
 
             allScores.addAll(scored);
 
             var toEvict = scored.stream()
-                    .filter(s -> s.composite() < retentionConfig.retentionThreshold())
+                    .filter(s -> s.composite() < RetentionConfig.retentionThreshold())
                     .toList();
 
             for (var eviction : toEvict) {
@@ -134,7 +134,7 @@ public class MemoryHygieneOrchestrator {
             var survivors = agentMemories.stream()
                     .filter(m -> scored.stream()
                             .anyMatch(s -> s.caseId().equals(m.caseId())
-                                    && s.composite() >= retentionConfig.retentionThreshold()))
+                                    && s.composite() >= RetentionConfig.retentionThreshold()))
                     .toList();
 
             totalConsolidated += consolidate(survivors, tenantId, caseType);

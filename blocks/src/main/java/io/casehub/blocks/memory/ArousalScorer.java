@@ -6,7 +6,7 @@ import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
 import java.time.Instant;
 import java.util.Set;
 
-public final class ArousalScorer implements ImportanceScorer {
+public final class ArousalScorer implements ConfidenceScorer {
 
     private static final Set<String> HIGH_AROUSAL = Set.of(
             "critical", "emergency", "urgent", "failure", "crisis", "error",

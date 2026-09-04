@@ -7,11 +7,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-public final class CompositeImportanceScorer implements ImportanceScorer {
+public final class CompositeConfidenceScorer implements ConfidenceScorer {
 
     private final List<WeightedScorer> scorers;
 
-    public CompositeImportanceScorer(List<WeightedScorer> scorers) {
+    public CompositeConfidenceScorer(List<WeightedScorer> scorers) {
         Objects.requireNonNull(scorers, "scorers required");
         if (scorers.isEmpty()) {
             throw new IllegalArgumentException("at least one scorer required");

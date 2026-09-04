@@ -13,7 +13,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ImportanceScorerTest {
+class ConfidenceScorerTest {
 
     private static ScoredCbrCase<CbrCase> scored(String problem, String solution,
                                                   Map<String, FeatureValue> features) {
@@ -61,9 +61,9 @@ class ImportanceScorerTest {
 
     @Test
     void compositeWeightedMean() {
-        ImportanceScorer fixed80 = (m, now) -> 0.8;
-        ImportanceScorer fixed20 = (m, now) -> 0.2;
-        var composite = new CompositeImportanceScorer(List.of(
+        ConfidenceScorer fixed80 = (m, now) -> 0.8;
+        ConfidenceScorer fixed20 = (m, now) -> 0.2;
+        var composite = new CompositeConfidenceScorer(List.of(
                 new WeightedScorer(fixed80, 3.0),
                 new WeightedScorer(fixed20, 1.0)));
         var memory = scored("p", "s", Map.of("k", FeatureValue.string("v")));
@@ -73,8 +73,8 @@ class ImportanceScorerTest {
 
     @Test
     void compositeSingleScorerReturnsItsValue() {
-        ImportanceScorer fixed = (m, now) -> 0.42;
-        var composite = new CompositeImportanceScorer(List.of(
+        ConfidenceScorer fixed = (m, now) -> 0.42;
+        var composite = new CompositeConfidenceScorer(List.of(
                 new WeightedScorer(fixed, 1.0)));
         var memory = scored("p", "s", Map.of("k", FeatureValue.string("v")));
         assertThat(composite.score(memory, Instant.now())).isCloseTo(0.42,
@@ -83,7 +83,7 @@ class ImportanceScorerTest {
 
     @Test
     void compositeRejectsEmptyList() {
-        assertThatThrownBy(() -> new CompositeImportanceScorer(List.of()))
+        assertThatThrownBy(() -> new CompositeConfidenceScorer(List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

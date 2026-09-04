@@ -9,7 +9,6 @@ import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
 import io.casehub.neocortex.memory.cbr.TemporalDecay;
 import io.casehub.neocortex.memory.cbr.ScopeDecay;
 import io.casehub.blocks.summarisation.ContentSummariser;
-import io.casehub.qhorus.api.spi.SummaryResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +16,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,8 +25,8 @@ import static org.mockito.Mockito.*;
 class MemoryHygieneOrchestratorTest {
 
     private CbrCaseMemoryStore store;
-    private ImportanceScorer scorer;
-    private TemporalDecay decay;
+    private ConfidenceScorer   scorer;
+    private TemporalDecay      decay;
     private ScopeDecay scopeDecay;
     @SuppressWarnings("unchecked")
     private ContentSummariser<ScoredCbrCase<? extends CbrCase>> summariser =
@@ -37,13 +35,13 @@ class MemoryHygieneOrchestratorTest {
     private Consumer<HygieneEvent> eventSink = mock(Consumer.class);
     private MemoryHygieneOrchestrator orchestrator;
 
-    private static final MemoryDomain DOMAIN = new MemoryDomain("agent");
+    private static final MemoryDomain    DOMAIN    = new MemoryDomain("agent");
     private static final RetentionConfig RETENTION = new RetentionConfig(0.5, 1.0, 1.0, 0.0, 0.0);
 
     @BeforeEach
     void setUp() {
         store = mock(CbrCaseMemoryStore.class);
-        scorer = mock(ImportanceScorer.class);
+        scorer = mock(ConfidenceScorer.class);
         decay = new TemporalDecay.HalfLife(Duration.ofDays(30));
         scopeDecay = new ScopeDecay.Step(0.5);
         orchestrator = new MemoryHygieneOrchestrator(
