@@ -15,4 +15,11 @@ public sealed interface AvatarMessage {
     record Phonemes(List<VisemeFrame> data) implements AvatarMessage { public Phonemes { data = List.copyOf(data); } }
     record Timing(long cleanupMs, long llmMs, long ttsMs, long totalMs) implements AvatarMessage {}
     record Error(String message) implements AvatarMessage {}
+
+    record SpeakerPrompt(String message) implements AvatarMessage {}
+
+    record SpeakerIdentify(String name) implements AvatarMessage {}
+
+    record SpeakerIdentified(String name, double confidence) implements AvatarMessage {}
+
 }

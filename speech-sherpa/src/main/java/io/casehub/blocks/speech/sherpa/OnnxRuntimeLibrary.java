@@ -14,7 +14,7 @@ import static java.lang.foreign.ValueLayout.ADDRESS;
 import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static java.lang.foreign.ValueLayout.JAVA_LONG;
 
-final class OnnxRuntimeLibrary {
+public final class OnnxRuntimeLibrary {
 
     private static volatile OnnxRuntimeLibrary INSTANCE;
 
@@ -65,7 +65,7 @@ final class OnnxRuntimeLibrary {
         this.env = envOut.get(ADDRESS, 0);
     }
 
-    static OnnxRuntimeLibrary load() {
+    public static OnnxRuntimeLibrary load() {
         if (INSTANCE != null) { return INSTANCE; }
         synchronized (OnnxRuntimeLibrary.class) {
             if (INSTANCE != null) { return INSTANCE; }
@@ -79,7 +79,7 @@ final class OnnxRuntimeLibrary {
         }
     }
 
-    Session createSession(Path modelPath, int numThreads) {
+    public Session createSession(Path modelPath, int numThreads) {
         try (Arena setup = Arena.ofConfined()) {
             MemorySegment optsOut = setup.allocate(ADDRESS);
             checkStatus(callVtable(IDX_CREATE_SESSION_OPTIONS,
@@ -269,7 +269,7 @@ final class OnnxRuntimeLibrary {
         return "libonnxruntime.so";
     }
 
-    static final class Session implements AutoCloseable {
+    public static final class Session implements AutoCloseable {
         private final OnnxRuntimeLibrary lib;
         private final MemorySegment session;
         private final MemorySegment memInfo;

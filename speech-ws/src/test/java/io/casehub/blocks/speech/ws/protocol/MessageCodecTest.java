@@ -88,4 +88,28 @@ class MessageCodecTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown client message type");
     }
+
+    @Test
+    void encodesSpeakerPrompt() {
+        String json = MessageCodec.encode(new AvatarMessage.SpeakerPrompt("What's your name?"));
+        var    obj  = JsonParser.parseString(json).getAsJsonObject();
+        assertThat(obj.get("type").getAsString()).isEqualTo("speakerPrompt");
+        assertThat(obj.get("message").getAsString()).isEqualTo("What's your name?");
+    }
+
+    @Test
+    void encodesSpeakerIdentified() {
+        String json = MessageCodec.encode(new AvatarMessage.SpeakerIdentified("Mark", 0.95));
+        var    obj  = JsonParser.parseString(json).getAsJsonObject();
+        assertThat(obj.get("type").getAsString()).isEqualTo("speakerIdentified");
+        assertThat(obj.get("name").getAsString()).isEqualTo("Mark");
+        assertThat(obj.get("confidence").getAsDouble()).isCloseTo(0.95, org.assertj.core.data.Offset.offset(0.01));
+    }
+
+    @Test
+    void decodeSpeakerIdentify() {
+        var msg = MessageCodec.decodeClient("{\"type\":\"speakerIdentify\",\"name\":\"Mark\"}");
+        assertThat(msg).isInstanceOf(AvatarMessage.SpeakerIdentify.class);
+        assertThat(((AvatarMessage.SpeakerIdentify) msg).name()).isEqualTo("Mark");
+    }
 }

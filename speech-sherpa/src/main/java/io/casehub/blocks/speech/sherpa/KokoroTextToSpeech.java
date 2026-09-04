@@ -28,13 +28,13 @@ public final class KokoroTextToSpeech implements TextToSpeechService, AutoClosea
 
     public static KokoroTextToSpeech withDefaults(int voiceId) {
         Provisioner.ensureNativeLibrary();
-        Path modelDir = Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_1");
+        Path modelDir = Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_0");
         return new KokoroTextToSpeech(KokoroConfig.defaults(modelDir, voiceId));
     }
 
     public static void ensureProvisioned() {
         Provisioner.ensureNativeLibrary();
-        Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_1");
+        Provisioner.ensureKokoroModel("kokoro-multi-lang-v1_0");
     }
 
     public KokoroTextToSpeech(KokoroConfig config) {
@@ -147,6 +147,12 @@ public final class KokoroTextToSpeech implements TextToSpeechService, AutoClosea
         seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_DATA_DIR,
                 arena.allocateFrom(modelDir.resolve("espeak-ng-data").toString()));
         seg.set(ValueLayout.JAVA_FLOAT, SherpaLayouts.KOKORO_LENGTH_SCALE, config.lengthScale());
+
+        String lexicon = detectLexicon(modelDir);
+        if (lexicon != null) {
+            seg.set(ValueLayout.ADDRESS, SherpaLayouts.KOKORO_LEXICON,
+                    arena.allocateFrom(lexicon));
+        }
 
         seg.set(ValueLayout.JAVA_INT, SherpaLayouts.TTS_NUM_THREADS, config.numThreads());
         seg.set(ValueLayout.ADDRESS, SherpaLayouts.TTS_PROVIDER,

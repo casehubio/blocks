@@ -62,4 +62,45 @@ class DefaultPromptAssemblerTest {
         assertThat(secondIdx).isLessThan(thirdIdx);
         assertThat(thirdIdx).isLessThan(fourthIdx);
     }
+
+    @Test
+    void speakerLabelAppearsInHistory() {
+        var assembler = new DefaultPromptAssembler("sys");
+        var history = List.of(
+                new ConversationTurn("user", "Hi", "Mark"),
+                new ConversationTurn("assistant", "Hello!"));
+        AssembledPrompt result = assembler.assemble("How are you?", history);
+        assertThat(result.userPrompt()).contains("Mark (User): Hi");
+        assertThat(result.userPrompt()).contains("Assistant: Hello!");
+    }
+
+    @Test
+    void speakerNamesAppendedToSystemPrompt() {
+        var assembler = new DefaultPromptAssembler("Be helpful.");
+        var history = List.of(
+                new ConversationTurn("user", "Hi", "Mark"),
+                new ConversationTurn("user", "Hey", "Sarah"));
+        AssembledPrompt result = assembler.assemble("Test", history);
+        assertThat(result.systemPrompt()).contains("Speaking with: Mark, Sarah.");
+    }
+
+    @Test
+    void noSpeakersDoesNotModifySystemPrompt() {
+        var             assembler = new DefaultPromptAssembler("Be helpful.");
+        var             history   = List.of(new ConversationTurn("user", "Hi"));
+        AssembledPrompt result    = assembler.assemble("Test", history);
+        assertThat(result.systemPrompt()).isEqualTo("Be helpful.");
+    }
+
+    @Test
+    void conversationTurnWithSpeaker() {
+        var turn = new ConversationTurn("user", "hello", "Mark");
+        assertThat(turn.speaker()).isEqualTo("Mark");
+    }
+
+    @Test
+    void conversationTurnWithoutSpeaker() {
+        var turn = new ConversationTurn("user", "hello");
+        assertThat(turn.speaker()).isNull();
+    }
 }

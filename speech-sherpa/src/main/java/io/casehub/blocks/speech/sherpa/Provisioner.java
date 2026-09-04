@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-final class Provisioner {
+public final class Provisioner {
 
     private static final System.Logger LOG = System.getLogger("casehub-speech");
     private static final String DEFAULT_BASE_URL =
@@ -70,6 +70,15 @@ final class Provisioner {
             "kokoro-multi-lang-v1_0", "model.onnx",
             "kokoro-multi-lang-v1_1", "model.onnx"
                                                                                  );
+    private static final Map<String, String> DENOISER_MODEL_EXPECTED_FILES = Map.of(
+            "dpdfnet_baseline", "dpdfnet_baseline.onnx",
+            "gtcrn_simple", "gtcrn_simple.onnx"
+                                                                                   );
+    private static final Map<String, String> VAD_MODEL_EXPECTED_FILES      = Map.of(
+            "silero_vad", "silero_vad.onnx"
+                                                                                   );
+
+
     private static final Map<String, String> STREAMING_STT_MODEL_EXPECTED_FILES = Map.of(
             "sherpa-onnx-streaming-zipformer-en-2023-06-26", "tokens.txt"
                                                                                         );
@@ -128,6 +137,12 @@ final class Provisioner {
         return cacheBaseDir().resolve("native").resolve("sherpa-onnx")
             .resolve(SherpaLibrary.VERSION).resolve(SherpaLibrary.platformId());
     }
+
+    static Path nativeCacheDir(String platformId) {
+        return cacheBaseDir().resolve("native").resolve("sherpa-onnx")
+                             .resolve(SherpaLibrary.VERSION).resolve(platformId);
+    }
+
 
     static String baseUrl() {
         return System.getProperty("casehub.speech.download-url", DEFAULT_BASE_URL);
@@ -429,6 +444,91 @@ final class Provisioner {
         }
     }
 
+    static Path denoiserModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static String denoiserModelUrl(String modelName) {
+        return baseUrl() + "speech-enhancement-models/" + modelName + ".onnx";
+    }
+
+    static Path ensureDenoiserModel(String modelName) {
+        String expectedFile = DENOISER_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown denoiser model: " + modelName
+                    + ". Known models: " + DENOISER_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = denoiserModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            try {
+                Files.createDirectories(targetDir);
+                String url = denoiserModelUrl(modelName);
+                LOG.log(System.Logger.Level.INFO, "Downloading {0}...", url);
+                Path downloaded = downloadWithRetry(url, targetDir, 3);
+                Path dest       = targetDir.resolve(expectedFile);
+                if (!downloaded.getFileName().toString().equals(expectedFile)) {
+                    Files.move(downloaded, dest, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new SherpaException("Failed to download denoiser model: " + modelName
+                                          + ". Download manually to " + targetDir, e);
+            }
+            return targetDir;
+        }
+    }
+
+    static Path vadModelDir(String modelName) {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
+    }
+
+    static String vadModelUrl(String modelName) {
+        return baseUrl() + "vad-models/" + modelName + ".onnx";
+    }
+
+    static Path ensureVadModel(String modelName) {
+        String expectedFile = VAD_MODEL_EXPECTED_FILES.get(modelName);
+        if (expectedFile == null) {
+            throw new SherpaException(
+                    "Unknown VAD model: " + modelName
+                    + ". Known models: " + VAD_MODEL_EXPECTED_FILES.keySet());
+        }
+        Path targetDir = vadModelDir(modelName);
+
+        if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+            return targetDir;
+        }
+
+        synchronized (MODEL_LOCK) {
+            if (Files.isDirectory(targetDir) && Files.exists(targetDir.resolve(expectedFile))) {
+                return targetDir;
+            }
+            try {
+                Files.createDirectories(targetDir);
+                String url = vadModelUrl(modelName);
+                LOG.log(System.Logger.Level.INFO, "Downloading {0}...", url);
+                Path downloaded = downloadWithRetry(url, targetDir, 3);
+                Path dest       = targetDir.resolve(expectedFile);
+                if (!downloaded.getFileName().toString().equals(expectedFile)) {
+                    Files.move(downloaded, dest, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new SherpaException("Failed to download VAD model: " + modelName
+                                          + ". Download manually to " + targetDir, e);
+            }
+            return targetDir;
+        }
+    }
+
+
     static Path streamingSttModelDir(String modelName) {
         return cacheBaseDir().resolve("models").resolve("sherpa-onnx").resolve(modelName);
     }
@@ -529,6 +629,40 @@ final class Provisioner {
             return targetDir;
         }
     }
+
+
+    static Path campplusModelDir() {
+        return cacheBaseDir().resolve("models").resolve("campplus");
+    }
+
+    public static Path ensureCampplusModel() {
+        Path targetDir = campplusModelDir();
+        Path modelFile = targetDir.resolve("campplus.onnx");
+        if (Files.exists(modelFile)) {return targetDir;}
+        synchronized (MODEL_LOCK) {
+            if (Files.exists(modelFile)) {return targetDir;}
+            provisionFromHuggingFace(COSYVOICE3_REPO, List.of("campplus.onnx"), targetDir);
+            return targetDir;
+        }
+    }
+
+    static Path diarizationModelDir() {
+        return cacheBaseDir().resolve("models").resolve("sherpa-onnx")
+                             .resolve("sherpa-onnx-pyannote-segmentation-3-0");
+    }
+
+    public static Path ensureDiarizationModels() {
+        Path targetDir = diarizationModelDir();
+        Path modelFile = targetDir.resolve("model.onnx");
+        if (Files.exists(modelFile)) {return targetDir;}
+        synchronized (MODEL_LOCK) {
+            if (Files.exists(modelFile)) {return targetDir;}
+            String url = baseUrl() + "speaker-segmentation-models/"
+                         + "sherpa-onnx-pyannote-segmentation-3-0.tar.bz2";
+            return provision(url, targetDir, null, 1, "model.onnx");
+        }
+    }
+
 
     static Path cosyVoice3ModelDir() {
         return cacheBaseDir().resolve("models").resolve("cosyvoice3");

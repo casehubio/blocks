@@ -91,4 +91,42 @@ final class SherpaLayouts {
             java.lang.foreign.MemoryLayout.PathElement.groupElement("n"));
     static final java.lang.invoke.VarHandle AUDIO_SAMPLE_RATE = GENERATED_AUDIO.varHandle(
             java.lang.foreign.MemoryLayout.PathElement.groupElement("sample_rate"));
+    // === SherpaOnnxOffline/OnlineSpeechDenoiserConfig offsets ===
+// Both configs share the first 24 bytes. Offline adds dpdfnet at offset 24.
+    static final long                       DENOISER_GTCRN_MODEL = 0;
+    static final long                       DENOISER_NUM_THREADS = 8;
+    static final long                       DENOISER_DEBUG = 12;
+    static final long                       DENOISER_PROVIDER = 16;
+    static final long                       DENOISER_DPDFNET_MODEL = 24;  // offline only
+    // === SherpaOnnxVadModelConfig offsets ===
+// silero_vad sub-struct at offset 0 (28 bytes + 4 pad = 32)
+    static final long                       VAD_SILERO_MODEL       = 0;
+    static final long                       VAD_SILERO_THRESHOLD   = 8;
+    static final long                       VAD_SILERO_MIN_SILENCE = 12;
+    static final long                       VAD_SILERO_MIN_SPEECH  = 16;
+    static final long                       VAD_SILERO_WINDOW_SIZE = 20;
+    static final long                       VAD_SILERO_MAX_SPEECH  = 24;
+    // after silero_vad
+    static final long                       VAD_SAMPLE_RATE        = 32;
+    static final long                       VAD_NUM_THREADS        = 36;
+    static final long                       VAD_PROVIDER           = 40;
+
+
+    // === SherpaOnnxOfflineSpeakerDiarizationConfig offsets (72 bytes total) ===
+    // Segmentation sub-config (32 bytes: pyannote 16 + num_threads 4 + debug 4 + provider 8)
+    static final long DIARIZATION_SEGMENTATION_PYANNOTE    = 0;
+    static final long DIARIZATION_SEGMENTATION_NUM_THREADS = 16;
+    static final long DIARIZATION_SEGMENTATION_DEBUG       = 20;
+    static final long DIARIZATION_SEGMENTATION_PROVIDER    = 24;
+    // Embedding sub-config (24 bytes)
+    static final long DIARIZATION_EMBEDDING_MODEL          = 32;
+    static final long DIARIZATION_EMBEDDING_NUM_THREADS    = 40;
+    static final long DIARIZATION_EMBEDDING_DEBUG          = 44;
+    static final long DIARIZATION_EMBEDDING_PROVIDER       = 48;
+    // Clustering sub-config (8 bytes)
+    static final long DIARIZATION_CLUSTERING_NUM_CLUSTERS  = 56;
+    static final long DIARIZATION_CLUSTERING_THRESHOLD     = 60;
+    // Top-level fields
+    static final long DIARIZATION_MIN_DURATION_ON          = 64;
+    static final long DIARIZATION_MIN_DURATION_OFF         = 68;
 }

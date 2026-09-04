@@ -21,6 +21,10 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
     private final MemorySegment ctx;
     private final Arena ctxArena;
     private final ReentrantLock inferenceLock = new ReentrantLock();
+    private io.casehub.blocks.speech.StreamingSpeechDenoiserFactory denoiserFactory;
+    private java.util.function.BooleanSupplier denoiserEnabled;
+    private io.casehub.blocks.speech.VoiceActivityFilterFactory vadFactory;
+    private java.util.function.BooleanSupplier vadEnabled;
 
     WhisperSpeechToText(WhisperLibrary lib, Path modelPath) {
         this.lib = lib;
@@ -57,6 +61,22 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
         return new WhisperRecognitionStream(options);
     }
 
+    public WhisperSpeechToText withStreamingDenoiser(
+            io.casehub.blocks.speech.StreamingSpeechDenoiserFactory factory,
+            java.util.function.BooleanSupplier enabled) {
+        this.denoiserFactory = factory;
+        this.denoiserEnabled = enabled;
+        return this;
+    }
+
+    public WhisperSpeechToText withVoiceActivityFilter(
+            io.casehub.blocks.speech.VoiceActivityFilterFactory factory,
+            java.util.function.BooleanSupplier enabled) {
+        this.vadFactory = factory;
+        this.vadEnabled = enabled;
+        return this;
+    }
+
     @Override
     public void close() {
         try {
@@ -76,10 +96,14 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
         private String lastPartial = "";
         private long lastPartialTime = 0;
         private boolean closed = false;
+        private final io.casehub.blocks.speech.StreamingSpeechDenoiser denoiser;
+        private final io.casehub.blocks.speech.VoiceActivityFilter vadFilter;
 
         WhisperRecognitionStream(TranscriptionOptions options) {
             this.vocabularyHint = options.vocabularyHint();
             this.language = options.languageHint() != null ? options.languageHint() : "en";
+            this.denoiser = (denoiserFactory != null) ? denoiserFactory.create() : null;
+            this.vadFilter = (vadFactory != null) ? vadFactory.create() : null;
         }
 
         @Override
@@ -88,12 +112,20 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
             if (sampleRate != 16000) {
                 throw new IllegalArgumentException("Whisper requires 16kHz audio, got " + sampleRate);
             }
-            int newCount = sampleCount + samples.length;
+            float[] processed = samples;
+            if (denoiser != null && denoiserEnabled != null && denoiserEnabled.getAsBoolean()) {
+                processed = denoiser.processChunk(samples, sampleRate);
+            }
+            if (vadFilter != null && vadEnabled != null && vadEnabled.getAsBoolean()) {
+                processed = vadFilter.filterChunk(processed, sampleRate);
+            }
+            if (processed.length == 0) { return; }
+            int newCount = sampleCount + processed.length;
             if (newCount > MAX_BUFFER_SAMPLES) {
                 int drop = newCount - MAX_BUFFER_SAMPLES;
                 System.arraycopy(buffer, drop, buffer, 0, sampleCount - drop);
                 sampleCount -= drop;
-                newCount = sampleCount + samples.length;
+                newCount = sampleCount + processed.length;
             }
             if (newCount > buffer.length) {
                 int newLen = Math.min(MAX_BUFFER_SAMPLES, Math.max(buffer.length * 2, newCount));
@@ -101,8 +133,8 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
                 System.arraycopy(buffer, 0, grown, 0, sampleCount);
                 buffer = grown;
             }
-            System.arraycopy(samples, 0, buffer, sampleCount, samples.length);
-            sampleCount += samples.length;
+            System.arraycopy(processed, 0, buffer, sampleCount, processed.length);
+            sampleCount += processed.length;
         }
 
         @Override
@@ -136,6 +168,8 @@ public final class WhisperSpeechToText implements StreamingSpeechToTextService, 
             closed = true;
             buffer = null;
             sampleCount = 0;
+            if (denoiser != null) { denoiser.close(); }
+            if (vadFilter != null) { vadFilter.close(); }
         }
 
         private String runInference(@Nullable String initialPrompt) {

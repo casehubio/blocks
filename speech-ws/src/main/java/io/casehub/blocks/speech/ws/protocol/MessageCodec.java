@@ -51,6 +51,19 @@ public final class MessageCodec {
                 if (t.llmModel() != null) {obj.addProperty("llmModel", t.llmModel());}
                 if (t.ttsModel() != null) {obj.addProperty("ttsModel", t.ttsModel());}
             }
+            case AvatarMessage.SpeakerPrompt sp -> {
+                obj.addProperty("type", "speakerPrompt");
+                obj.addProperty("message", sp.message());
+            }
+            case AvatarMessage.SpeakerIdentify si -> {
+                obj.addProperty("type", "speakerIdentify");
+                obj.addProperty("name", si.name());
+            }
+            case AvatarMessage.SpeakerIdentified si -> {
+                obj.addProperty("type", "speakerIdentified");
+                obj.addProperty("name", si.name());
+                obj.addProperty("confidence", si.confidence());
+            }
         }
         return GSON.toJson(obj);}
 
@@ -67,6 +80,8 @@ public final class MessageCodec {
                     obj.get("text").getAsString(),
                     obj.has("llmModel") ? obj.get("llmModel").getAsString() : null,
                     obj.has("ttsModel") ? obj.get("ttsModel").getAsString() : null);
+            case "speakerIdentify" -> new AvatarMessage.SpeakerIdentify(
+                    obj.get("name").getAsString());
             default -> throw new IllegalArgumentException("Unknown client message type: " + type);
         };}
 }

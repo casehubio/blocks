@@ -46,19 +46,44 @@ class SherpaOnnxSpeechToTextTest {
     }
 
     @Test
+    void closeOnFreshInstanceDoesNotThrow() {
+        var stt = new SherpaOnnxSpeechToText(SherpaConfig.defaults(tempDir), (SherpaLibrary) null);
+        stt.close();
+    }
+
+    @Test
+    void closeIsIdempotent() {
+        var stt = new SherpaOnnxSpeechToText(SherpaConfig.defaults(tempDir), (SherpaLibrary) null);
+        stt.close();
+        stt.close();
+    }
+
+    @Test
+    void classpathExtractionFallsThroughWhenNoNativeJar(@TempDir Path cacheDir) {
+        boolean extracted = NativeJarExtractor.extractIfAvailable(cacheDir.resolve("nonexistent-platform"));
+        assertThat(extracted).isFalse();
+    }
+
+
+    @Test
     @EnabledIf("hasModels")
     void transcribesWithSherpa() throws IOException {
         Path modelDir = Path.of(System.getProperty("sherpa.model.dir", "/tmp/sherpa-onnx/sherpa-onnx-whisper-tiny"));
-        var config = SherpaConfig.defaults(modelDir);
-        var stt = new SherpaOnnxSpeechToText(config);
+        var  config   = SherpaConfig.defaults(modelDir);
 
-        short[] silence = new short[16000];
-        Path wavFile = tempDir.resolve("silence.wav");
-        Files.write(wavFile, WavReaderTest.buildWavBytes(1, 16000, 16, silence));
+        try (var stt = new SherpaOnnxSpeechToText(config)) {
+            short[] silence = new short[16000];
+            Path    wavFile = tempDir.resolve("silence.wav");
+            Files.write(wavFile, WavReaderTest.buildWavBytes(1, 16000, 16, silence));
 
-        var result = stt.transcribe(wavFile, TranscriptionOptions.defaults());
-        assertThat(result).isNotNull();
-        assertThat(result.text()).isNotNull();
+            var result1 = stt.transcribe(wavFile, TranscriptionOptions.defaults());
+            assertThat(result1).isNotNull();
+            assertThat(result1.text()).isNotNull();
+
+            var result2 = stt.transcribe(wavFile, TranscriptionOptions.defaults());
+            assertThat(result2).isNotNull();
+            assertThat(result2.text()).isNotNull();
+        }
     }
 
     static boolean hasModels() {

@@ -24,7 +24,7 @@
   .msg.user { align-self: flex-end; background: #2d5aa0; }
   .msg.avatar { align-self: flex-start; background: #333; }
   .msg.system { align-self: center; background: transparent; color: #888; font-size: 0.8rem; }
-  #controls { display: flex; gap: 1rem; padding: 0.5rem 1rem; border-bottom: 1px solid #333; align-items: center; justify-content: center; }
+  #controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.5rem 1rem; border-bottom: 1px solid #333; align-items: center; justify-content: center; }
   #controls label { font-size: 0.8rem; color: #999; }
   #controls select { padding: 0.3rem 0.5rem; border-radius: 6px; border: 1px solid #555; background: #2a2a3e; color: #e0e0e0; font-size: 0.85rem; }
   #input-bar { display: flex; gap: 0.5rem; padding: 1rem; border-top: 1px solid #333; }
@@ -59,33 +59,31 @@
   </select></label>
   <label>Voice: <select id="ttsModel">
     <optgroup label="Piper VITS — MOS ~3.7">
-      <option value="lessac-medium">Lessac medium ▸ MOS 3.6</option>
-      <option value="lessac-high">Lessac high ▸ MOS 3.9</option>
-      <option value="amy">Amy (US ♀) ▸ MOS 3.7</option>
-      <option value="ryan">Ryan (US ♂) ▸ MOS 3.8</option>
-      <option value="jenny">Jenny (UK ♀) ▸ MOS 3.7</option>
+      <option value="lessac-medium">Lessac medium · 3.6</option>
+      <option value="lessac-high">Lessac high · 3.9</option>
+      <option value="amy">Amy (US) · 3.7</option>
+      <option value="ryan">Ryan (US) · 3.8</option>
+      <option value="jenny">Jenny (UK) · 3.7</option>
     </optgroup>
-    <optgroup label="Piper via sherpa — MOS ~3.7">
-      <option value="sherpa:lessac-medium">Sherpa: Lessac ▸ MOS 3.6</option>
-      <option value="sherpa:amy">Sherpa: Amy ▸ MOS 3.7</option>
-      <option value="sherpa:ryan">Sherpa: Ryan ▸ MOS 3.8</option>
-      <option value="sherpa:jenny">Sherpa: Jenny ▸ MOS 3.7</option>
+    <optgroup label="Sherpa VITS — MOS ~3.7">
+      <option value="sherpa:lessac-medium">Lessac · 3.6</option>
+      <option value="sherpa:amy">Amy · 3.7</option>
+      <option value="sherpa:ryan">Ryan · 3.8</option>
+      <option value="sherpa:jenny">Jenny · 3.7</option>
     </optgroup>
-    <optgroup label="Kokoro StyleTTS2 — MOS ~4.3">
-      <option value="kokoro:af">Kokoro: AF (US ♀) ▸ MOS 4.3</option>
-      <option value="kokoro:af_bella">Kokoro: Bella (US ♀) ▸ MOS 4.2</option>
-      <option value="kokoro:af_sarah">Kokoro: Sarah (US ♀) ▸ MOS 4.3</option>
-      <option value="kokoro:am_adam">Kokoro: Adam (US ♂) ▸ MOS 4.2</option>
-      <option value="kokoro:am_michael">Kokoro: Michael (US ♂) ▸ MOS 4.1</option>
-      <option value="kokoro:bf_emma">Kokoro: Emma (UK ♀) ▸ MOS 4.3</option>
-      <option value="kokoro:bm_george">Kokoro: George (UK ♂) ▸ MOS 4.2</option>
+    <optgroup label="Kokoro — MOS ~4.3">
+      <option value="kokoro:af_heart">Heart (US) · 4.5</option>
+      <option value="kokoro:af_bella">Bella (US) · 4.2</option>
+      <option value="kokoro:af_sarah">Sarah (US) · 4.3</option>
+      <option value="kokoro:am_adam">Adam (US) · 4.2</option>
+      <option value="kokoro:am_michael">Michael (US) · 4.1</option>
+      <option value="kokoro:bf_emma">Emma (UK) · 4.3</option>
+      <option value="kokoro:bm_george">George (UK) · 4.2</option>
     </optgroup>
-    <optgroup label="Audio8 DualAR — preview (slow, CPU autoregressive)">
-      <option value="audio8">Audio8 0.1B (INT8) ▸ MOS ~2.8 ⚠️ slow</option>
-      <option value="audio8:0.6b">Audio8 0.6B (INT4) ▸ MOS ~3.2 ⚠️ slow</option>
-    </optgroup>
-    <optgroup label="CosyVoice3 — voice cloning (slow, CPU flow diffusion)">
-      <option value="cosyvoice3">CosyVoice3 (24kHz) ▸ voice cloning ⚠️ slow</option>
+    <optgroup label="Experimental (slow)">
+      <option value="audio8">Audio8 0.1B · ~2.8</option>
+      <option value="audio8:0.6b">Audio8 0.6B · ~3.2</option>
+      <option value="cosyvoice3">CosyVoice3 · cloning</option>
     </optgroup>
   </select></label>
   <label>Speed: <input id="speed" type="range" min="0.6" max="1.4" step="0.05" value="0.9" style="width:80px;vertical-align:middle"> <span id="speedVal">0.9x</span></label>
