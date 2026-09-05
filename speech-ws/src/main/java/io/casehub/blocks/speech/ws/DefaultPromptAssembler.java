@@ -1,11 +1,13 @@
 package io.casehub.blocks.speech.ws;
 
-import io.casehub.blocks.speech.ws.protocol.ConversationTurn;
+import io.casehub.blocks.speech.AssembledPrompt;
+import io.casehub.blocks.speech.ConversationTurn;
+import io.casehub.blocks.speech.SpeechPromptAssembler;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-public class DefaultPromptAssembler implements PromptAssembler {
+public class DefaultPromptAssembler implements SpeechPromptAssembler {
 
     private static final String FALLBACK_SYSTEM_PROMPT =
             "You are a conversational assistant. Respond naturally and concisely.";

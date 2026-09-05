@@ -11,7 +11,9 @@ import io.casehub.blocks.speech.SpeakerEmbeddingExtractor;
 import io.casehub.blocks.speech.SpeakerRegistry;
 import io.casehub.blocks.speech.TranscriptionResult;
 import io.casehub.blocks.speech.ws.protocol.AvatarMessage;
-import io.casehub.blocks.speech.ws.protocol.ConversationTurn;
+import io.casehub.blocks.speech.AssembledPrompt;
+import io.casehub.blocks.speech.ConversationTurn;
+import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.blocks.speech.ws.protocol.MessageCodec;
 import org.jspecify.annotations.Nullable;
 
@@ -34,7 +36,7 @@ public class SpeechSession {
     private final           CleanupConfig                              cleanupConfig;
     private final @Nullable Function<AssembledPrompt, String>          responseGenerator;
     private final @Nullable StreamingResponseGenerator                 streamingGenerator;
-    private final           PromptAssembler                            promptAssembler;
+    private final           SpeechPromptAssembler                      promptAssembler;
     private final           Consumer<String>                           textSink;
     private final           Consumer<byte[]>                           binarySink;
     private final           List<ConversationTurn>                     history = new ArrayList<>();
@@ -67,7 +69,7 @@ public class SpeechSession {
                          TextToSpeechService ttsService,
                          CleanupConfig cleanupConfig,
                          @Nullable Function<AssembledPrompt, String> responseGenerator,
-                         PromptAssembler promptAssembler,
+                         SpeechPromptAssembler promptAssembler,
                          Consumer<String> textSink,
                          Consumer<byte[]> binarySink) {
         this(sttService, ttsService, cleanupConfig, responseGenerator, promptAssembler,
@@ -78,7 +80,7 @@ public class SpeechSession {
                          TextToSpeechService ttsService,
                          CleanupConfig cleanupConfig,
                          @Nullable Function<AssembledPrompt, String> responseGenerator,
-                         PromptAssembler promptAssembler,
+                         SpeechPromptAssembler promptAssembler,
                          Consumer<String> textSink,
                          Consumer<byte[]> binarySink,
                          java.util.Map<String, TextToSpeechService> ttsModels) {
@@ -90,7 +92,7 @@ public class SpeechSession {
                          TextToSpeechService ttsService,
                          CleanupConfig cleanupConfig,
                          @Nullable Function<AssembledPrompt, String> responseGenerator,
-                         PromptAssembler promptAssembler,
+                         SpeechPromptAssembler promptAssembler,
                          Consumer<String> textSink,
                          Consumer<byte[]> binarySink,
                          java.util.Map<String, TextToSpeechService> ttsModels,
@@ -106,7 +108,7 @@ public class SpeechSession {
                          CleanupConfig cleanupConfig,
                          @Nullable Function<AssembledPrompt, String> responseGenerator,
                          @Nullable StreamingResponseGenerator streamingGenerator,
-                         PromptAssembler promptAssembler,
+                         SpeechPromptAssembler promptAssembler,
                          Consumer<String> textSink,
                          Consumer<byte[]> binarySink,
                          java.util.Map<String, TextToSpeechService> ttsModels,

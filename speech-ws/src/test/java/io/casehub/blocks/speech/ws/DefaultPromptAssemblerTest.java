@@ -1,6 +1,7 @@
 package io.casehub.blocks.speech.ws;
 
-import io.casehub.blocks.speech.ws.protocol.ConversationTurn;
+import io.casehub.blocks.speech.AssembledPrompt;
+import io.casehub.blocks.speech.ConversationTurn;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

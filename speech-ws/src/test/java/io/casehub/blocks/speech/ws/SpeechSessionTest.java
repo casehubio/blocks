@@ -1,5 +1,6 @@
 package io.casehub.blocks.speech.ws;
 
+import io.casehub.blocks.speech.AssembledPrompt;
 import io.casehub.blocks.speech.CleanupConfig;
 import io.casehub.blocks.speech.PhonemeTiming;
 import io.casehub.blocks.speech.RecognitionStream;
