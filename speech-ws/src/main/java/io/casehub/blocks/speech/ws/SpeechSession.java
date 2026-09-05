@@ -58,6 +58,11 @@ public class SpeechSession {
 
     private @Nullable SpeakerEmbeddingExtractor embeddingExtractor;
     private @Nullable SpeakerRegistry           speakerRegistry;
+    private io.casehub.blocks.speech.AvatarCognition cognition;
+    private @Nullable String                    cognitionAgentId;
+    private @Nullable String                    cognitionTenantId;
+    private @Nullable String                    identifiedSpeaker;
+    private volatile  boolean                   isClosed;
     private final     float[]                   ringBuffer    = new float[RING_BUFFER_SIZE];
     private           int                       ringBufferPos = 0;
     private @Nullable SpeakerEmbedding          pendingEmbedding;
@@ -156,6 +161,33 @@ public class SpeechSession {
         return this;
     }
 
+    public SpeechSession withAvatarCognition(
+            io.casehub.blocks.speech.AvatarCognition cognition,
+            String agentId, String tenantId) {
+        this.cognition = cognition;
+        this.cognitionAgentId = agentId;
+        this.cognitionTenantId = tenantId;
+        return this;
+    }
+
+    public void handleProactiveSpeech(String content) {
+        history.add(new ConversationTurn("assistant", content));
+        send(new AvatarMessage.Response(content));
+        String[] sentences = content.split("(?<=[.!?])\\s+");
+        for (int i = 0; i < sentences.length; i++) {
+            if (!sentences[i].isBlank()) {
+                synthesiseAndSend(resolveTts(activeTtsModel), sentences[i], i + 1);
+            }
+        }
+    }
+
+    public boolean isClosed() { return isClosed; }
+
+    public int historySize() { return history.size(); }
+
+    public String currentSubjectId() {
+        return identifiedSpeaker != null ? identifiedSpeaker : "anonymous";
+    }
 
     public void handleAudio(float[] samples) {
         if (stream != null) {
@@ -369,9 +401,24 @@ public class SpeechSession {
                             (ttsDone - t0) / 1_000_000));
                 }
             }
+            recordCognitionInteraction(cleanText);
         } catch (Exception e) {
             send(new AvatarMessage.Error(e.getMessage()));
-        }}
+        }
+    }
+
+    private void recordCognitionInteraction(String userMessage) {
+        if (cognition != null && cognitionAgentId != null && cognitionTenantId != null) {
+            var lastAssistant = history.isEmpty() ? "" :
+                    history.get(history.size() - 1).text();
+            try {
+                cognition.recordInteraction(cognitionAgentId, cognitionTenantId,
+                        currentSubjectId(), userMessage, lastAssistant);
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING, "Signal recording failed", e);
+            }
+        }
+    }
 
 
     private static String ensureTrailingPunctuation(String text) {
@@ -462,6 +509,7 @@ public class SpeechSession {
     }
 
     public void close() {
+        isClosed = true;
         stopPolling();
         if (stream != null) {
             stream.close();

@@ -15,4 +15,11 @@ public interface AvatarConfig {
     int maxDestructiveness();
 
     Optional<String> systemPrompt();
+
+    Optional<String> agentId();
+
+    Optional<String> tenantId();
+
+    @WithDefault("30")
+    int proactiveTickIntervalSeconds();
 }

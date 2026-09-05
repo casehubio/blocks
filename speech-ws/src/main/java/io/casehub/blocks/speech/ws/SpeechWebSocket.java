@@ -46,7 +46,11 @@ public class SpeechWebSocket {
     @Inject
     jakarta.enterprise.inject.Instance<io.casehub.blocks.speech.SpeakerRegistry> speakerRegistryInstance;
 
+    @Inject
+    jakarta.enterprise.inject.Instance<io.casehub.blocks.speech.AvatarCognition> avatarCognition;
+
     private SpeechSession session;
+    private @org.jspecify.annotations.Nullable Thread proactiveThread;
 
     @OnOpen
     public void onOpen(WebSocketConnection connection) {
@@ -126,6 +130,60 @@ public class SpeechWebSocket {
         if (embeddingExtractor.isResolvable() && speakerRegistryInstance.isResolvable()) {
             session.withSpeakerServices(embeddingExtractor.get(), speakerRegistryInstance.get());
         }
+
+        if (avatarCognition.isResolvable()
+                && avatarConfig.agentId().isPresent()
+                && avatarConfig.tenantId().isPresent()) {
+            var cog = avatarCognition.get();
+            var agentId = avatarConfig.agentId().get();
+            var tenantId = avatarConfig.tenantId().get();
+            var wrappedAssembler = cog.wrapAssembler(assembler, agentId, tenantId,
+                    session::currentSubjectId);
+            session = new SpeechSession(
+                    sttService, ttsService, cleanupConfig,
+                    generator, streamingGen, wrappedAssembler,
+                    text -> connection.sendTextAndAwait(text),
+                    data -> connection.sendBinaryAndAwait(data),
+                    ttsRegistry.isResolvable() ? ttsRegistry.get().models() : java.util.Map.of(),
+                    hooks != null ? hooks.corrector() : null,
+                    hooks != null ? hooks.onResponse() : null,
+                    hooks != null ? hooks.vocabularyHintSupplier() : null);
+            if (embeddingExtractor.isResolvable() && speakerRegistryInstance.isResolvable()) {
+                session.withSpeakerServices(embeddingExtractor.get(), speakerRegistryInstance.get());
+            }
+            session.withAvatarCognition(cog, agentId, tenantId);
+            cog.initialize(agentId, tenantId);
+            startProactiveTick(cog, agentId, tenantId, avatarConfig.proactiveTickIntervalSeconds());
+        }
+    }
+
+    private void startProactiveTick(io.casehub.blocks.speech.AvatarCognition cog,
+                                     String agentId, String tenantId, int intervalSeconds) {
+        proactiveThread = Thread.ofVirtual().name("avatar-proactive").start(() -> {
+            while (!session.isClosed()) {
+                try {
+                    Thread.sleep(java.time.Duration.ofSeconds(intervalSeconds));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                if (session.isClosed()) return;
+                try {
+                    cog.tick(agentId, tenantId, java.util.Set.of(session.currentSubjectId()));
+                    String channelContext = "Channel: WebSocket speech session\nTurn count: "
+                            + session.historySize() + "\nSpeaker: " + session.currentSubjectId();
+                    String content = cog.evaluateProactive(agentId, tenantId, channelContext);
+                    if (content != null) {
+                        session.handleProactiveSpeech(content);
+                    }
+                } catch (Exception e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        });
     }
 
     @OnTextMessage
@@ -152,6 +210,9 @@ public class SpeechWebSocket {
     public void onClose() {
         if (session != null) {
             session.close();
+        }
+        if (proactiveThread != null) {
+            proactiveThread.interrupt();
         }
     }
 
