@@ -1,0 +1,104 @@
+package io.casehub.blocks.agentic.yaml.llm;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.casehub.blocks.agentic.yaml.compiler.CognitionCompiler;
+import io.casehub.blocks.agentic.yaml.compiler.ObservationFilterRegistry;
+import io.casehub.blocks.agentic.yaml.compiler.WorldCompiler;
+import io.casehub.blocks.agentic.yaml.spec.cognition.CognitionDefinition;
+import io.casehub.blocks.agentic.yaml.spec.world.WorldDefinition;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import java.io.IOException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class HistoricalEncounterLlmTest {
+
+    private static final String SCENARIO = "historical-encounter";
+    private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory())
+            .registerModule(new JavaTimeModule());
+
+    private static TestAgentProvider agentProvider;
+
+    @BeforeAll
+    static void setUpLlm() {
+        agentProvider = TestAgentProvider.claude();
+    }
+
+    @Test
+    void descriptorsLoadWithBriefings() {
+        var descriptors = DescriptorLoader.load(SCENARIO);
+
+        assertThat(descriptors).hasSize(3);
+        for (var d : descriptors) {
+            System.out.printf("=== %s ===%n", d.name());
+            System.out.printf("  briefing: %s...%n",
+                    d.briefing().substring(0, Math.min(100, d.briefing().length())));
+            System.out.printf("  capabilities: %s%n",
+                    d.capabilities().stream().map(c -> c.name()).toList());
+            assertThat(d.briefing()).isNotBlank();
+        }
+    }
+
+    @Test
+    void cognitionTicksProduceState() throws IOException {
+        var compiled = loadCognition();
+        var stack = CognitionStack.from(compiled, agentProvider);
+        var descriptors = DescriptorLoader.load(SCENARIO);
+
+        stack.tick("leonardo", "test", descriptors.get(0));
+        stack.tick("nikola", "test", descriptors.get(1));
+
+        assertThat(stack.mood().currentMood("leonardo", "test")).isPresent();
+        assertThat(stack.drives().currentDrives("leonardo", "test")).isPresent();
+        assertThat(stack.mood().currentMood("nikola", "test")).isPresent();
+        assertThat(stack.drives().currentDrives("nikola", "test")).isPresent();
+
+        stack.mood().currentMood("leonardo", "test").ifPresent(m ->
+                System.out.printf("[leonardo mood] pleasure=%.2f arousal=%.2f dominance=%.2f%n",
+                        m.pleasure(), m.arousal(), m.dominance()));
+        stack.drives().currentDrives("leonardo", "test").ifPresent(d ->
+                System.out.printf("[leonardo drives] dominant=%s composite=%.2f%n",
+                        d.dominantDrive(), d.compositeMotivation()));
+    }
+
+    @Test
+    void fullConversationRuns() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider);
+
+        var result = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .build()
+                .run();
+
+        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.elapsed()).isNotNull();
+
+        System.out.printf("%n=== Conversation complete ===%n");
+        System.out.printf("Turns: %d  Elapsed: %s%n", result.turnCount(), result.elapsed());
+    }
+
+    private static io.casehub.blocks.agentic.yaml.compiler.CompiledCognition loadCognition() throws IOException {
+        try (var is = HistoricalEncounterLlmTest.class.getResourceAsStream(
+                "/examples/" + SCENARIO + "/cognition.yaml")) {
+            return new CognitionCompiler().compile(YAML.readValue(is, CognitionDefinition.class));
+        }
+    }
+
+    private static io.casehub.blocks.agentic.yaml.compiler.CompiledWorld loadWorld() throws IOException {
+        try (var is = HistoricalEncounterLlmTest.class.getResourceAsStream(
+                "/examples/" + SCENARIO + "/world.yaml")) {
+            return new WorldCompiler(new ObservationFilterRegistry())
+                    .compile(YAML.readValue(is, WorldDefinition.class));
+        }
+    }
+}
