@@ -6,9 +6,15 @@ import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelSnapshot;
 import io.casehub.blocks.agentic.social.MentalModelStore;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
+import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
+import io.casehub.blocks.agentic.social.StrategyProfile;
+import io.casehub.blocks.agentic.social.StrategyStore;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
 import io.casehub.blocks.agentic.social.UserProfile;
 import io.casehub.blocks.agentic.social.UserProfileStore;
+import io.casehub.blocks.agentic.social.drive.AffiliationDrive;
+import io.casehub.blocks.agentic.social.drive.AutonomyDrive;
+import io.casehub.blocks.agentic.social.drive.CompetenceDrive;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.agentic.social.drive.DriveComposer;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
@@ -20,6 +26,7 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
 import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrCaseMemoryStore;
 import io.casehub.platform.agent.AgentProvider;
 import org.jspecify.annotations.Nullable;
 
@@ -48,16 +55,12 @@ public class CognitionStack {
                                        Stage stage) {
         var mood = new MoodOrchestrator(config.mood());
         var narrative = new NarrativeOrchestrator(new InMemoryNarrativeStore());
-
-        DriveSource baseline = (agentId, tenantId) ->
-                new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
         var composer = new DriveComposer();
-        var drives = new DriveOrchestrator(
-                baseline, baseline, baseline, baseline,
-                mood, composer, config.drive());
 
         UserModelOrchestrator userModel = null;
         MentalModelOrchestrator mentalModel = null;
+        StrategyLearningOrchestrator strategy = null;
+
         if (agentProvider != null && stage.ordinal() >= Stage.SIGNALS.ordinal()) {
             userModel = new UserModelOrchestrator(
                     new InMemoryUserProfileStore(), agentProvider, config.userModel());
@@ -65,8 +68,31 @@ public class CognitionStack {
                     new InMemoryMentalModelStore(), agentProvider, config.mentalModel());
         }
 
+        DriveOrchestrator drives;
+        if (agentProvider != null && stage.ordinal() >= Stage.REAL_DRIVES.ordinal()) {
+            strategy = new StrategyLearningOrchestrator(
+                    new InMemoryStrategyStore(),
+                    new InMemoryCbrCaseMemoryStore(),
+                    (agentId, tenantId, since, maxEntries) -> List.of(),
+                    agentProvider, config.strategyLearning());
+            var competence = new CompetenceDrive(strategy);
+            var affiliation = new AffiliationDrive(userModel, 0.3,
+                    java.time.Duration.ofHours(1));
+            var autonomy = new AutonomyDrive(mentalModel, 0.5);
+            DriveSource curiosity = (a, t) ->
+                    new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+            drives = new DriveOrchestrator(curiosity, competence,
+                    affiliation, autonomy, mood, composer, config.drive());
+        } else {
+            DriveSource baseline = (agentId, tenantId) ->
+                    new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+            drives = new DriveOrchestrator(
+                    baseline, baseline, baseline, baseline,
+                    mood, composer, config.drive());
+        }
+
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
-                null, narrative, null, null);
+                strategy, narrative, null, null);
         return new CognitionStack(core, stage);
     }
 
@@ -142,6 +168,28 @@ public class CognitionStack {
         private static String key(String agentId, String subjectId, String tenantId) {
             return agentId + ":" + subjectId + ":" + tenantId;
         }
+    }
+
+    static final class InMemoryStrategyStore implements StrategyStore {
+        private final Map<String, StrategyProfile> profiles = new ConcurrentHashMap<>();
+
+        @Override public void store(StrategyProfile profile) {
+            profiles.put(profile.agentId() + ":" + profile.tenantId(), profile);
+        }
+
+        @Override public Optional<StrategyProfile> lookup(String agentId, String tenantId) {
+            return Optional.ofNullable(profiles.get(agentId + ":" + tenantId));
+        }
+
+        @Override public List<String> subjectInsights(String agentId, String subjectId, String tenantId) {
+            return List.of();
+        }
+
+        @Override public void eraseAgent(String agentId, String tenantId) {
+            profiles.remove(agentId + ":" + tenantId);
+        }
+
+        @Override public void eraseSubject(String subjectId, String tenantId) {}
     }
 
     static final class InMemoryMentalModelStore implements MentalModelStore {

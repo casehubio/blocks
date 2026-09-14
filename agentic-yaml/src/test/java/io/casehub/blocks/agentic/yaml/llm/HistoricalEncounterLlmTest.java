@@ -163,6 +163,41 @@ class HistoricalEncounterLlmTest {
         System.out.printf("Total sections contributed: %d%n", totalSections);
     }
 
+    @Test
+    void stage2_realDrives() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.REAL_DRIVES);
+
+        var result = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(true)
+                .build()
+                .run();
+
+        assertThat(result.turnCount()).isEqualTo(4);
+
+        ResultsWriter.writeConversation(result, "stage-2", RESULTS_DIR);
+        if (result.finalSnapshot() != null) {
+            ResultsWriter.writeDump(result.finalSnapshot(), "stage-2",
+                    RESULTS_DIR);
+        }
+        ResultsWriter.writeMetrics(result.metrics(), "stage-2", RESULTS_DIR);
+
+        System.out.println("\n=== Stage 2 complete ===");
+        if (result.finalSnapshot() != null && result.finalSnapshot().drives() != null) {
+            System.out.printf("Final drives — dominant: %s  composite: %.2f%n",
+                    result.finalSnapshot().drives().dominantDrive(),
+                    result.finalSnapshot().drives().compositeMotivation());
+        }
+    }
+
     private static io.casehub.blocks.agentic.yaml.compiler.CompiledCognition loadCognition() throws IOException {
         try (var is = HistoricalEncounterLlmTest.class.getResourceAsStream(
                 "/examples/" + SCENARIO + "/cognition.yaml")) {
