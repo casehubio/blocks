@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -260,6 +261,101 @@ class HistoricalEncounterLlmTest {
                     result.finalSnapshot().goalProposals().size());
         }
         ResultsWriter.writeMetrics(result.metrics(), "stage-4", RESULTS_DIR);
+    }
+
+    @Test
+    void stage5_visualization() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.FULL);
+
+        var result = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(true)
+                .build()
+                .run();
+
+        Files.createDirectories(RESULTS_DIR);
+        for (var m : result.metrics()) {
+            var mermaid = MermaidGenerator.generate(m.snapshotAfter());
+            Files.writeString(
+                    RESULTS_DIR.resolve("stage-5-turn-" + m.turnNumber()
+                            + "-" + m.agentId() + ".mmd"),
+                    mermaid);
+        }
+
+        System.out.println("\n=== Stage 5 — per-turn Mermaid graphs written ===");
+        ResultsWriter.writeConversation(result, "stage-5", RESULTS_DIR);
+        ResultsWriter.writeMetrics(result.metrics(), "stage-5", RESULTS_DIR);
+    }
+
+    @Test
+    void stage6_abComparison() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+
+        var baselineStack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.BASELINE);
+        var baseline = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(baselineStack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(false)
+                .build()
+                .run();
+
+        var fullStack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.FULL);
+        var withCognition = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(fullStack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(true)
+                .build()
+                .run();
+
+        var evaluator = new ConversationEvaluator(agentProvider);
+        var comparison = evaluator.compare(baseline, withCognition,
+                withCognition.metrics());
+
+        System.out.println("\n=== Stage 6 — A/B Comparison ===");
+        System.out.printf("Winner: %s%n", comparison.winner());
+        System.out.printf("Assessment: %s%n", comparison.assessment());
+        for (var dim : comparison.baselineScores().keySet()) {
+            System.out.printf("  %s: baseline=%d cognition=%d%n",
+                    dim,
+                    comparison.baselineScores().getOrDefault(dim, 0),
+                    comparison.cognitionScores().getOrDefault(dim, 0));
+        }
+
+        Files.createDirectories(RESULTS_DIR);
+        var sb = new StringBuilder();
+        sb.append("# Stage 6 — A/B Comparison\n\n");
+        sb.append("## Winner: ").append(comparison.winner()).append("\n\n");
+        sb.append("## Assessment\n\n");
+        sb.append(comparison.assessment()).append("\n\n");
+        sb.append("## Scores\n\n");
+        sb.append("| Dimension | Baseline | Cognition |\n");
+        sb.append("|-----------|----------|----------|\n");
+        for (var dim : comparison.baselineScores().keySet()) {
+            sb.append(String.format("| %s | %d | %d |%n",
+                    dim,
+                    comparison.baselineScores().getOrDefault(dim, 0),
+                    comparison.cognitionScores().getOrDefault(dim, 0)));
+        }
+        Files.writeString(RESULTS_DIR.resolve("stage-6-comparison.md"),
+                sb.toString());
     }
 
     private static io.casehub.blocks.agentic.yaml.compiler.CompiledCognition loadCognition() throws IOException {
