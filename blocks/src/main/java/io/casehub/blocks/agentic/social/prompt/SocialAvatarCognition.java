@@ -1,11 +1,8 @@
 package io.casehub.blocks.agentic.social.prompt;
 
-import io.casehub.blocks.agentic.social.CueType;
-import io.casehub.blocks.agentic.social.EngagementSignal;
+import io.casehub.blocks.agentic.social.CognitionCore;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
-import io.casehub.blocks.agentic.social.InteractionSignal;
 import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
-import io.casehub.blocks.agentic.social.MentalStateSignal;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -15,20 +12,18 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.speech.AvatarCognition;
 import io.casehub.blocks.speech.PromptSection;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
+import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
-import io.casehub.neocortex.memory.engagement.EngagementEvent;
-import io.casehub.neocortex.memory.relationship.QualitySignal;
+import io.casehub.platform.agent.AgentProvider;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.jspecify.annotations.Nullable;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 @ApplicationScoped
@@ -45,6 +40,18 @@ public class SocialAvatarCognition implements AvatarCognition {
     @Inject Instance<GoalProposalOrchestrator> goals;
     @Inject Instance<InnerLifeOrchestrator> innerLife;
     @Inject Instance<AgentRegistry> agentRegistry;
+    @Inject Instance<AgentProvider> agentProviderInstance;
+
+    private CognitionCore core;
+
+    @PostConstruct
+    void init() {
+        core = new CognitionCore(mood, drives, userModel, mentalModel, strategy,
+                narrative.isResolvable() ? narrative.get() : null,
+                goals.isResolvable() ? goals.get() : null,
+                null,
+                agentProviderInstance.isResolvable() ? agentProviderInstance.get() : null);
+    }
 
     @Override
     public SpeechPromptAssembler wrapAssembler(SpeechPromptAssembler base, String agentId, String tenantId,
@@ -55,27 +62,14 @@ public class SocialAvatarCognition implements AvatarCognition {
 
     @Override
     public void initialize(String agentId, String tenantId) {
-        if (agentRegistry.isResolvable()) {
-            agentRegistry.get().findById(agentId, tenantId)
-                    .ifPresent(desc -> record(() -> drives.tick(agentId, tenantId, desc)));
-        }
+        var descriptor = resolveDescriptor(agentId, tenantId);
+        core.tick(agentId, tenantId, descriptor, Set.of());
     }
 
     @Override
     public void tick(String agentId, String tenantId, Set<String> activeSubjects) {
-        record(() -> mood.tick(agentId, tenantId));
-        record(() -> strategy.tick(agentId, tenantId));
-        if (narrative.isResolvable()) {
-            record(() -> narrative.get().tick(agentId, tenantId));
-        }
-        if (goals.isResolvable() && agentRegistry.isResolvable()) {
-            agentRegistry.get().findById(agentId, tenantId)
-                    .ifPresent(desc -> record(() -> goals.get().tick(agentId, tenantId, desc)));
-        }
-        for (String subjectId : activeSubjects) {
-            record(() -> userModel.tick(agentId, subjectId, tenantId));
-            record(() -> mentalModel.tick(agentId, subjectId, tenantId));
-        }
+        var descriptor = resolveDescriptor(agentId, tenantId);
+        core.tick(agentId, tenantId, descriptor, activeSubjects);
     }
 
     @Override
@@ -94,23 +88,7 @@ public class SocialAvatarCognition implements AvatarCognition {
     public void recordInteraction(String agentId, String tenantId,
                                    @Nullable String subjectId,
                                    String userMessage, String response) {
-        if (subjectId != null) {
-            record(() -> userModel.record(
-                    new InteractionSignal.CustomSignal(userMessage, QualitySignal.NEUTRAL),
-                    agentId, subjectId, tenantId));
-            record(() -> mentalModel.record(
-                    new MentalStateSignal.VerbalCue(userMessage, CueType.BELIEF_STATEMENT),
-                    agentId, subjectId, tenantId));
-            record(() -> strategy.record(
-                    new EngagementSignal.TurnOutcome(
-                            new EngagementEvent(agentId, subjectId, tenantId,
-                                    null, UUID.randomUUID().toString(), Instant.now(),
-                                    userMessage.isBlank() ? "[interaction]" : userMessage,
-                                    null, Map.of(), true, null,
-                                    (int) response.length(), null, null, null),
-                            Map.of(), response),
-                    agentId, subjectId, tenantId));
-        }
+        core.recordInteraction(agentId, tenantId, subjectId, userMessage, response);
         if (innerLife.isResolvable() && agentRegistry.isResolvable()) {
             agentRegistry.get().findById(agentId, tenantId)
                     .ifPresent(desc -> record(() -> innerLife.get().observeResponse(desc)));
@@ -127,18 +105,13 @@ public class SocialAvatarCognition implements AvatarCognition {
                         sections.add(new PersonalityPromptSection(profile));
                     });
         }
-        sections.add(new MoodPromptSection(mood));
-        sections.add(new DrivePromptSection(drives));
-        sections.add(new MentalModelPromptSection(mentalModel));
-        sections.add(new UserModelPromptSection(userModel));
-        sections.add(new StrategyPromptSection(strategy));
-        if (narrative.isResolvable()) {
-            sections.add(new NarrativePromptSection(narrative.get()));
-        }
-        if (goals.isResolvable()) {
-            sections.add(new GoalPromptSection(goals.get()));
-        }
+        sections.addAll(core.promptSections());
         return sections;
+    }
+
+    private @Nullable AgentDescriptor resolveDescriptor(String agentId, String tenantId) {
+        if (!agentRegistry.isResolvable()) return null;
+        return agentRegistry.get().findById(agentId, tenantId).orElse(null);
     }
 
     private void record(Runnable action) {
