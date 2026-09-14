@@ -1,0 +1,7 @@
+{
+  "agent": "nikola",
+  "turn": 4,
+  "mood": { "pleasure": 0.60, "arousal": 0.50, "dominance": 0.50 },
+  "drives": { "AUTONOMY": 0.94, "CURIOSITY": 0.94, "COMPETENCE": 1.00, "AFFILIATION": 1.00 },
+  "capturedAt": "2026-09-14T01:32:09.439844Z"
+}
