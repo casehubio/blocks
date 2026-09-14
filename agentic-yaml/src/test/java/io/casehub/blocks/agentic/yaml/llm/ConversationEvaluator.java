@@ -51,12 +51,12 @@ class ConversationEvaluator {
                 "assessment":"2-3 sentence comparison"}""";
 
         var config = AgentSessionConfig.of(systemPrompt, prompt,
-                Duration.ofSeconds(120));
+                Duration.ofSeconds(300));
         var response = judge.invoke(config)
                 .filter(e -> e instanceof AgentEvent.TextDelta)
                 .map(e -> ((AgentEvent.TextDelta) e).text())
                 .collect().with(Collectors.joining())
-                .await().atMost(Duration.ofSeconds(120));
+                .await().atMost(Duration.ofSeconds(300));
 
         return parseResponse(response);
     }

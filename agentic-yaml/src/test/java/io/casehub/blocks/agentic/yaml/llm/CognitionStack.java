@@ -164,9 +164,7 @@ public class CognitionStack {
     }
 
     public List<PromptSection> promptSections() {
-        return core.promptSections().stream()
-                .map(DirectivePromptSection::wrap)
-                .toList();
+        return core.promptSections();
     }
 
     public CognitionSnapshot snapshot(String agentId, String tenantId,
