@@ -81,11 +81,11 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .build()
                 .run();
 
-        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.turnCount()).isEqualTo(8);
         assertThat(result.elapsed()).isNotNull();
 
         System.out.printf("%n=== Conversation complete ===%n");
@@ -105,12 +105,12 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(false)
                 .build()
                 .run();
 
-        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.turnCount()).isEqualTo(8);
 
         for (var m : result.metrics()) {
             assertThat(m.promptSectionsContributed()).isZero();
@@ -141,12 +141,12 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(true)
                 .build()
                 .run();
 
-        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.turnCount()).isEqualTo(8);
 
         var totalSections = result.metrics().stream()
                 .mapToInt(CognitionMetrics::promptSectionsContributed)
@@ -177,12 +177,12 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(true)
                 .build()
                 .run();
 
-        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.turnCount()).isEqualTo(8);
 
         ResultsWriter.writeConversation(result, "stage-2", RESULTS_DIR);
         if (result.finalSnapshot() != null) {
@@ -212,12 +212,12 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(true)
                 .build()
                 .run();
 
-        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.turnCount()).isEqualTo(8);
 
         ResultsWriter.writeConversation(result, "stage-3", RESULTS_DIR);
         if (result.finalSnapshot() != null) {
@@ -245,12 +245,12 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(true)
                 .build()
                 .run();
 
-        assertThat(result.turnCount()).isEqualTo(4);
+        assertThat(result.turnCount()).isEqualTo(8);
 
         ResultsWriter.writeConversation(result, "stage-4", RESULTS_DIR);
         if (result.finalSnapshot() != null) {
@@ -276,7 +276,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(true)
                 .build()
                 .run();
@@ -308,7 +308,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(baselineStack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(false)
                 .build()
                 .run();
@@ -320,7 +320,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(fullStack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(4)
+                .maxTurns(8)
                 .includeCognition(true)
                 .build()
                 .run();
