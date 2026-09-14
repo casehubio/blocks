@@ -102,8 +102,9 @@ public class ConversationRunner {
                 for (var section : cognition.promptSections()) {
                     var text = section.contribute(ctx);
                     if (text != null && !text.isBlank()) {
-                        sectionContent.put(
-                                section.getClass().getSimpleName(), text);
+                        var sectionName = section instanceof DirectivePromptSection dps
+                                ? dps.delegateName() : section.getClass().getSimpleName();
+                        sectionContent.put(sectionName, text);
                     }
                 }
             }
