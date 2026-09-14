@@ -38,6 +38,7 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
 import io.casehub.blocks.speech.PromptSection;
+import java.util.stream.Collectors;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrCaseMemoryStore;
 import io.casehub.platform.agent.AgentProvider;
@@ -155,7 +156,9 @@ public class CognitionStack {
     }
 
     public List<PromptSection> promptSections() {
-        return core.promptSections();
+        return core.promptSections().stream()
+                .map(DirectivePromptSection::wrap)
+                .toList();
     }
 
     public CognitionSnapshot snapshot(String agentId, String tenantId,
