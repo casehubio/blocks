@@ -41,7 +41,7 @@ class CognitionSnapshotTest {
     void snapshotAfterTickCapturesMoodAndDrives() {
         var core = minimalCore();
         var descriptor = stubDescriptor();
-        core.tick("agent", "tenant", descriptor, Set.of());
+        core.tick("agent", "tenant", descriptor, (aid, tid) -> Set.of());
 
         var snap = CognitionSnapshot.capture(core, "agent", "tenant",
                 1, Set.of());
@@ -54,7 +54,7 @@ class CognitionSnapshotTest {
     void diffFromNullPreviousReturnsAbsoluteValues() {
         var core = minimalCore();
         var descriptor = stubDescriptor();
-        core.tick("agent", "tenant", descriptor, Set.of());
+        core.tick("agent", "tenant", descriptor, (aid, tid) -> Set.of());
 
         var snap = CognitionSnapshot.capture(core, "agent", "tenant",
                 1, Set.of());
@@ -74,7 +74,7 @@ class CognitionSnapshotTest {
 
         var before = CognitionSnapshot.capture(core, "agent", "tenant",
                 0, Set.of());
-        core.tick("agent", "tenant", descriptor, Set.of());
+        core.tick("agent", "tenant", descriptor, (aid, tid) -> Set.of());
         var after = CognitionSnapshot.capture(core, "agent", "tenant",
                 1, Set.of());
 
@@ -91,7 +91,7 @@ class CognitionSnapshotTest {
 
         var before = CognitionSnapshot.capture(core, "agent", "tenant",
                 0, Set.of());
-        core.tick("agent", "tenant", descriptor, Set.of());
+        core.tick("agent", "tenant", descriptor, (aid, tid) -> Set.of());
         var after = CognitionSnapshot.capture(core, "agent", "tenant",
                 1, Set.of());
         var delta = after.diffFrom(before);

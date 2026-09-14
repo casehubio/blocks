@@ -25,7 +25,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+
 import java.util.UUID;
 
 public class CognitionCore {
@@ -93,7 +93,7 @@ public class CognitionCore {
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
-                     Set<String> activeSubjects) {
+                     SubjectResolver resolver) {
         if (config.moodEnabled()) {
             if (mood.currentMood(agentId, tenantId).isEmpty()) {
                 mood.record(new MoodSignal.InteractionAppraisal(0, 0, 0, "init"),
@@ -118,7 +118,7 @@ public class CognitionCore {
             safeRun(() -> strategy.tick(agentId, tenantId));
         }
 
-        for (String subjectId : activeSubjects) {
+        for (String subjectId : resolver.relevantSubjects(agentId, tenantId)) {
             if (config.userModelEnabled() && userModel != null) {
                 safeRun(() -> userModel.tick(agentId, subjectId, tenantId));
             }
@@ -134,37 +134,50 @@ public class CognitionCore {
 
     public void recordInteraction(String agentId, String tenantId,
                                    @Nullable String subjectId,
-                                   String userMessage, String response) {
+                                   String userMessage, String response,
+                                   @Nullable CognitiveImpact impact) {
         if (config.moodEnabled()) {
-            safeRun(() -> appraiseMood(agentId, tenantId, userMessage, response));
+            if (impact != null && impact.moodSignal() != null) {
+                mood.record(impact.moodSignal(), agentId, tenantId);
+            } else {
+                safeRun(() -> appraiseMood(agentId, tenantId, userMessage, response));
+            }
         }
 
         if (subjectId != null) {
             if (config.userModelEnabled() && userModel != null) {
-                safeRun(() -> userModel.record(
-                        new InteractionSignal.CustomSignal(
-                                userMessage, QualitySignal.NEUTRAL),
-                        agentId, subjectId, tenantId));
+                var signal = (impact != null && impact.userModelSignal() != null)
+                        ? impact.userModelSignal()
+                        : new InteractionSignal.CustomSignal(
+                                userMessage, QualitySignal.NEUTRAL);
+                safeRun(() -> userModel.record(signal, agentId, subjectId, tenantId));
             }
-            if (config.mentalModelEnabled() && mentalModel != null) {
+            if (config.mentalModelEnabled() && mentalModel != null
+                    && (impact == null || !impact.suppressBdiExtraction())) {
                 safeRun(() -> extractAndRecordMentalState(
                         agentId, subjectId, tenantId, userMessage));
             }
             if (config.strategyEnabled() && strategy != null) {
-                safeRun(() -> strategy.record(
-                        new EngagementSignal.TurnOutcome(
-                                new EngagementEvent(agentId, subjectId,
-                                        tenantId, null,
-                                        UUID.randomUUID().toString(),
-                                        Instant.now(),
-                                        userMessage.isBlank()
-                                                ? "[interaction]"
-                                                : userMessage,
-                                        null, Map.of(), true, null,
-                                        (int) response.length(),
-                                        null, null, null),
-                                Map.of(), response),
-                        agentId, subjectId, tenantId));
+                if (impact != null && impact.strategySignal() != null) {
+                    var strategySignal = impact.strategySignal();
+                    safeRun(() -> strategy.record(strategySignal,
+                            agentId, subjectId, tenantId));
+                } else {
+                    safeRun(() -> strategy.record(
+                            new EngagementSignal.TurnOutcome(
+                                    new EngagementEvent(agentId, subjectId,
+                                            tenantId, null,
+                                            UUID.randomUUID().toString(),
+                                            Instant.now(),
+                                            userMessage.isBlank()
+                                                    ? "[interaction]"
+                                                    : userMessage,
+                                            null, Map.of(), true, null,
+                                            (int) response.length(),
+                                            null, null, null),
+                                    Map.of(), response),
+                            agentId, subjectId, tenantId));
+                }
             }
         }
     }

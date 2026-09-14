@@ -647,6 +647,13 @@ Consumers that only use blocks' pure types (records, sealed interfaces, plain cl
 
 **Social cognition config defaults:** All social cognition config types (`DriveConfig`, `MoodConfig`, `PersonalityEvolutionConfig`, `InnerLifeConfig`, `MentalModelConfig`, `UserModelConfig`, `StrategyLearningConfig`, `NarrativeConfig`, `GoalProposalConfig`, `GoalEscalationConfig`, `NormDetectionConfig`) and `EventStreamBus<DecisionSignal>` have `@DefaultBean` producers via `SocialCognitionDefaultBeans`. Consumers with blocks on their classpath get safe defaults automatically — no config required to use social cognition features. Override any config by providing your own `@ApplicationScoped` bean for that type.
 
+**Situational context SPIs:** Three `@FunctionalInterface` SPIs let consumers adapt CognitionCore to their domain:
+- `SubjectResolver` — determines which subjects are contextually relevant (replaces `Set<String> activeSubjects` parameter on `CognitionCore.tick()`)
+- `InteractionMapper` — maps domain events to `CognitiveImpact` records that control all 4 orchestrator channels (userModel, mood, BDI extraction, strategy)
+- `NormFilter` — filters detected `SocialNorm`s by situational context before prompt rendering
+
+All three have `@DefaultBean` passthrough producers. Override by providing your own `@ApplicationScoped` bean. `CognitiveImpact.fromText(description)` is the common-case factory for simple text interactions.
+
 ## Boundary Rules
 
 - Does NOT provide generic utilities (backoff, rate limiters) -- those belong in platform

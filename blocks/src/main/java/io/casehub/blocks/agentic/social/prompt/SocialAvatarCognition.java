@@ -63,13 +63,13 @@ public class SocialAvatarCognition implements AvatarCognition {
     @Override
     public void initialize(String agentId, String tenantId) {
         var descriptor = resolveDescriptor(agentId, tenantId);
-        core.tick(agentId, tenantId, descriptor, Set.of());
+        core.tick(agentId, tenantId, descriptor, (aid, tid) -> Set.of());
     }
 
     @Override
     public void tick(String agentId, String tenantId, Set<String> activeSubjects) {
         var descriptor = resolveDescriptor(agentId, tenantId);
-        core.tick(agentId, tenantId, descriptor, activeSubjects);
+        core.tick(agentId, tenantId, descriptor, (aid, tid) -> activeSubjects);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class SocialAvatarCognition implements AvatarCognition {
     public void recordInteraction(String agentId, String tenantId,
                                    @Nullable String subjectId,
                                    String userMessage, String response) {
-        core.recordInteraction(agentId, tenantId, subjectId, userMessage, response);
+        core.recordInteraction(agentId, tenantId, subjectId, userMessage, response, null);
         if (innerLife.isResolvable() && agentRegistry.isResolvable()) {
             agentRegistry.get().findById(agentId, tenantId)
                     .ifPresent(desc -> record(() -> innerLife.get().observeResponse(desc)));

@@ -98,4 +98,26 @@ public class SocialCognitionDefaultBeans {
     EventStreamBus<DecisionSignal> decisionSignalBus() {
         return new EventStreamBus<>();
     }
+
+    @Produces
+    @DefaultBean
+    @Singleton
+    SubjectResolver subjectResolver() {
+        return (agentId, tenantId) -> java.util.Set.of();
+    }
+
+    @Produces
+    @DefaultBean
+    @Singleton
+    InteractionMapper interactionMapper() {
+        return (agentId, targetId, interactionType) ->
+                CognitiveImpact.fromText(interactionType);
+    }
+
+    @Produces
+    @DefaultBean
+    @Singleton
+    io.casehub.blocks.agentic.social.emergence.NormFilter normFilter() {
+        return (norms, agentId, tenantId) -> norms;
+    }
 }
