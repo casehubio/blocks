@@ -1,5 +1,7 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
+import io.casehub.blocks.agentic.social.CognitionCore;
+import io.casehub.blocks.agentic.social.CognitionSnapshot;
 import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelSnapshot;
 import io.casehub.blocks.agentic.social.MentalModelStore;
@@ -15,45 +17,35 @@ import io.casehub.blocks.agentic.social.drive.DriveSource;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
-import io.casehub.blocks.agentic.social.prompt.DrivePromptSection;
-import io.casehub.blocks.agentic.social.prompt.MentalModelPromptSection;
-import io.casehub.blocks.agentic.social.prompt.MoodPromptSection;
-import io.casehub.blocks.agentic.social.prompt.NarrativePromptSection;
-import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
 import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.platform.agent.AgentProvider;
 import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CognitionStack {
 
-    private final MoodOrchestrator mood;
-    private final DriveOrchestrator drives;
-    private final @Nullable UserModelOrchestrator userModel;
-    private final @Nullable MentalModelOrchestrator mentalModel;
-    private final NarrativeOrchestrator narrative;
+    private final CognitionCore core;
+    private final Stage stage;
 
-    CognitionStack(MoodOrchestrator mood,
-                   DriveOrchestrator drives,
-                   @Nullable UserModelOrchestrator userModel,
-                   @Nullable MentalModelOrchestrator mentalModel,
-                   NarrativeOrchestrator narrative) {
-        this.mood = mood;
-        this.drives = drives;
-        this.userModel = userModel;
-        this.mentalModel = mentalModel;
-        this.narrative = narrative;
+    public enum Stage {
+        BASELINE, SIGNALS, REAL_DRIVES, NARRATIVE, FULL
+    }
+
+    CognitionStack(CognitionCore core, Stage stage) {
+        this.core = core;
+        this.stage = stage;
     }
 
     public static CognitionStack from(CompiledCognition config,
-                                       @Nullable AgentProvider agentProvider) {
+                                       @Nullable AgentProvider agentProvider,
+                                       Stage stage) {
         var mood = new MoodOrchestrator(config.mood());
         var narrative = new NarrativeOrchestrator(new InMemoryNarrativeStore());
 
@@ -66,44 +58,52 @@ public class CognitionStack {
 
         UserModelOrchestrator userModel = null;
         MentalModelOrchestrator mentalModel = null;
-        if (agentProvider != null) {
+        if (agentProvider != null && stage.ordinal() >= Stage.SIGNALS.ordinal()) {
             userModel = new UserModelOrchestrator(
                     new InMemoryUserProfileStore(), agentProvider, config.userModel());
             mentalModel = new MentalModelOrchestrator(
                     new InMemoryMentalModelStore(), agentProvider, config.mentalModel());
         }
 
-        return new CognitionStack(mood, drives, userModel, mentalModel, narrative);
+        var core = new CognitionCore(mood, drives, userModel, mentalModel,
+                null, narrative, null, null);
+        return new CognitionStack(core, stage);
     }
+
+    public static CognitionStack from(CompiledCognition config,
+                                       @Nullable AgentProvider agentProvider) {
+        return from(config, agentProvider, Stage.SIGNALS);
+    }
+
+    public CognitionCore core() { return core; }
+    public Stage stage() { return stage; }
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor) {
-        if (mood.currentMood(agentId, tenantId).isEmpty()) {
-            mood.record(new io.casehub.blocks.agentic.social.MoodSignal.InteractionAppraisal(
-                    0, 0, 0, "initialization"), agentId, tenantId);
-        }
-        mood.tick(agentId, tenantId);
-        narrative.tick(agentId, tenantId);
-        if (descriptor != null) {
-            drives.tick(agentId, tenantId, descriptor);
-        }
+        core.tick(agentId, tenantId, descriptor, Set.of());
+    }
+
+    public void tick(String agentId, String tenantId,
+                     @Nullable AgentDescriptor descriptor,
+                     Set<String> activeSubjects) {
+        core.tick(agentId, tenantId, descriptor, activeSubjects);
     }
 
     public List<PromptSection> promptSections() {
-        var sections = new ArrayList<PromptSection>();
-        sections.add(new MoodPromptSection(mood));
-        sections.add(new DrivePromptSection(drives));
-        sections.add(new NarrativePromptSection(narrative));
-        if (userModel != null) sections.add(new UserModelPromptSection(userModel));
-        if (mentalModel != null) sections.add(new MentalModelPromptSection(mentalModel));
-        return sections;
+        return core.promptSections();
     }
 
-    public MoodOrchestrator mood() { return mood; }
-    public DriveOrchestrator drives() { return drives; }
-    public NarrativeOrchestrator narrative() { return narrative; }
-    public @Nullable UserModelOrchestrator userModel() { return userModel; }
-    public @Nullable MentalModelOrchestrator mentalModel() { return mentalModel; }
+    public CognitionSnapshot snapshot(String agentId, String tenantId,
+                                       int turnNumber, Set<String> subjectIds) {
+        return CognitionSnapshot.capture(core, agentId, tenantId,
+                turnNumber, subjectIds);
+    }
+
+    public MoodOrchestrator mood() { return core.mood(); }
+    public DriveOrchestrator drives() { return core.drives(); }
+    public NarrativeOrchestrator narrative() { return core.narrative(); }
+    public @Nullable UserModelOrchestrator userModel() { return core.userModel(); }
+    public @Nullable MentalModelOrchestrator mentalModel() { return core.mentalModel(); }
 
     static final class InMemoryNarrativeStore implements NarrativeStore {
         private final Map<String, NarrativeState> states = new ConcurrentHashMap<>();
