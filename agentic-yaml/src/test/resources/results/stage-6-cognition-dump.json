@@ -1,0 +1,13 @@
+{
+  "agent": "nikola",
+  "turn": 8,
+  "mood": { "pleasure": 0.99, "arousal": 0.99, "dominance": 0.62 },
+  "drives": { "COMPETENCE": 0.75, "AUTONOMY": 0.74, "AFFILIATION": 1.00, "CURIOSITY": 1.00 },
+  "mentalModels": {
+    "leonardo": { "beliefs": 10, "desires": 4, "intentions": 2 }
+  },
+  "goals": [
+    { "name": "reconnect-leonardo", "axis": "AFFILIATION", "intensity": 1.00 }
+  ],
+  "capturedAt": "2026-09-14T07:33:20.779182Z"
+}
