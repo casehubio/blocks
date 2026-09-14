@@ -116,6 +116,8 @@ public class CognitionCore {
     public void recordInteraction(String agentId, String tenantId,
                                    @Nullable String subjectId,
                                    String userMessage, String response) {
+        safeRun(() -> appraiseMood(agentId, tenantId, userMessage, response));
+
         if (subjectId != null) {
             if (userModel != null) {
                 safeRun(() -> userModel.record(
@@ -144,6 +146,69 @@ public class CognitionCore {
                         agentId, subjectId, tenantId));
             }
         }
+    }
+
+    private static final String MOOD_APPRAISAL_PROMPT = """
+            Rate the emotional tone of this conversation exchange from the \
+            perspective of the agent who just responded. Score each PAD axis \
+            as a delta (change from neutral):
+            - pleasure: how pleasant/unpleasant was this exchange? [-0.3, +0.3]
+            - arousal: how energizing/calming? [-0.3, +0.3]
+            - dominance: how empowering/diminishing? [-0.3, +0.3]
+            
+            Respond with JSON only:
+            {"pleasure":0.15,"arousal":0.1,"dominance":0.05,"cause":"mutual intellectual recognition"}""";
+
+    private void appraiseMood(String agentId, String tenantId,
+                               String userMessage, String response) {
+        if (agentProvider == null) return;
+        try {
+            var truncatedMsg = userMessage.length() > 200
+                    ? userMessage.substring(0, 200) + "..." : userMessage;
+            var truncatedResp = response.length() > 200
+                    ? response.substring(0, 200) + "..." : response;
+            var userPrompt = "Other person said:\n" + truncatedMsg
+                    + "\n\nAgent responded:\n" + truncatedResp;
+            var config = AgentSessionConfig.of(MOOD_APPRAISAL_PROMPT, userPrompt);
+            var sb = new StringBuilder();
+            agentProvider.invoke(config)
+                    .subscribe().asStream()
+                    .filter(e -> e instanceof AgentEvent.TextDelta)
+                    .map(e -> ((AgentEvent.TextDelta) e).text())
+                    .forEach(sb::append);
+            var json = sb.toString();
+            var jsonStart = json.indexOf('{');
+            var jsonEnd = json.lastIndexOf('}');
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                json = json.substring(jsonStart, jsonEnd + 1);
+                double p = extractDouble(json, "pleasure");
+                double a = extractDouble(json, "arousal");
+                double d = extractDouble(json, "dominance");
+                var cause = extractJsonString(json, "cause");
+                p = Math.clamp(p, -0.3, 0.3);
+                a = Math.clamp(a, -0.3, 0.3);
+                d = Math.clamp(d, -0.3, 0.3);
+                mood.record(new MoodSignal.InteractionAppraisal(p, a, d,
+                        cause.isEmpty() ? "interaction" : cause),
+                        agentId, tenantId);
+            }
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING, "Mood appraisal failed", e);
+        }
+    }
+
+    private static double extractDouble(String json, String key) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*(-?\\d+\\.?\\d*)");
+        var matcher = pattern.matcher(json);
+        return matcher.find() ? Double.parseDouble(matcher.group(1)) : 0.0;
+    }
+
+    private static String extractJsonString(String json, String key) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+        var matcher = pattern.matcher(json);
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     private static final String BDI_EXTRACTION_PROMPT = """
