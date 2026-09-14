@@ -93,9 +93,9 @@ public class CognitionStack {
 
         if (agentProvider != null && stage.ordinal() >= Stage.SIGNALS.ordinal()) {
             userModel = new UserModelOrchestrator(
-                    new InMemoryUserProfileStore(), agentProvider, config.userModel());
+                    new InMemoryUserProfileStore(), null, config.userModel());
             mentalModel = new MentalModelOrchestrator(
-                    new InMemoryMentalModelStore(), agentProvider, config.mentalModel());
+                    new InMemoryMentalModelStore(), null, config.mentalModel());
         }
 
         DriveOrchestrator drives;
