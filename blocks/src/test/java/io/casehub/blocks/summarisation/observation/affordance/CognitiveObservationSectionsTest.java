@@ -1,6 +1,9 @@
 package io.casehub.blocks.summarisation.observation.affordance;
 
+import io.casehub.blocks.agentic.belief.Belief;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.blocks.agentic.social.emergence.NormStrength;
+import io.casehub.blocks.agentic.social.emergence.SocialNorm;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveProfile;
 import io.casehub.blocks.summarisation.observation.ObservationResult;
@@ -16,6 +19,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -256,5 +260,140 @@ class CognitiveObservationSectionsTest {
         var items   = ((ObservationSection.ItemList) section).items();
         assertThat(items).noneMatch(i -> i.contains("Routine interaction"));
         assertThat(items).anyMatch(i -> i.contains("Significant event"));
+    }
+
+    @Test
+    void beliefsSection_renders_sorted_by_entrenchment_desc_then_key() {
+        var beliefs = List.of(
+                Belief.of("honesty", "Always tell the truth", 3),
+                Belief.of("caution", "Trust must be earned", 5),
+                Belief.of("ambition", "Strive for excellence", 3));
+        var section = CognitiveObservationSections.beliefsSection(beliefs, Set.of());
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(3);
+        assertThat(items.get(0)).isEqualTo("caution: Trust must be earned");
+        assertThat(items.get(1)).isEqualTo("ambition: Strive for excellence");
+        assertThat(items.get(2)).isEqualTo("honesty: Always tell the truth");
+    }
+
+    @Test
+    void beliefsSection_marks_revised_beliefs() {
+        var beliefs = List.of(
+                Belief.of("honesty", "Always tell the truth", 3),
+                Belief.of("caution", "Trust must be earned", 5));
+        var section = CognitiveObservationSections.beliefsSection(beliefs, Set.of("honesty"));
+        var items   = ((ObservationSection.ItemList) section).items();
+        assertThat(items.get(0)).isEqualTo("caution: Trust must be earned");
+        assertThat(items.get(1)).isEqualTo("[REVISED] honesty: Always tell the truth");
+    }
+
+    @Test
+    void beliefsSection_empty_shows_no_established_beliefs() {
+        var section = CognitiveObservationSections.beliefsSection(List.of(), Set.of());
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var il = (ObservationSection.ItemList) section;
+        assertThat(il.items()).isEmpty();
+        assertThat(il.emptyMessage()).isEqualTo("No established beliefs.");
+    }
+
+    @Test
+    void principlesSection_renders_with_category() {
+        var principles = List.of(
+                new Principle("Always tell the truth", "Honesty"),
+                new Principle("Stand by your allies", "Loyalty"));
+        var section = CognitiveObservationSections.principlesSection(principles);
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).containsExactly(
+                "[Honesty] Always tell the truth",
+                "[Loyalty] Stand by your allies");
+    }
+
+    @Test
+    void principlesSection_renders_without_category() {
+        var principles = List.of(
+                new Principle("Do no harm", null),
+                new Principle("Seek knowledge", "Curiosity"));
+        var section = CognitiveObservationSections.principlesSection(principles);
+        var items   = ((ObservationSection.ItemList) section).items();
+        assertThat(items).containsExactly(
+                "Do no harm",
+                "[Curiosity] Seek knowledge");
+    }
+
+    @Test
+    void principlesSection_empty_shows_no_guiding_principles() {
+        var section = CognitiveObservationSections.principlesSection(List.of());
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var il = (ObservationSection.ItemList) section;
+        assertThat(il.items()).isEmpty();
+        assertThat(il.emptyMessage()).isEqualTo("No guiding principles.");
+    }
+
+    @Test
+    void trustSection_renders_sorted_by_level_then_name() {
+        var summaries = List.of(
+                new TrustSummary("Zara", TrustLevel.HIGH, null),
+                new TrustSummary("Penelope", TrustLevel.LOW, "betrayed trust"),
+                new TrustSummary("Alice", TrustLevel.HIGH, "reliable ally"));
+        var section = CognitiveObservationSections.trustSection(summaries);
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(3);
+        assertThat(items.get(0)).isEqualTo("Alice: HIGH — reliable ally");
+        assertThat(items.get(1)).isEqualTo("Zara: HIGH");
+        assertThat(items.get(2)).isEqualTo("Penelope: LOW — betrayed trust");
+    }
+
+    @Test
+    void trustSection_renders_with_and_without_reason() {
+        var summaries = List.of(
+                new TrustSummary("Bob", TrustLevel.MODERATE, "occasionally helpful"),
+                new TrustSummary("Carol", TrustLevel.UNKNOWN, null));
+        var section = CognitiveObservationSections.trustSection(summaries);
+        var items   = ((ObservationSection.ItemList) section).items();
+        assertThat(items).containsExactly(
+                "Bob: MODERATE — occasionally helpful",
+                "Carol: UNKNOWN");
+    }
+
+    @Test
+    void trustSection_empty_shows_no_trust_assessments() {
+        var section = CognitiveObservationSections.trustSection(List.of());
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var il = (ObservationSection.ItemList) section;
+        assertThat(il.items()).isEmpty();
+        assertThat(il.emptyMessage()).isEqualTo("No trust assessments.");
+    }
+
+    @Test
+    void normsSection_renders_sorted_by_strength_then_description() {
+        var norms = List.of(
+                new SocialNorm("n1", "Take turns speaking", "turn-taking",
+                               0.9, 50, Set.of("a", "b"), Instant.now(), Instant.now(),
+                               NormStrength.ESTABLISHED),
+                new SocialNorm("n2", "Be polite in disagreements", "politeness",
+                               0.6, 20, Set.of("a", "c"), Instant.now(), Instant.now(),
+                               NormStrength.EMERGING),
+                new SocialNorm("n3", "Avoid interruptions", "interruption",
+                               0.4, 30, Set.of("a"), Instant.now(), Instant.now(),
+                               NormStrength.DECLINING));
+        var section = CognitiveObservationSections.normsSection(norms);
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var items = ((ObservationSection.ItemList) section).items();
+        assertThat(items).hasSize(3);
+        assertThat(items.get(0)).isEqualTo("[ESTABLISHED] Take turns speaking");
+        assertThat(items.get(1)).isEqualTo("[EMERGING] Be polite in disagreements");
+        assertThat(items.get(2)).isEqualTo("[DECLINING] Avoid interruptions");
+    }
+
+    @Test
+    void normsSection_empty_shows_no_active_norms() {
+        var section = CognitiveObservationSections.normsSection(List.of());
+        assertThat(section).isInstanceOf(ObservationSection.ItemList.class);
+        var il = (ObservationSection.ItemList) section;
+        assertThat(il.items()).isEmpty();
+        assertThat(il.emptyMessage()).isEqualTo("No active norms.");
     }
 }

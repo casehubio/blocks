@@ -1,6 +1,9 @@
 package io.casehub.blocks.summarisation.observation.affordance;
 
+import io.casehub.blocks.agentic.belief.Belief;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.blocks.agentic.social.emergence.NormStrength;
+import io.casehub.blocks.agentic.social.emergence.SocialNorm;
 import io.casehub.blocks.agentic.social.drive.DriveProfile;
 import io.casehub.blocks.summarisation.observation.PartitionedDrain;
 import io.casehub.eidos.api.AgentGoal;
@@ -9,6 +12,7 @@ import io.casehub.neocortex.memory.Memory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 public final class CognitiveObservationSections {
 
@@ -94,6 +98,71 @@ public final class CognitiveObservationSections {
             return ObservationSection.items("Self-Narrative", "No established identity yet.", List.of());
         }
         return ObservationSection.items("Self-Narrative", null, items);
+    }
+
+    public static ObservationSection beliefsSection(List<? extends Belief<?>> beliefs, Set<String> revisedKeys) {
+        var items = new ArrayList<String>();
+        beliefs.stream()
+               .sorted(Comparator.comparingInt((Belief<?> b) -> b.entrenchment()).reversed()
+                                 .thenComparing(Belief::key))
+               .forEach(b -> {
+                   String prefix = revisedKeys.contains(b.key()) ? "[REVISED] " : "";
+                   items.add(prefix + b.key() + ": " + b.value());
+               });
+        if (items.isEmpty()) {
+            return ObservationSection.items("Your Beliefs", "No established beliefs.", List.of());
+        }
+        return ObservationSection.items("Your Beliefs", null, items);
+    }
+
+    public static ObservationSection principlesSection(List<Principle> principles) {
+        var items = principles.stream()
+                              .map(p -> p.category() != null
+                                        ? "[" + p.category() + "] " + p.text()
+                                        : p.text())
+                              .toList();
+        if (items.isEmpty()) {
+            return ObservationSection.items("Your Principles", "No guiding principles.", List.of());
+        }
+        return ObservationSection.items("Your Principles", null, items);
+    }
+
+    public static ObservationSection trustSection(List<TrustSummary> summaries) {
+        var items = new ArrayList<String>();
+        summaries.stream()
+                 .sorted(Comparator.comparingInt((TrustSummary s) -> s.level().ordinal())
+                                   .thenComparing(TrustSummary::subjectName))
+                 .forEach(s -> {
+                     String entry = s.subjectName() + ": " + s.level().name();
+                     if (s.reason() != null) {
+                         entry += " — " + s.reason();
+                     }
+                     items.add(entry);
+                 });
+        if (items.isEmpty()) {
+            return ObservationSection.items("Your Trust", "No trust assessments.", List.of());
+        }
+        return ObservationSection.items("Your Trust", null, items);
+    }
+
+    private static int normStrengthOrder(NormStrength strength) {
+        return switch (strength) {
+            case ESTABLISHED -> 0;
+            case EMERGING -> 1;
+            case DECLINING -> 2;
+        };
+    }
+
+    public static ObservationSection normsSection(List<SocialNorm> norms) {
+        var items = norms.stream()
+                         .sorted(Comparator.comparingInt((SocialNorm n) -> normStrengthOrder(n.strength()))
+                                           .thenComparing(SocialNorm::description))
+                         .map(n -> "[" + n.strength().name() + "] " + n.description())
+                         .toList();
+        if (items.isEmpty()) {
+            return ObservationSection.items("Your Active Norms", "No active norms.", List.of());
+        }
+        return ObservationSection.items("Your Active Norms", null, items);
     }
 
 }
