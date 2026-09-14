@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -99,7 +100,7 @@ public class MoodOrchestrator {
 
         var shifted = new MoodState(state.agentId, state.tenantId,
                                     null, p, a, d, cause != null ? cause : "tick",
-                                    null, Map.of());
+                                    null, Set.of(), Map.of());
 
         boolean decayed = false;
         if (state.lastTickTimestamp != null) {
@@ -146,7 +147,7 @@ public class MoodOrchestrator {
             this.tenantId = tenantId;
             this.currentMood = new MoodState(agentId, tenantId,
                                              null, baseline.pleasure(), baseline.arousal(), baseline.dominance(),
-                                             "initial", null, Map.of());
+                                             "initial", null, Set.of(), Map.of());
         }
     }
 }
