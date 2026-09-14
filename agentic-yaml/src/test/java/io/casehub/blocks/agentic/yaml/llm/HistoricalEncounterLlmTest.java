@@ -3,6 +3,7 @@ package io.casehub.blocks.agentic.yaml.llm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.casehub.blocks.agentic.social.CognitionMetrics;
 import io.casehub.blocks.agentic.yaml.compiler.CognitionCompiler;
 import io.casehub.blocks.agentic.yaml.compiler.ObservationFilterRegistry;
 import io.casehub.blocks.agentic.yaml.compiler.WorldCompiler;
@@ -10,7 +11,9 @@ import io.casehub.blocks.agentic.yaml.spec.cognition.CognitionDefinition;
 import io.casehub.blocks.agentic.yaml.spec.world.WorldDefinition;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,6 +22,7 @@ class HistoricalEncounterLlmTest {
     private static final String SCENARIO = "historical-encounter";
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory())
             .registerModule(new JavaTimeModule());
+    private static final Path RESULTS_DIR = Path.of("agentic-yaml/src/test/resources/results");
 
     private static TestAgentProvider agentProvider;
 
@@ -85,6 +89,78 @@ class HistoricalEncounterLlmTest {
 
         System.out.printf("%n=== Conversation complete ===%n");
         System.out.printf("Turns: %d  Elapsed: %s%n", result.turnCount(), result.elapsed());
+    }
+
+    @Test
+    void stage0_baselineCapture() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.BASELINE);
+
+        var result = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(false)
+                .build()
+                .run();
+
+        assertThat(result.turnCount()).isEqualTo(4);
+
+        for (var m : result.metrics()) {
+            assertThat(m.promptSectionsContributed()).isZero();
+        }
+
+        ResultsWriter.writeConversation(result, "stage-0", RESULTS_DIR);
+        if (result.finalSnapshot() != null) {
+            ResultsWriter.writeDump(result.finalSnapshot(), "stage-0",
+                    RESULTS_DIR);
+        }
+        ResultsWriter.writeMetrics(result.metrics(), "stage-0", RESULTS_DIR);
+
+        System.out.println("\n=== Stage 0 baseline complete ===");
+        System.out.printf("Turns: %d  Elapsed: %s%n",
+                result.turnCount(), result.elapsed());
+    }
+
+    @Test
+    void stage1_signalExtraction() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.SIGNALS);
+
+        var result = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(true)
+                .build()
+                .run();
+
+        assertThat(result.turnCount()).isEqualTo(4);
+
+        var totalSections = result.metrics().stream()
+                .mapToInt(CognitionMetrics::promptSectionsContributed)
+                .sum();
+        assertThat(totalSections).isGreaterThan(0);
+
+        ResultsWriter.writeConversation(result, "stage-1", RESULTS_DIR);
+        if (result.finalSnapshot() != null) {
+            ResultsWriter.writeDump(result.finalSnapshot(), "stage-1",
+                    RESULTS_DIR);
+        }
+        ResultsWriter.writeMetrics(result.metrics(), "stage-1", RESULTS_DIR);
+
+        System.out.println("\n=== Stage 1 complete ===");
+        System.out.printf("Total sections contributed: %d%n", totalSections);
     }
 
     private static io.casehub.blocks.agentic.yaml.compiler.CompiledCognition loadCognition() throws IOException {
