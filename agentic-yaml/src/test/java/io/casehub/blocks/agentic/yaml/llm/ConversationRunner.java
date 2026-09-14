@@ -58,6 +58,8 @@ public class ConversationRunner {
         for (int turn = 0; turn < maxTurns; turn++) {
             var speaker = speakers.get(turn % speakers.size());
             var agentId = speaker.name();
+            System.out.printf("%n>>> Turn %d/%d — %s (starting)%n", turn + 1, maxTurns, agentId);
+            System.out.flush();
             var otherSpeakers = speakers.stream()
                     .map(AgentDescriptor::name)
                     .filter(n -> !n.equals(agentId))
@@ -115,6 +117,8 @@ public class ConversationRunner {
 
             printTurn(turnRecord);
             System.out.print(turnMetrics.summary());
+            System.out.printf(">>> Turn %d/%d complete%n", turn + 1, maxTurns);
+            System.out.flush();
         }
 
         var finalSnapshot = metrics.isEmpty() ? null
