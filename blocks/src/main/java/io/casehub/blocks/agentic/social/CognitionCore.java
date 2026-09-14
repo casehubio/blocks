@@ -3,6 +3,7 @@ package io.casehub.blocks.agentic.social;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
 import io.casehub.blocks.agentic.social.prompt.DrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.GoalPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MentalModelPromptSection;
@@ -321,6 +322,9 @@ public class CognitionCore {
             sections.add(new StrategyPromptSection(strategy));
         if (config.goalsEnabled() && goals != null)
             sections.add(new GoalPromptSection(goals));
+        if (config.directivePrompts()) {
+            return sections.stream().map(DirectiveSection::wrap).toList();
+        }
         return sections;
     }
 
