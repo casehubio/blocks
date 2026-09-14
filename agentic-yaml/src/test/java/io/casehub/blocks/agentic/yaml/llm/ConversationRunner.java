@@ -88,6 +88,8 @@ public class ConversationRunner {
                         subjectId, lastMessage, response);
             }
 
+            cognition.updateNarrative(agentId, tenantId, history);
+
             var after = cognition.snapshot(agentId, tenantId, turn + 1, subjectIds);
             var delta = after.diffFrom(before);
 

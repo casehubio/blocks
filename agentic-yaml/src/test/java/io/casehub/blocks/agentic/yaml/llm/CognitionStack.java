@@ -20,7 +20,11 @@ import io.casehub.blocks.agentic.social.drive.DriveComposer;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveSource;
+import io.casehub.blocks.agentic.social.narrative.DerivedTheme;
+import io.casehub.blocks.agentic.social.narrative.IndividualEpisode;
+import io.casehub.blocks.agentic.social.narrative.NarrativeFragment;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.narrative.NarrativeScope;
 import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
@@ -30,31 +34,38 @@ import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrCaseMemoryStore;
 import io.casehub.platform.agent.AgentProvider;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CognitionStack {
 
     private final CognitionCore core;
     private final Stage stage;
+    private final NarrativeStore narrativeStore;
 
     public enum Stage {
         BASELINE, SIGNALS, REAL_DRIVES, NARRATIVE, FULL
     }
 
-    CognitionStack(CognitionCore core, Stage stage) {
+    CognitionStack(CognitionCore core, Stage stage,
+                   NarrativeStore narrativeStore) {
         this.core = core;
         this.stage = stage;
+        this.narrativeStore = narrativeStore;
     }
 
     public static CognitionStack from(CompiledCognition config,
                                        @Nullable AgentProvider agentProvider,
                                        Stage stage) {
         var mood = new MoodOrchestrator(config.mood());
-        var narrative = new NarrativeOrchestrator(new InMemoryNarrativeStore());
+        var narrativeStore = new InMemoryNarrativeStore();
+        var narrative = new NarrativeOrchestrator(narrativeStore);
         var composer = new DriveComposer();
 
         UserModelOrchestrator userModel = null;
@@ -93,7 +104,7 @@ public class CognitionStack {
 
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
                 strategy, narrative, null, null);
-        return new CognitionStack(core, stage);
+        return new CognitionStack(core, stage, narrativeStore);
     }
 
     public static CognitionStack from(CompiledCognition config,
@@ -123,6 +134,53 @@ public class CognitionStack {
                                        int turnNumber, Set<String> subjectIds) {
         return CognitionSnapshot.capture(core, agentId, tenantId,
                 turnNumber, subjectIds);
+    }
+
+    public void updateNarrative(String agentId, String tenantId,
+                                List<ConversationRunner.Turn> recentTurns) {
+        if (stage.ordinal() < Stage.NARRATIVE.ordinal()) return;
+        if (recentTurns.size() < 2) return;
+
+        var now = Instant.now();
+        var existing = narrativeStore.load(agentId, tenantId);
+        var fragments = new ArrayList<NarrativeFragment>();
+        if (existing != null) fragments.addAll(existing.fragments());
+
+        var latest = recentTurns.subList(
+                Math.max(0, recentTurns.size() - 2), recentTurns.size());
+        var description = latest.get(0).speakerName() + " and "
+                + latest.get(1).speakerName() + " discussed: "
+                + latest.get(0).dialogue().substring(0,
+                        Math.min(80, latest.get(0).dialogue().length()))
+                + "...";
+        var tags = List.of("exchange", "turn-" + latest.get(1).number());
+        var episode = new IndividualEpisode(
+                UUID.randomUUID().toString(), now, now, tags,
+                description, 0.5, List.of());
+        fragments.add(episode);
+
+        if (fragments.stream().filter(f -> f instanceof IndividualEpisode)
+                .count() >= 2) {
+            var existingThemes = fragments.stream()
+                    .filter(f -> f instanceof DerivedTheme).count();
+            if (existingThemes == 0) {
+                var theme = new DerivedTheme(
+                        UUID.randomUUID().toString(), now, now,
+                        List.of("dialogue", "connection"),
+                        "shared-intellectual-curiosity", 0.7,
+                        Map.of(DriveAxis.CURIOSITY, 0.3,
+                                DriveAxis.AFFILIATION, 0.2),
+                        fragments.stream()
+                                .filter(f -> f instanceof IndividualEpisode)
+                                .map(NarrativeFragment::id).toList());
+                fragments.add(theme);
+            }
+        }
+
+        var state = new NarrativeState(agentId, tenantId,
+                NarrativeScope.INDIVIDUAL, fragments, now,
+                recentTurns.size());
+        narrativeStore.store(state);
     }
 
     public MoodOrchestrator mood() { return core.mood(); }
