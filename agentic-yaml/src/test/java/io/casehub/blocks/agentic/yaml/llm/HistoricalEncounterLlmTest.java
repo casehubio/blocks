@@ -325,6 +325,15 @@ class HistoricalEncounterLlmTest {
                 .build()
                 .run();
 
+        ResultsWriter.writeConversation(baseline, "stage-6-baseline", RESULTS_DIR);
+        ResultsWriter.writeMetrics(baseline.metrics(), "stage-6-baseline", RESULTS_DIR);
+        ResultsWriter.writeConversation(withCognition, "stage-6-cognition", RESULTS_DIR);
+        ResultsWriter.writeMetrics(withCognition.metrics(), "stage-6-cognition", RESULTS_DIR);
+        if (withCognition.finalSnapshot() != null) {
+            ResultsWriter.writeDump(withCognition.finalSnapshot(),
+                    "stage-6-cognition", RESULTS_DIR);
+        }
+
         var evaluator = new ConversationEvaluator(agentProvider);
         var comparison = evaluator.compare(baseline, withCognition,
                 withCognition.metrics());
@@ -337,6 +346,21 @@ class HistoricalEncounterLlmTest {
                     dim,
                     comparison.baselineScores().getOrDefault(dim, 0),
                     comparison.cognitionScores().getOrDefault(dim, 0));
+        }
+
+        var finalSnap = withCognition.finalSnapshot();
+        if (finalSnap != null) {
+            System.out.println("\n--- Cognitive Evidence ---");
+            int totalBeliefs = finalSnap.mentalModels().values().stream()
+                    .mapToInt(m -> m.beliefs().size()).sum();
+            System.out.printf("Mental model beliefs: %d%n", totalBeliefs);
+            if (finalSnap.narrative() != null) {
+                System.out.printf("Narrative episodes: %d, themes: %d%n",
+                        finalSnap.narrative().episodes().size(),
+                        finalSnap.narrative().themes().size());
+            }
+            System.out.printf("Goal proposals: %d%n",
+                    finalSnap.goalProposals().size());
         }
 
         Files.createDirectories(RESULTS_DIR);
@@ -353,6 +377,21 @@ class HistoricalEncounterLlmTest {
                     dim,
                     comparison.baselineScores().getOrDefault(dim, 0),
                     comparison.cognitionScores().getOrDefault(dim, 0)));
+        }
+        if (finalSnap != null) {
+            sb.append("\n## Cognitive Evidence\n\n");
+            int totalBeliefs = finalSnap.mentalModels().values().stream()
+                    .mapToInt(m -> m.beliefs().size()).sum();
+            sb.append(String.format("- Mental model beliefs: %d%n", totalBeliefs));
+            if (finalSnap.narrative() != null) {
+                sb.append(String.format("- Narrative episodes: %d, themes: %d%n",
+                        finalSnap.narrative().episodes().size(),
+                        finalSnap.narrative().themes().size()));
+            }
+            sb.append(String.format("- Goal proposals: %d%n",
+                    finalSnap.goalProposals().size()));
+            sb.append(String.format("- Sections contributed (final turn): %d%n",
+                    withCognition.metrics().getLast().promptSectionsContributed()));
         }
         Files.writeString(RESULTS_DIR.resolve("stage-6-comparison.md"),
                 sb.toString());
