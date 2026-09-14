@@ -41,7 +41,9 @@ import io.casehub.blocks.speech.PromptSection;
 import java.util.stream.Collectors;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrCaseMemoryStore;
+import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
+import io.casehub.platform.agent.AgentSessionConfig;
 import jakarta.enterprise.inject.Instance;
 import org.jspecify.annotations.Nullable;
 
@@ -56,19 +58,25 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class CognitionStack {
 
+    private static final System.Logger LOG =
+            System.getLogger(CognitionStack.class.getName());
+
     private final CognitionCore core;
     private final Stage stage;
     private final NarrativeStore narrativeStore;
+    private final @Nullable AgentProvider agentProvider;
 
     public enum Stage {
         BASELINE, SIGNALS, REAL_DRIVES, NARRATIVE, FULL
     }
 
     CognitionStack(CognitionCore core, Stage stage,
-                   NarrativeStore narrativeStore) {
+                   NarrativeStore narrativeStore,
+                   @Nullable AgentProvider agentProvider) {
         this.core = core;
         this.stage = stage;
         this.narrativeStore = narrativeStore;
+        this.agentProvider = agentProvider;
     }
 
     public static CognitionStack from(CompiledCognition config,
@@ -133,7 +141,7 @@ public class CognitionStack {
 
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
                 strategy, narrative, goals, null, agentProvider);
-        return new CognitionStack(core, stage, narrativeStore);
+        return new CognitionStack(core, stage, narrativeStore, agentProvider);
     }
 
     public static CognitionStack from(CompiledCognition config,
@@ -167,6 +175,34 @@ public class CognitionStack {
                 turnNumber, subjectIds);
     }
 
+    private static final String EPISODE_PROMPT = """
+            You are analysing a conversation between historical figures. \
+            Extract the most significant moment from the latest exchange.
+            
+            Respond ONLY with JSON:
+            {"description":"One sentence describing what happened and why it matters",\
+            "valence":0.5,\
+            "tags":["tag1","tag2"]}
+            
+            valence: emotional significance from -1 (deeply negative) to +1 (deeply positive)
+            tags: 2-4 thematic tags (e.g. "intellectual-recognition", "shared-vulnerability")""";
+
+    private static final String THEME_PROMPT = """
+            You are analysing a series of narrative episodes from a conversation \
+            between historical figures. Derive the overarching theme.
+            
+            Respond ONLY with JSON:
+            {"label":"kebab-case-theme-name",\
+            "salience":0.7,\
+            "tags":["tag1","tag2"],\
+            "drives":{"CURIOSITY":0.3,"AFFILIATION":0.2}}
+            
+            label: short kebab-case theme identifier
+            salience: how central this theme is [0,1]
+            tags: 2-3 thematic tags
+            drives: which motivational axes this theme relates to and how strongly [-1,+1]. \
+            Valid axes: CURIOSITY, COMPETENCE, AFFILIATION, AUTONOMY. Only include relevant axes.""";
+
     public void updateNarrative(String agentId, String tenantId,
                                 List<ConversationRunner.Turn> recentTurns) {
         if (stage.ordinal() < Stage.NARRATIVE.ordinal()) return;
@@ -179,31 +215,15 @@ public class CognitionStack {
 
         var latest = recentTurns.subList(
                 Math.max(0, recentTurns.size() - 2), recentTurns.size());
-        var description = latest.get(0).speakerName() + " and "
-                + latest.get(1).speakerName() + " discussed: "
-                + latest.get(0).dialogue().substring(0,
-                        Math.min(80, latest.get(0).dialogue().length()))
-                + "...";
-        var tags = List.of("exchange", "turn-" + latest.get(1).number());
-        var episode = new IndividualEpisode(
-                UUID.randomUUID().toString(), now, now, tags,
-                description, 0.5, List.of());
+        var episode = extractEpisode(latest, now);
         fragments.add(episode);
 
-        if (fragments.stream().filter(f -> f instanceof IndividualEpisode)
-                .count() >= 2) {
-            var existingThemes = fragments.stream()
-                    .filter(f -> f instanceof DerivedTheme).count();
-            if (existingThemes == 0) {
-                var theme = new DerivedTheme(
-                        UUID.randomUUID().toString(), now, now,
-                        List.of("dialogue", "connection"),
-                        "shared-intellectual-curiosity", 0.7,
-                        Map.of(DriveAxis.CURIOSITY, 0.3,
-                                DriveAxis.AFFILIATION, 0.2),
-                        fragments.stream()
-                                .filter(f -> f instanceof IndividualEpisode)
-                                .map(NarrativeFragment::id).toList());
+        var episodeCount = fragments.stream()
+                .filter(f -> f instanceof IndividualEpisode).count();
+        if (episodeCount >= 2 && episodeCount % 2 == 0) {
+            var theme = deriveTheme(fragments, now);
+            if (theme != null) {
+                fragments.removeIf(f -> f instanceof DerivedTheme);
                 fragments.add(theme);
             }
         }
@@ -212,6 +232,154 @@ public class CognitionStack {
                 NarrativeScope.INDIVIDUAL, fragments, now,
                 recentTurns.size());
         narrativeStore.store(state);
+    }
+
+    private IndividualEpisode extractEpisode(List<ConversationRunner.Turn> turns,
+                                              Instant now) {
+        if (agentProvider == null) {
+            return heuristicEpisode(turns, now);
+        }
+        try {
+            var exchange = turns.stream()
+                    .map(t -> t.speakerName() + ": " + truncate(t.dialogue(), 300))
+                    .collect(Collectors.joining("\n\n"));
+            var config = AgentSessionConfig.of(EPISODE_PROMPT, exchange);
+            var json = invokeAndExtractJson(config);
+            if (json == null) return heuristicEpisode(turns, now);
+
+            var description = extractJsonString(json, "description");
+            var valence = extractJsonDouble(json, "valence", 0.5);
+            var tags = extractJsonStringArray(json, "tags");
+
+            if (description.isBlank()) return heuristicEpisode(turns, now);
+
+            return new IndividualEpisode(
+                    UUID.randomUUID().toString(), now, now,
+                    tags.isEmpty() ? List.of("exchange") : tags,
+                    description, Math.clamp(valence, -1.0, 1.0), List.of());
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING,
+                    "LLM episode extraction failed, using heuristic", e);
+            return heuristicEpisode(turns, now);
+        }
+    }
+
+    private @Nullable DerivedTheme deriveTheme(List<NarrativeFragment> fragments,
+                                                Instant now) {
+        if (agentProvider == null) return heuristicTheme(fragments, now);
+        try {
+            var episodeSummary = fragments.stream()
+                    .filter(f -> f instanceof IndividualEpisode)
+                    .map(f -> "- " + ((IndividualEpisode) f).description())
+                    .collect(Collectors.joining("\n"));
+            var config = AgentSessionConfig.of(THEME_PROMPT,
+                    "Episodes so far:\n" + episodeSummary);
+            var json = invokeAndExtractJson(config);
+            if (json == null) return heuristicTheme(fragments, now);
+
+            var label = extractJsonString(json, "label");
+            var salience = extractJsonDouble(json, "salience", 0.7);
+            var tags = extractJsonStringArray(json, "tags");
+            var drives = extractDriveWeights(json);
+
+            if (label.isBlank()) return heuristicTheme(fragments, now);
+
+            return new DerivedTheme(
+                    UUID.randomUUID().toString(), now, now,
+                    tags.isEmpty() ? List.of("dialogue") : tags,
+                    label, Math.clamp(salience, 0.0, 1.0), drives,
+                    fragments.stream()
+                            .filter(f -> f instanceof IndividualEpisode)
+                            .map(NarrativeFragment::id).toList());
+        } catch (Exception e) {
+            LOG.log(System.Logger.Level.WARNING,
+                    "LLM theme derivation failed, using heuristic", e);
+            return heuristicTheme(fragments, now);
+        }
+    }
+
+    private static IndividualEpisode heuristicEpisode(
+            List<ConversationRunner.Turn> turns, Instant now) {
+        var description = turns.get(0).speakerName() + " and "
+                + turns.get(1).speakerName() + " discussed: "
+                + truncate(turns.get(0).dialogue(), 80) + "...";
+        return new IndividualEpisode(UUID.randomUUID().toString(), now, now,
+                List.of("exchange", "turn-" + turns.get(1).number()),
+                description, 0.5, List.of());
+    }
+
+    private static DerivedTheme heuristicTheme(
+            List<NarrativeFragment> fragments, Instant now) {
+        return new DerivedTheme(UUID.randomUUID().toString(), now, now,
+                List.of("dialogue", "connection"),
+                "shared-intellectual-curiosity", 0.7,
+                Map.of(DriveAxis.CURIOSITY, 0.3, DriveAxis.AFFILIATION, 0.2),
+                fragments.stream()
+                        .filter(f -> f instanceof IndividualEpisode)
+                        .map(NarrativeFragment::id).toList());
+    }
+
+    private @Nullable String invokeAndExtractJson(AgentSessionConfig config) {
+        var sb = new StringBuilder();
+        agentProvider.invoke(config)
+                .subscribe().asStream()
+                .filter(e -> e instanceof AgentEvent.TextDelta)
+                .map(e -> ((AgentEvent.TextDelta) e).text())
+                .forEach(sb::append);
+        var raw = sb.toString();
+        var start = raw.indexOf('{');
+        var end = raw.lastIndexOf('}');
+        return (start >= 0 && end > start) ? raw.substring(start, end + 1) : null;
+    }
+
+    private static String extractJsonString(String json, String key) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+        var matcher = pattern.matcher(json);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static double extractJsonDouble(String json, String key,
+                                             double fallback) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*(-?\\d+\\.?\\d*)");
+        var matcher = pattern.matcher(json);
+        return matcher.find() ? Double.parseDouble(matcher.group(1)) : fallback;
+    }
+
+    private static List<String> extractJsonStringArray(String json, String key) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\\[([^\\]]*)]");
+        var matcher = pattern.matcher(json);
+        if (!matcher.find()) return List.of();
+        var items = new ArrayList<String>();
+        var itemPattern = java.util.regex.Pattern.compile("\"([^\"]+)\"");
+        var itemMatcher = itemPattern.matcher(matcher.group(1));
+        while (itemMatcher.find()) items.add(itemMatcher.group(1));
+        return items;
+    }
+
+    private static Map<DriveAxis, Double> extractDriveWeights(String json) {
+        var drivesPattern = java.util.regex.Pattern.compile(
+                "\"drives\"\\s*:\\s*\\{([^}]*)}");
+        var matcher = drivesPattern.matcher(json);
+        if (!matcher.find()) return Map.of();
+        var drivesJson = matcher.group(1);
+        var weights = new java.util.EnumMap<DriveAxis, Double>(DriveAxis.class);
+        for (var axis : DriveAxis.values()) {
+            var axisPattern = java.util.regex.Pattern.compile(
+                    "\"" + axis.name() + "\"\\s*:\\s*(-?\\d+\\.?\\d*)");
+            var axisMatcher = axisPattern.matcher(drivesJson);
+            if (axisMatcher.find()) {
+                weights.put(axis, Math.clamp(
+                        Double.parseDouble(axisMatcher.group(1)), -1.0, 1.0));
+            }
+        }
+        return weights;
+    }
+
+    private static String truncate(String s, int maxLen) {
+        return s.length() > maxLen ? s.substring(0, maxLen) : s;
     }
 
     @SuppressWarnings("unchecked")
