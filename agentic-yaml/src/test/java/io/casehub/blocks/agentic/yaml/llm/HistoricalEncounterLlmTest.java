@@ -23,7 +23,7 @@ class HistoricalEncounterLlmTest {
     private static final String SCENARIO = "historical-encounter";
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory())
             .registerModule(new JavaTimeModule());
-    private static final Path RESULTS_DIR = Path.of("agentic-yaml/src/test/resources/results");
+    private static final Path RESULTS_DIR = Path.of("src/test/resources/results");
 
     private static TestAgentProvider agentProvider;
 
