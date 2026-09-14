@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -62,7 +63,7 @@ class DriveComposerTest {
 
     @Test
     void compose_moodModulation_highArousalAmplifies() {
-        var mood = new MoodState("a", "t", null, 0.0, 0.8, 0.0, "excited", null, Map.of());
+        var mood = new MoodState("a", "t", null, 0.0, 0.8, 0.0, "excited", null, Set.of(), Map.of());
 
         var profile = composer.compose(uniformRaw(0.5), null, mood, null, DriveConfig.defaults(),
                 "a", "t", now);
@@ -74,7 +75,7 @@ class DriveComposerTest {
 
     @Test
     void compose_moodModulation_lowDominanceAmplifiesAutonomy() {
-        var mood = new MoodState("a", "t", null, 0.0, 0.0, -0.8, "controlled", null, Map.of());
+        var mood = new MoodState("a", "t", null, 0.0, 0.0, -0.8, "controlled", null, Set.of(), Map.of());
 
         var profile = composer.compose(uniformRaw(0.5), null, mood, null, DriveConfig.defaults(),
                 "a", "t", now);
@@ -85,7 +86,7 @@ class DriveComposerTest {
 
     @Test
     void compose_moodModulation_negativePleasureDampens() {
-        var mood = new MoodState("a", "t", null, -0.8, 0.0, 0.0, "sad", null, Map.of());
+        var mood = new MoodState("a", "t", null, -0.8, 0.0, 0.0, "sad", null, Set.of(), Map.of());
 
         var profile = composer.compose(uniformRaw(0.5), null, mood, null, DriveConfig.defaults(),
                 "a", "t", now);
@@ -122,7 +123,7 @@ class DriveComposerTest {
 
     @Test
     void compose_intensityClamped() {
-        var mood = new MoodState("a", "t", null, 0.9, 0.9, 0.0, "euphoric", null, Map.of());
+        var mood = new MoodState("a", "t", null, 0.9, 0.9, 0.0, "euphoric", null, Set.of(), Map.of());
         var disposition = AgentDisposition.builder()
                 .riskAppetite(DispositionValue.of("aggressive"))
                 .build();

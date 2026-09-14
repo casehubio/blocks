@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +23,7 @@ class MoodPromptSectionTest {
         var mood = mock(MoodOrchestrator.class);
         when(mood.currentMood("agent1", "tenant1")).thenReturn(Optional.of(
                 new MoodState("agent1", "tenant1", Instant.now(), 0.5, -0.3, 0.2,
-                        "recent interaction", null, Map.of())));
+                        "recent interaction", null, Set.of(), Map.of())));
         var section = new MoodPromptSection(mood);
         var result = section.contribute(CTX);
         assertThat(result).isNotNull();
@@ -44,7 +45,7 @@ class MoodPromptSectionTest {
         var mood = mock(MoodOrchestrator.class);
         when(mood.currentMood("agent1", "tenant1")).thenReturn(Optional.of(
                 new MoodState("agent1", "tenant1", Instant.now(), 0.7, 0.0, 0.0,
-                        "good news", null, Map.of())));
+                        "good news", null, Set.of(), Map.of())));
         var section = new MoodPromptSection(mood);
         var result = section.contribute(CTX);
         assertThat(result).containsIgnoringCase("positive");
@@ -55,7 +56,7 @@ class MoodPromptSectionTest {
         var mood = mock(MoodOrchestrator.class);
         when(mood.currentMood("agent1", "tenant1")).thenReturn(Optional.of(
                 new MoodState("agent1", "tenant1", Instant.now(), -0.6, 0.0, 0.0,
-                        "bad news", null, Map.of())));
+                        "bad news", null, Set.of(), Map.of())));
         var section = new MoodPromptSection(mood);
         var result = section.contribute(CTX);
         assertThat(result).containsIgnoringCase("negative");
