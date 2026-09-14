@@ -231,6 +231,37 @@ class HistoricalEncounterLlmTest {
         ResultsWriter.writeMetrics(result.metrics(), "stage-3", RESULTS_DIR);
     }
 
+    @Test
+    void stage4_fullOrchestration() throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider,
+                CognitionStack.Stage.FULL);
+
+        var result = ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(4)
+                .includeCognition(true)
+                .build()
+                .run();
+
+        assertThat(result.turnCount()).isEqualTo(4);
+
+        ResultsWriter.writeConversation(result, "stage-4", RESULTS_DIR);
+        if (result.finalSnapshot() != null) {
+            ResultsWriter.writeDump(result.finalSnapshot(), "stage-4",
+                    RESULTS_DIR);
+            System.out.printf("\n=== Stage 4 complete ===%n");
+            System.out.printf("Goal proposals: %d%n",
+                    result.finalSnapshot().goalProposals().size());
+        }
+        ResultsWriter.writeMetrics(result.metrics(), "stage-4", RESULTS_DIR);
+    }
+
     private static io.casehub.blocks.agentic.yaml.compiler.CompiledCognition loadCognition() throws IOException {
         try (var is = HistoricalEncounterLlmTest.class.getResourceAsStream(
                 "/examples/" + SCENARIO + "/cognition.yaml")) {

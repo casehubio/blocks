@@ -15,6 +15,15 @@ import io.casehub.blocks.agentic.social.UserProfileStore;
 import io.casehub.blocks.agentic.social.drive.AffiliationDrive;
 import io.casehub.blocks.agentic.social.drive.AutonomyDrive;
 import io.casehub.blocks.agentic.social.drive.CompetenceDrive;
+import io.casehub.blocks.agentic.social.goal.AffiliationGoalMapper;
+import io.casehub.blocks.agentic.social.goal.AutonomyGoalMapper;
+import io.casehub.blocks.agentic.social.goal.CompetenceGoalMapper;
+import io.casehub.blocks.agentic.social.goal.DriveGoalMapper;
+import io.casehub.blocks.agentic.social.goal.CrossAxisGoalEnricher;
+import io.casehub.blocks.agentic.social.goal.GoalEscalationPolicy;
+import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
+import io.casehub.blocks.agentic.social.goal.DriveGoalFormationStrategy;
+import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.agentic.social.drive.DriveComposer;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
@@ -32,6 +41,7 @@ import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrCaseMemoryStore;
 import io.casehub.platform.agent.AgentProvider;
+import jakarta.enterprise.inject.Instance;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -80,6 +90,7 @@ public class CognitionStack {
         }
 
         DriveOrchestrator drives;
+        GoalProposalOrchestrator goals = null;
         if (agentProvider != null && stage.ordinal() >= Stage.REAL_DRIVES.ordinal()) {
             strategy = new StrategyLearningOrchestrator(
                     new InMemoryStrategyStore(),
@@ -94,6 +105,23 @@ public class CognitionStack {
                     new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
             drives = new DriveOrchestrator(curiosity, competence,
                     affiliation, autonomy, mood, composer, config.drive());
+
+            if (stage.ordinal() >= Stage.FULL.ordinal()) {
+                var mapperList = List.<DriveGoalMapper>of(
+                        new CompetenceGoalMapper(competence),
+                        new AffiliationGoalMapper(affiliation, 0.3,
+                                java.time.Duration.ofHours(1)),
+                        new AutonomyGoalMapper(autonomy, 0.5));
+                goals = new GoalProposalOrchestrator(drives,
+                        listInstance(mapperList),
+                        noOpInstance(),
+                        noOpInstance(),
+                        noOpInstance(),
+                        noOpInstance(),
+                        noOpInstance(),
+                        config.goalProposal(),
+                        config.goalEscalation());
+            }
         } else {
             DriveSource baseline = (agentId, tenantId) ->
                     new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
@@ -103,7 +131,7 @@ public class CognitionStack {
         }
 
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
-                strategy, narrative, null, null);
+                strategy, narrative, goals, null);
         return new CognitionStack(core, stage, narrativeStore);
     }
 
@@ -182,6 +210,43 @@ public class CognitionStack {
                 recentTurns.size());
         narrativeStore.store(state);
     }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Instance<T> noOpInstance() {
+        return (Instance<T>) NO_OP_INSTANCE;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Instance<T> listInstance(List<T> items) {
+        return new Instance<>() {
+            @Override public Instance<T> select(java.lang.annotation.Annotation... q) { return this; }
+            @Override public <U extends T> Instance<U> select(Class<U> s, java.lang.annotation.Annotation... q) { throw new UnsupportedOperationException(); }
+            @Override public <U extends T> Instance<U> select(jakarta.enterprise.util.TypeLiteral<U> s, java.lang.annotation.Annotation... q) { throw new UnsupportedOperationException(); }
+            @Override public boolean isUnsatisfied() { return items.isEmpty(); }
+            @Override public boolean isAmbiguous() { return items.size() > 1; }
+            @Override public boolean isResolvable() { return items.size() == 1; }
+            @Override public void destroy(T instance) {}
+            @Override public Handle<T> getHandle() { throw new UnsupportedOperationException(); }
+            @Override public Iterable<? extends Handle<T>> handles() { return List.of(); }
+            @Override public T get() { return items.getFirst(); }
+            @Override public java.util.Iterator<T> iterator() { return items.iterator(); }
+            @Override public java.util.stream.Stream<T> stream() { return items.stream(); }
+        };
+    }
+
+    private static final Instance<?> NO_OP_INSTANCE = new Instance<>() {
+        @Override public Instance<Object> select(java.lang.annotation.Annotation... qualifiers) { return this; }
+        @Override public <U extends Object> Instance<U> select(Class<U> subtype, java.lang.annotation.Annotation... qualifiers) { throw new UnsupportedOperationException(); }
+        @Override public <U extends Object> Instance<U> select(jakarta.enterprise.util.TypeLiteral<U> subtype, java.lang.annotation.Annotation... qualifiers) { throw new UnsupportedOperationException(); }
+        @Override public boolean isUnsatisfied() { return true; }
+        @Override public boolean isAmbiguous() { return false; }
+        @Override public boolean isResolvable() { return false; }
+        @Override public void destroy(Object instance) {}
+        @Override public Handle<Object> getHandle() { throw new UnsupportedOperationException(); }
+        @Override public Iterable<? extends Handle<Object>> handles() { return List.of(); }
+        @Override public Object get() { throw new UnsupportedOperationException(); }
+        @Override public java.util.Iterator<Object> iterator() { return java.util.Collections.emptyIterator(); }
+    };
 
     public MoodOrchestrator mood() { return core.mood(); }
     public DriveOrchestrator drives() { return core.drives(); }
