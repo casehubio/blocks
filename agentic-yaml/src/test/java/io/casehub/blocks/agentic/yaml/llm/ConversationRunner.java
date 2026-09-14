@@ -70,6 +70,9 @@ public class ConversationRunner {
             var systemPrompt = buildSystemPrompt(speaker, renderer, subjectId);
             var userPrompt = buildUserPrompt(history);
 
+            System.out.printf("%n--- SYSTEM PROMPT (turn %d, %s) ---%n%s%n--- END SYSTEM PROMPT ---%n",
+                    turn + 1, agentId, systemPrompt);
+
             var config = AgentSessionConfig.of(systemPrompt, userPrompt,
                     Duration.ofSeconds(300));
             String response = agentProvider.invoke(config)
