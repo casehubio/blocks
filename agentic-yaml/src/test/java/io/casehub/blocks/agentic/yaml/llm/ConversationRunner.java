@@ -1,5 +1,7 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
+import io.casehub.blocks.agentic.social.CognitionMetrics;
+import io.casehub.blocks.agentic.social.CognitionSnapshot;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledWorld;
 import io.casehub.blocks.speech.PromptContext;
 import io.casehub.blocks.speech.PromptSection;
@@ -7,15 +9,13 @@ import io.casehub.blocks.summarisation.observation.affordance.AffordanceRenderer
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
-import io.casehub.platform.agent.AgentSession;
-import io.casehub.platform.agent.AgentSessionInit;
+import io.casehub.platform.agent.AgentSessionConfig;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,16 +27,18 @@ public class ConversationRunner {
     private final List<AgentDescriptor> descriptors;
     private final int maxTurns;
     private final String tenantId;
+    private final boolean includeCognition;
 
     ConversationRunner(AgentProvider agentProvider, CognitionStack cognition,
                        CompiledWorld world, List<AgentDescriptor> descriptors,
-                       int maxTurns, String tenantId) {
+                       int maxTurns, String tenantId, boolean includeCognition) {
         this.agentProvider = agentProvider;
         this.cognition = cognition;
         this.world = world;
         this.descriptors = descriptors;
         this.maxTurns = maxTurns;
         this.tenantId = tenantId;
+        this.includeCognition = includeCognition;
     }
 
     public static Builder builder() { return new Builder(); }
@@ -44,56 +46,90 @@ public class ConversationRunner {
     public ConversationResult run() {
         var renderer = new AffordanceRenderer();
         var history = new ArrayList<Turn>();
+        var metrics = new ArrayList<CognitionMetrics>();
         var start = Instant.now();
         var speakers = descriptors.stream()
                 .filter(d -> !d.name().equals("historian-narrator"))
                 .toList();
+        var subjectIds = speakers.stream()
+                .map(AgentDescriptor::name)
+                .collect(Collectors.toSet());
 
-        Map<String, AgentSession> sessions = new LinkedHashMap<>();
-        try {
-            for (var speaker : speakers) {
-                var systemPrompt = buildSystemPrompt(speaker, renderer);
-                var init = AgentSessionInit.of(systemPrompt);
-                sessions.put(speaker.name(), agentProvider.openSession(init));
+        for (int turn = 0; turn < maxTurns; turn++) {
+            var speaker = speakers.get(turn % speakers.size());
+            var agentId = speaker.name();
+            var otherSpeakers = speakers.stream()
+                    .map(AgentDescriptor::name)
+                    .filter(n -> !n.equals(agentId))
+                    .collect(Collectors.toSet());
+            var subjectId = otherSpeakers.stream().findFirst().orElse(null);
+
+            var before = cognition.snapshot(agentId, tenantId, turn, subjectIds);
+            cognition.tick(agentId, tenantId, speaker, otherSpeakers);
+
+            var systemPrompt = buildSystemPrompt(speaker, renderer, subjectId);
+            var userPrompt = buildUserPrompt(history);
+
+            var config = AgentSessionConfig.of(systemPrompt, userPrompt,
+                    Duration.ofSeconds(300));
+            String response = agentProvider.invoke(config)
+                    .filter(e -> e instanceof AgentEvent.TextDelta)
+                    .map(e -> ((AgentEvent.TextDelta) e).text())
+                    .collect().with(Collectors.joining())
+                    .await().atMost(Duration.ofSeconds(300));
+
+            var turnRecord = new Turn(turn + 1, agentId, speaker.name(), response);
+            history.add(turnRecord);
+
+            if (!history.isEmpty() && subjectId != null) {
+                var lastMessage = history.size() > 1
+                        ? history.get(history.size() - 2).dialogue() : "";
+                cognition.core().recordInteraction(agentId, tenantId,
+                        subjectId, lastMessage, response);
             }
 
-            for (int turn = 0; turn < maxTurns; turn++) {
-                var speaker = speakers.get(turn % speakers.size());
-                var agentId = speaker.name();
+            var after = cognition.snapshot(agentId, tenantId, turn + 1, subjectIds);
+            var delta = after.diffFrom(before);
 
-                cognition.tick(agentId, tenantId, speaker);
-
-                var userPrompt = buildUserPrompt(history, agentId);
-                var session = sessions.get(agentId);
-
-                String response = session.query(userPrompt)
-                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                        .collect().with(Collectors.joining())
-                        .await().atMost(Duration.ofSeconds(300));
-
-                var turnRecord = new Turn(turn + 1, agentId, speaker.name(), response);
-                history.add(turnRecord);
-
-                printTurn(turnRecord);
-                printCognitionState(agentId);
+            var sectionContent = new LinkedHashMap<String, String>();
+            if (includeCognition) {
+                var ctx = new PromptContext(agentId, tenantId, subjectId);
+                for (var section : cognition.promptSections()) {
+                    var text = section.contribute(ctx);
+                    if (text != null && !text.isBlank()) {
+                        sectionContent.put(
+                                section.getClass().getSimpleName(), text);
+                    }
+                }
             }
-        } finally {
-            sessions.values().forEach(AgentSession::close);
+
+            var turnMetrics = new CognitionMetrics(turn + 1, agentId,
+                    sectionContent.size(), sectionContent, delta, after);
+            metrics.add(turnMetrics);
+
+            printTurn(turnRecord);
+            System.out.print(turnMetrics.summary());
         }
 
-        return new ConversationResult(history, Duration.between(start, Instant.now()));
+        var finalSnapshot = metrics.isEmpty() ? null
+                : metrics.getLast().snapshotAfter();
+        return new ConversationResult(history, metrics, finalSnapshot,
+                Duration.between(start, Instant.now()));
     }
 
-    private String buildSystemPrompt(AgentDescriptor speaker, AffordanceRenderer renderer) {
+    private String buildSystemPrompt(AgentDescriptor speaker,
+                                      AffordanceRenderer renderer,
+                                      String subjectId) {
         var sb = new StringBuilder();
         sb.append(speaker.briefing()).append("\n\n");
 
-        var context = new PromptContext(speaker.name(), tenantId, null);
-        for (PromptSection section : cognition.promptSections()) {
-            var contribution = section.contribute(context);
-            if (contribution != null && !contribution.isBlank()) {
-                sb.append(contribution).append("\n\n");
+        if (includeCognition) {
+            var context = new PromptContext(speaker.name(), tenantId, subjectId);
+            for (PromptSection section : cognition.promptSections()) {
+                var contribution = section.contribute(context);
+                if (contribution != null && !contribution.isBlank()) {
+                    sb.append(contribution).append("\n\n");
+                }
             }
         }
 
@@ -110,15 +146,16 @@ public class ConversationRunner {
         return sb.toString();
     }
 
-    private String buildUserPrompt(List<Turn> history, String currentAgent) {
+    private String buildUserPrompt(List<Turn> history) {
         if (history.isEmpty()) {
             return "The conversation begins. Introduce yourself and share what fascinates you most about the other person's work.";
         }
         var sb = new StringBuilder();
-        var lastTurn = history.get(history.size() - 1);
-        sb.append(lastTurn.speakerName()).append(" said:\n\n");
-        sb.append(lastTurn.dialogue());
-        sb.append("\n\nRespond in character.");
+        for (var turn : history) {
+            sb.append(turn.speakerName()).append(": ");
+            sb.append(turn.dialogue()).append("\n\n");
+        }
+        sb.append("Respond in character.");
         return sb.toString();
     }
 
@@ -127,19 +164,10 @@ public class ConversationRunner {
         System.out.printf("[dialogue] %s%n", turn.dialogue());
     }
 
-    private void printCognitionState(String agentId) {
-        cognition.mood().currentMood(agentId, tenantId).ifPresent(mood ->
-                System.out.printf("[mood] pleasure: %.2f  arousal: %.2f  dominance: %.2f%n",
-                        mood.pleasure(), mood.arousal(), mood.dominance()));
-
-        cognition.drives().currentDrives(agentId, tenantId).ifPresent(drives ->
-                System.out.printf("[drives] dominant: %s  composite: %.2f%n",
-                        drives.dominantDrive(), drives.compositeMotivation()));
-    }
-
     public record Turn(int number, String agentId, String speakerName, String dialogue) {}
 
-    public record ConversationResult(List<Turn> turns, Duration elapsed) {
+    public record ConversationResult(List<Turn> turns, List<CognitionMetrics> metrics,
+                                      CognitionSnapshot finalSnapshot, Duration elapsed) {
         public int turnCount() { return turns.size(); }
     }
 
@@ -150,6 +178,7 @@ public class ConversationRunner {
         private List<AgentDescriptor> descriptors;
         private int maxTurns = 6;
         private String tenantId = "showcase";
+        private boolean includeCognition = true;
 
         public Builder agentProvider(AgentProvider p) { this.agentProvider = p; return this; }
         public Builder cognition(CognitionStack c) { this.cognition = c; return this; }
@@ -157,12 +186,13 @@ public class ConversationRunner {
         public Builder descriptors(List<AgentDescriptor> d) { this.descriptors = d; return this; }
         public Builder maxTurns(int n) { this.maxTurns = n; return this; }
         public Builder tenantId(String t) { this.tenantId = t; return this; }
+        public Builder includeCognition(boolean b) { this.includeCognition = b; return this; }
 
         public ConversationRunner build() {
             if (agentProvider == null) throw new IllegalStateException("agentProvider required");
             if (cognition == null) throw new IllegalStateException("cognition required");
             if (descriptors == null || descriptors.isEmpty()) throw new IllegalStateException("descriptors required");
-            return new ConversationRunner(agentProvider, cognition, world, descriptors, maxTurns, tenantId);
+            return new ConversationRunner(agentProvider, cognition, world, descriptors, maxTurns, tenantId, includeCognition);
         }
     }
 }
