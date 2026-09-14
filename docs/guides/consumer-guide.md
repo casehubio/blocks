@@ -645,6 +645,8 @@ quarkus.index-dependency.casehub-blocks.artifact-id=casehub-blocks
 ```
 Consumers that only use blocks' pure types (records, sealed interfaces, plain classes) need no configuration.
 
+**Social cognition config defaults:** All social cognition config types (`DriveConfig`, `MoodConfig`, `PersonalityEvolutionConfig`, `InnerLifeConfig`, `MentalModelConfig`, `UserModelConfig`, `StrategyLearningConfig`, `NarrativeConfig`, `GoalProposalConfig`, `GoalEscalationConfig`, `NormDetectionConfig`) and `EventStreamBus<DecisionSignal>` have `@DefaultBean` producers via `SocialCognitionDefaultBeans`. Consumers with blocks on their classpath get safe defaults automatically — no config required to use social cognition features. Override any config by providing your own `@ApplicationScoped` bean for that type.
+
 ## Boundary Rules
 
 - Does NOT provide generic utilities (backoff, rate limiters) -- those belong in platform
