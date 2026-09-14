@@ -1,10 +1,10 @@
 {
   "agent": "nikola",
   "turn": 4,
-  "mood": { "pleasure": 0.60, "arousal": 0.50, "dominance": 0.50 },
-  "drives": { "COMPETENCE": 1.00, "CURIOSITY": 0.94, "AUTONOMY": 0.94, "AFFILIATION": 1.00 },
+  "mood": { "pleasure": 0.85, "arousal": 0.78, "dominance": 0.60 },
+  "drives": { "CURIOSITY": 1.00, "COMPETENCE": 1.00, "AFFILIATION": 1.00, "AUTONOMY": 1.00 },
   "mentalModels": {
-    "leonardo": { "beliefs": 7, "desires": 3, "intentions": 3 }
+    "leonardo": { "beliefs": 4, "desires": 1, "intentions": 0 }
   },
-  "capturedAt": "2026-09-14T01:36:53.770551Z"
+  "capturedAt": "2026-09-14T02:36:49.556504Z"
 }
