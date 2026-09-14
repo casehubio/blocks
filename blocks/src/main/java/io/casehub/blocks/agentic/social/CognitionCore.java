@@ -41,6 +41,7 @@ public class CognitionCore {
     private final @Nullable GoalProposalOrchestrator goals;
     private final @Nullable MemoryHygieneOrchestrator memoryHygiene;
     private final @Nullable AgentProvider agentProvider;
+    private final CognitionConfig config;
 
     public CognitionCore(MoodOrchestrator mood,
                           DriveOrchestrator drives,
@@ -51,7 +52,7 @@ public class CognitionCore {
                           @Nullable GoalProposalOrchestrator goals,
                           @Nullable MemoryHygieneOrchestrator memoryHygiene) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-                goals, memoryHygiene, null);
+                goals, memoryHygiene, null, CognitionConfig.all());
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -63,6 +64,20 @@ public class CognitionCore {
                           @Nullable GoalProposalOrchestrator goals,
                           @Nullable MemoryHygieneOrchestrator memoryHygiene,
                           @Nullable AgentProvider agentProvider) {
+        this(mood, drives, userModel, mentalModel, strategy, narrative,
+                goals, memoryHygiene, agentProvider, CognitionConfig.all());
+    }
+
+    public CognitionCore(MoodOrchestrator mood,
+                          DriveOrchestrator drives,
+                          @Nullable UserModelOrchestrator userModel,
+                          @Nullable MentalModelOrchestrator mentalModel,
+                          @Nullable StrategyLearningOrchestrator strategy,
+                          @Nullable NarrativeOrchestrator narrative,
+                          @Nullable GoalProposalOrchestrator goals,
+                          @Nullable MemoryHygieneOrchestrator memoryHygiene,
+                          @Nullable AgentProvider agentProvider,
+                          CognitionConfig config) {
         this.mood = mood;
         this.drives = drives;
         this.userModel = userModel;
@@ -72,43 +87,46 @@ public class CognitionCore {
         this.goals = goals;
         this.memoryHygiene = memoryHygiene;
         this.agentProvider = agentProvider;
+        this.config = config;
     }
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
                      Set<String> activeSubjects) {
-        if (mood.currentMood(agentId, tenantId).isEmpty()) {
-            mood.record(new MoodSignal.InteractionAppraisal(0, 0, 0, "init"),
-                    agentId, tenantId);
+        if (config.moodEnabled()) {
+            if (mood.currentMood(agentId, tenantId).isEmpty()) {
+                mood.record(new MoodSignal.InteractionAppraisal(0, 0, 0, "init"),
+                        agentId, tenantId);
+            }
+            mood.tick(agentId, tenantId);
         }
-        mood.tick(agentId, tenantId);
 
-        if (memoryHygiene != null) {
+        if (config.memoryHygieneEnabled() && memoryHygiene != null) {
             safeRun(() -> memoryHygiene.tick(agentId, tenantId));
         }
 
-        if (narrative != null) {
+        if (config.narrativeEnabled() && narrative != null) {
             safeRun(() -> narrative.tick(agentId, tenantId));
         }
 
-        if (descriptor != null) {
+        if (config.drivesEnabled() && descriptor != null) {
             safeRun(() -> drives.tick(agentId, tenantId, descriptor));
         }
 
-        if (strategy != null) {
+        if (config.strategyEnabled() && strategy != null) {
             safeRun(() -> strategy.tick(agentId, tenantId));
         }
 
         for (String subjectId : activeSubjects) {
-            if (userModel != null) {
+            if (config.userModelEnabled() && userModel != null) {
                 safeRun(() -> userModel.tick(agentId, subjectId, tenantId));
             }
-            if (mentalModel != null) {
+            if (config.mentalModelEnabled() && mentalModel != null) {
                 safeRun(() -> mentalModel.tick(agentId, subjectId, tenantId));
             }
         }
 
-        if (goals != null && descriptor != null) {
+        if (config.goalsEnabled() && goals != null && descriptor != null) {
             safeRun(() -> goals.tick(agentId, tenantId, descriptor));
         }
     }
@@ -116,20 +134,22 @@ public class CognitionCore {
     public void recordInteraction(String agentId, String tenantId,
                                    @Nullable String subjectId,
                                    String userMessage, String response) {
-        safeRun(() -> appraiseMood(agentId, tenantId, userMessage, response));
+        if (config.moodEnabled()) {
+            safeRun(() -> appraiseMood(agentId, tenantId, userMessage, response));
+        }
 
         if (subjectId != null) {
-            if (userModel != null) {
+            if (config.userModelEnabled() && userModel != null) {
                 safeRun(() -> userModel.record(
                         new InteractionSignal.CustomSignal(
                                 userMessage, QualitySignal.NEUTRAL),
                         agentId, subjectId, tenantId));
             }
-            if (mentalModel != null) {
+            if (config.mentalModelEnabled() && mentalModel != null) {
                 safeRun(() -> extractAndRecordMentalState(
                         agentId, subjectId, tenantId, userMessage));
             }
-            if (strategy != null) {
+            if (config.strategyEnabled() && strategy != null) {
                 safeRun(() -> strategy.record(
                         new EngagementSignal.TurnOutcome(
                                 new EngagementEvent(agentId, subjectId,
@@ -287,20 +307,24 @@ public class CognitionCore {
 
     public List<PromptSection> promptSections() {
         var sections = new ArrayList<PromptSection>();
-        sections.add(new MoodPromptSection(mood));
-        sections.add(new DrivePromptSection(drives));
-        if (narrative != null)
+        if (config.moodEnabled())
+            sections.add(new MoodPromptSection(mood));
+        if (config.drivesEnabled())
+            sections.add(new DrivePromptSection(drives));
+        if (config.narrativeEnabled() && narrative != null)
             sections.add(new NarrativePromptSection(narrative));
-        if (userModel != null)
+        if (config.userModelEnabled() && userModel != null)
             sections.add(new UserModelPromptSection(userModel));
-        if (mentalModel != null)
+        if (config.mentalModelEnabled() && mentalModel != null)
             sections.add(new MentalModelPromptSection(mentalModel));
-        if (strategy != null)
+        if (config.strategyEnabled() && strategy != null)
             sections.add(new StrategyPromptSection(strategy));
-        if (goals != null)
+        if (config.goalsEnabled() && goals != null)
             sections.add(new GoalPromptSection(goals));
         return sections;
     }
+
+    public CognitionConfig config() { return config; }
 
     public MoodOrchestrator mood() { return mood; }
     public DriveOrchestrator drives() { return drives; }
