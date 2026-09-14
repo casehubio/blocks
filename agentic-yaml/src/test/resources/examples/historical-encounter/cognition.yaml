@@ -18,8 +18,8 @@ personality:
   l2Ceiling: 0.3
   dampeningFactor: 0.15
 userModel:
-  minSignalsForSynthesis: 3
-  synthesisCooldown: PT2M
+  minSignalsForSynthesis: 1
+  synthesisCooldown: PT0S
   decayRate: 0.02
   positiveWeight: 1.5
   negativeWeight: 0.5
@@ -36,7 +36,8 @@ mentalModel:
   intentionHalfLife: PT15M
   confidenceFloor: 0.2
   projectionFloor: 0.15
-  minSignalsForInference: 2
+  minSignalsForInference: 1
+  inferenceCooldown: PT0S
   maxSignalsInPrompt: 12
   maxBufferSize: 40
 goalProposal:

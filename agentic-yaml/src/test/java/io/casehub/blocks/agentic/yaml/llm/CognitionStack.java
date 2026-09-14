@@ -131,7 +131,7 @@ public class CognitionStack {
         }
 
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
-                strategy, narrative, goals, null);
+                strategy, narrative, goals, null, agentProvider);
         return new CognitionStack(core, stage, narrativeStore);
     }
 
