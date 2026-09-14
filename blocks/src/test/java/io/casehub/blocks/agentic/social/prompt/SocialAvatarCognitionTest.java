@@ -13,6 +13,7 @@ import io.casehub.blocks.speech.AssembledPrompt;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
+import io.casehub.platform.agent.AgentProvider;
 import jakarta.enterprise.inject.Instance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,9 @@ class SocialAvatarCognitionTest {
         innerLife = mock(InnerLifeOrchestrator.class);
         registry = mock(AgentRegistry.class);
 
+        when(mood.currentMood(any(), any())).thenReturn(Optional.empty());
+        when(registry.findById(any(), any())).thenReturn(Optional.empty());
+
         var narrativeInstance = (Instance<NarrativeOrchestrator>) mock(Instance.class);
         when(narrativeInstance.isResolvable()).thenReturn(false);
         var goalInstance = (Instance<GoalProposalOrchestrator>) mock(Instance.class);
@@ -62,6 +66,8 @@ class SocialAvatarCognitionTest {
         var registryInstance = (Instance<AgentRegistry>) mock(Instance.class);
         when(registryInstance.isResolvable()).thenReturn(true);
         when(registryInstance.get()).thenReturn(registry);
+        var agentProviderInstance = (Instance<AgentProvider>) mock(Instance.class);
+        when(agentProviderInstance.isResolvable()).thenReturn(false);
 
         var moodField = SocialAvatarCognition.class.getDeclaredField("mood");
         moodField.setAccessible(true); moodField.set(cognition, mood);
@@ -81,6 +87,10 @@ class SocialAvatarCognitionTest {
         ilField.setAccessible(true); ilField.set(cognition, innerLifeInstance);
         var regField = SocialAvatarCognition.class.getDeclaredField("agentRegistry");
         regField.setAccessible(true); regField.set(cognition, registryInstance);
+        var apField = SocialAvatarCognition.class.getDeclaredField("agentProviderInstance");
+        apField.setAccessible(true); apField.set(cognition, agentProviderInstance);
+
+        cognition.init();
     }
 
     @Test
