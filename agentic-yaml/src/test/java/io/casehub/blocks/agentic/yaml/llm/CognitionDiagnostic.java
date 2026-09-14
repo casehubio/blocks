@@ -60,12 +60,12 @@ class CognitionDiagnostic {
         var ctx = new PromptContext("leonardo", "showcase", "nikola");
         for (var section : stack.promptSections()) {
             var text = section.contribute(ctx);
+            var sectionName = section instanceof DirectivePromptSection dps
+                    ? dps.delegateName() : section.getClass().getSimpleName();
             if (text != null && !text.isBlank()) {
-                System.out.printf("--- %s ---\n%s\n\n",
-                        section.getClass().getSimpleName(), text);
+                System.out.printf("--- %s ---\n%s\n\n", sectionName, text);
             } else {
-                System.out.printf("--- %s --- (empty)\n\n",
-                        section.getClass().getSimpleName());
+                System.out.printf("--- %s --- (empty)\n\n", sectionName);
             }
         }
 
@@ -86,12 +86,12 @@ class CognitionDiagnostic {
         System.out.println("(This is what gets injected into the system prompt on Turn 2)\n");
         for (var section : stack.promptSections()) {
             var text = section.contribute(ctx);
+            var sectionName = section instanceof DirectivePromptSection dps
+                    ? dps.delegateName() : section.getClass().getSimpleName();
             if (text != null && !text.isBlank()) {
-                System.out.printf("--- %s ---\n%s\n\n",
-                        section.getClass().getSimpleName(), text);
+                System.out.printf("--- %s ---\n%s\n\n", sectionName, text);
             } else {
-                System.out.printf("--- %s --- (empty)\n\n",
-                        section.getClass().getSimpleName());
+                System.out.printf("--- %s --- (empty)\n\n", sectionName);
             }
         }
 

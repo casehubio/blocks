@@ -8,10 +8,16 @@ class DirectivePromptSection implements PromptSection {
 
     private final PromptSection delegate;
     private final String directive;
+    private final String delegateName;
 
-    DirectivePromptSection(PromptSection delegate, String directive) {
+    DirectivePromptSection(PromptSection delegate, String directive, String delegateName) {
         this.delegate = delegate;
         this.directive = directive;
+        this.delegateName = delegateName;
+    }
+
+    String delegateName() {
+        return delegateName;
     }
 
     @Override
@@ -21,9 +27,17 @@ class DirectivePromptSection implements PromptSection {
         return directive + "\n" + content;
     }
 
+    static PromptSection wrap(PromptSection section, String name) {
+        var directive = directiveFor(name);
+        return new DirectivePromptSection(section, directive, name);
+    }
+
     static PromptSection wrap(PromptSection section) {
-        var name = section.getClass().getSimpleName();
-        var directive = switch (name) {
+        return wrap(section, section.getClass().getSimpleName());
+    }
+
+    private static String directiveFor(String name) {
+        return switch (name) {
             case "MoodPromptSection" ->
                     "Your emotional state shapes how you speak — warmth shows in generosity of thought, " +
                     "arousal in the pace and intensity of your words, dominance in whether you assert or defer. " +
@@ -52,6 +66,5 @@ class DirectivePromptSection implements PromptSection {
                     "These are interaction strategies you have learned work well. Apply them:";
             default -> "Consider this context in your response:";
         };
-        return new DirectivePromptSection(section, directive);
     }
 }
