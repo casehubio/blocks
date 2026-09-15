@@ -65,6 +65,9 @@ public class CognitionStack {
     private final Stage stage;
     private final NarrativeStore narrativeStore;
     private final @Nullable AgentProvider agentProvider;
+    private final @Nullable io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore cbrStore;
+    private final @Nullable io.casehub.blocks.agentic.social.StrategyLearningConfig strategyConfig;
+    private final ConcurrentHashMap<String, Boolean> primedAgents = new ConcurrentHashMap<>();
 
     public enum Stage {
         BASELINE, SIGNALS, REAL_DRIVES, NARRATIVE, FULL
@@ -72,11 +75,15 @@ public class CognitionStack {
 
     CognitionStack(CognitionCore core, Stage stage,
                    NarrativeStore narrativeStore,
-                   @Nullable AgentProvider agentProvider) {
+                   @Nullable AgentProvider agentProvider,
+                   @Nullable io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore cbrStore,
+                   @Nullable io.casehub.blocks.agentic.social.StrategyLearningConfig strategyConfig) {
         this.core = core;
         this.stage = stage;
         this.narrativeStore = narrativeStore;
         this.agentProvider = agentProvider;
+        this.cbrStore = cbrStore;
+        this.strategyConfig = strategyConfig;
     }
 
     public static CognitionStack from(CompiledCognition config,
@@ -90,6 +97,7 @@ public class CognitionStack {
         UserModelOrchestrator userModel = null;
         MentalModelOrchestrator mentalModel = null;
         StrategyLearningOrchestrator strategy = null;
+        io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore cbrStore = null;
 
         if (agentProvider != null && stage.ordinal() >= Stage.SIGNALS.ordinal()) {
             userModel = new UserModelOrchestrator(
@@ -101,9 +109,10 @@ public class CognitionStack {
         DriveOrchestrator drives;
         GoalProposalOrchestrator goals = null;
         if (agentProvider != null && stage.ordinal() >= Stage.REAL_DRIVES.ordinal()) {
+            cbrStore = new InMemoryCbrCaseMemoryStore();
             strategy = new StrategyLearningOrchestrator(
                     new InMemoryStrategyStore(),
-                    new InMemoryCbrCaseMemoryStore(),
+                    cbrStore,
                     (agentId, tenantId, since, maxEntries) -> List.of(),
                     agentProvider, config.strategyLearning());
             var competence = new CompetenceDrive(strategy);
@@ -141,7 +150,8 @@ public class CognitionStack {
 
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
                 strategy, narrative, goals, null, agentProvider);
-        return new CognitionStack(core, stage, narrativeStore, agentProvider);
+        return new CognitionStack(core, stage, narrativeStore, agentProvider,
+                cbrStore, cbrStore != null ? config.strategyLearning() : null);
     }
 
     public static CognitionStack from(CompiledCognition config,
@@ -154,13 +164,72 @@ public class CognitionStack {
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor) {
+        primeIfNeeded(agentId, tenantId, descriptor);
         core.tick(agentId, tenantId, descriptor, (a, t) -> Set.of());
     }
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
                      Set<String> activeSubjects) {
+        primeIfNeeded(agentId, tenantId, descriptor);
         core.tick(agentId, tenantId, descriptor, (a, t) -> activeSubjects);
+    }
+
+    private void primeIfNeeded(String agentId, String tenantId,
+                                @Nullable AgentDescriptor descriptor) {
+        if (stage.ordinal() < Stage.REAL_DRIVES.ordinal()) return;
+        if (descriptor == null || cbrStore == null || strategyConfig == null) return;
+        if (primedAgents.putIfAbsent(agentId + ":" + tenantId, true) != null) return;
+
+        var constraints = descriptor.constraints();
+        if (constraints == null || constraints.isEmpty()) return;
+
+        for (int i = 0; i < strategyConfig.minCasesForReflection(); i++) {
+            var features = buildSyntheticFeatures(descriptor, i, strategyConfig.minCasesForReflection());
+            var summary = "Synthetic interaction " + (i + 1) + " derived from "
+                    + constraints.getFirst().text();
+            var cbrCase = new io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase(
+                    summary, "-", null, null, features, null, agentId);
+            cbrStore.store(cbrCase, strategyConfig.engagementCaseType(),
+                    agentId, strategyConfig.memoryDomain(), tenantId, null,
+                    io.casehub.platform.api.path.Path.root());
+        }
+    }
+
+    private static Map<String, io.casehub.neocortex.memory.cbr.FeatureValue> buildSyntheticFeatures(
+            AgentDescriptor descriptor, int index, int count) {
+        double progress = count > 1 ? (double) index / (count - 1) : 0.5;
+
+        var features = new java.util.LinkedHashMap<String, io.casehub.neocortex.memory.cbr.FeatureValue>();
+        features.put("subjectId", io.casehub.neocortex.memory.cbr.FeatureValue.string("synthetic"));
+        features.put("agentId", io.casehub.neocortex.memory.cbr.FeatureValue.string(descriptor.name()));
+        features.put("conversationTimestamp",
+                io.casehub.neocortex.memory.cbr.FeatureValue.number(
+                        (double) (Instant.now().toEpochMilli() - (count - index) * 3600_000L)));
+        features.put("turnCount", io.casehub.neocortex.memory.cbr.FeatureValue.number(4.0 + index));
+        features.put("avgResponseLength", io.casehub.neocortex.memory.cbr.FeatureValue.number(80 + progress * 170));
+        features.put("continuationRate", io.casehub.neocortex.memory.cbr.FeatureValue.number(0.6 + progress * 0.25));
+        features.put("meanAffectShift", io.casehub.neocortex.memory.cbr.FeatureValue.number(-0.05 + progress * 0.25));
+
+        double formality = 0.5;
+        double verbosity = 0.5;
+        if (descriptor.constraints() != null) {
+            for (var c : descriptor.constraints()) {
+                var text = c.text().toLowerCase();
+                if (text.contains("precision") || text.contains("exact") || text.contains("rigour")) {
+                    formality = 0.8; verbosity = 0.3;
+                } else if (text.contains("artistic") || text.contains("creative") || text.contains("expressive")) {
+                    formality = 0.4; verbosity = 0.7;
+                }
+            }
+        }
+        features.put("avgSnapshot_verbosity", io.casehub.neocortex.memory.cbr.FeatureValue.number(verbosity));
+        features.put("avgSnapshot_formality", io.casehub.neocortex.memory.cbr.FeatureValue.number(formality));
+        features.put("avgSnapshot_initiative", io.casehub.neocortex.memory.cbr.FeatureValue.number(0.5));
+        features.put("avgSnapshot_directness", io.casehub.neocortex.memory.cbr.FeatureValue.number(0.5));
+        features.put("avgSnapshot_questionRate", io.casehub.neocortex.memory.cbr.FeatureValue.number(0.5));
+
+        return Map.copyOf(features);
     }
 
     public List<PromptSection> promptSections() {
