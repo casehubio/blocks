@@ -123,12 +123,21 @@ public class GoalProposalOrchestrator {
         }
     }
 
+    public void registerGoals(String agentId, String tenantId,
+                               List<DriveGoalProposal> goals) {
+        String key = agentId + "|" + tenantId;
+        GoalProposalState state = states.computeIfAbsent(key, k -> new GoalProposalState());
+        state.registeredGoals = List.copyOf(goals);
+    }
+
     public Optional<List<DriveGoalProposal>> currentProposals(String agentId, String tenantId) {
         GoalProposalState state = states.get(agentId + "|" + tenantId);
-        if (state == null || state.cachedProposals.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(List.copyOf(state.cachedProposals));
+        if (state == null) return Optional.empty();
+        var merged = new ArrayList<DriveGoalProposal>();
+        merged.addAll(state.registeredGoals);
+        merged.addAll(state.cachedProposals);
+        if (merged.isEmpty()) return Optional.empty();
+        return Optional.of(List.copyOf(merged));
     }
 
     private GoalProposalTick doTick(String agentId, String tenantId,
@@ -506,6 +515,7 @@ public class GoalProposalOrchestrator {
     static final class GoalProposalState {
         Instant lastProposalTimestamp;
         List<DriveGoalProposal> cachedProposals = List.of();
+        List<DriveGoalProposal> registeredGoals = List.of();
         List<String> cachedAbandonments = List.of();
         Map<String, Instant> driveGoalBelowThresholdSince = new HashMap<>();
         Set<String> failureSuppressedGoalNames = new HashSet<>();

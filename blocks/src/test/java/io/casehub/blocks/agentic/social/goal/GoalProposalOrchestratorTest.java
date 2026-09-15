@@ -413,4 +413,33 @@ class GoalProposalOrchestratorTest {
                 Visibility.PUBLIC, List.of(),
                 Map.of("source", "drive", "driveAxis", "CURIOSITY"));
     }
+
+    @Test
+    void registerGoalsAppearsInCurrentProposals() {
+        var external = new DriveGoalProposal(
+                DriveAxis.CURIOSITY, "understand-em-force",
+                "Understand what Tesla means by electromagnetic force",
+                "character briefing", 0.8);
+        orchestrator.registerGoals("agent", "tenant", List.of(external));
+
+        var proposals = orchestrator.currentProposals("agent", "tenant");
+        assertThat(proposals).isPresent();
+        assertThat(proposals.get()).hasSize(1);
+        assertThat(proposals.get().get(0).goalName()).isEqualTo("understand-em-force");
+    }
+
+    @Test
+    void registerGoalsMergesWithDriveProposals() {
+        var external = new DriveGoalProposal(
+                DriveAxis.CURIOSITY, "char-goal",
+                "Character-specific goal", "character briefing", 0.7);
+        orchestrator.registerGoals("agent", "tenant", List.of(external));
+
+        orchestrator.tick("agent", "tenant", descriptorWithGoals());
+
+        var proposals = orchestrator.currentProposals("agent", "tenant");
+        assertThat(proposals).isPresent();
+        assertThat(proposals.get().stream().map(DriveGoalProposal::goalName))
+                .contains("char-goal");
+    }
 }
