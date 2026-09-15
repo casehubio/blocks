@@ -127,6 +127,7 @@ class DecisionSignalTest {
             case TrustAssessment t -> "trust";
             case DeliberationOutcome d -> "deliberation";
             case StepOutcome s -> "step";
+            case ModelSelection m -> "model";
         };
         assertThat(result).isEqualTo("step");
     }

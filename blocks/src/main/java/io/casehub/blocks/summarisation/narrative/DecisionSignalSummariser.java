@@ -65,6 +65,14 @@ public class DecisionSignalSummariser
                            "worker", s.workerId() != null ? s.workerId() : "unknown",
                            "elapsed", s.elapsed().toString()),
                     s.status().equals("COMPLETED") ? 1.0 : 0.3);
+            case ModelSelection m -> new SignalDigest(
+                    "ModelSelection",
+                    m.displayName() + " (" + m.modelTier() + " tier) for " + m.capabilityName(),
+                    Map.of("model", m.modelId(),
+                           "tier", m.modelTier(),
+                           "capability", m.capabilityName(),
+                           "vendor", m.vendor()),
+                    1.0);
         };
     }
 }

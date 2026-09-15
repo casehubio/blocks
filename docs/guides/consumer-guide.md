@@ -654,6 +654,14 @@ Consumers that only use blocks' pure types (records, sealed interfaces, plain cl
 
 All three have `@DefaultBean` passthrough producers. Override by providing your own `@ApplicationScoped` bean. `CognitiveImpact.fromText(description)` is the common-case factory for simple text interactions.
 
+**CognitionCore prompt sections:** `CognitionCore.promptSections()` now includes `PersonalityPromptSection` (from `AgentDescriptor.disposition()`) and `ConstraintPromptSection` (from `AgentDescriptor.constraints()`) when available. These are populated after the first `tick()` call.
+
+**External goal registration:** `GoalProposalOrchestrator.registerGoals(agentId, tenantId, goals)` lets consumers inject character-specific goals alongside drive-derived proposals. Registered goals appear in `currentProposals()` and render via `GoalPromptSection`.
+
+**Payload normalization:** `CloudEventIngestionAdapter` accepts an optional `Function<E, E>` normalizer (5th constructor parameter) applied after deserialization before publishing. Use when mixed CloudEvent types have different map shapes to ensure all expected keys are present.
+
+**Decision signal:** `ModelSelection` is the 6th `DecisionSignal` permit — carries `modelId`, `modelTier`, `capabilityName`, `vendor`, `displayName` for model selection narratives.
+
 ## Boundary Rules
 
 - Does NOT provide generic utilities (backoff, rate limiters) -- those belong in platform
