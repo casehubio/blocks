@@ -397,6 +397,101 @@ class HistoricalEncounterLlmTest {
                 sb.toString());
     }
 
+    // --- per-orchestrator pipeline proof tests (#279) ---
+
+    @Test
+    void strategyContributesByTurn4() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.REAL_DRIVES, 4);
+        var strategyContributed = result.metrics().stream()
+                .anyMatch(m -> m.promptSectionContent().containsKey("StrategyPromptSection"));
+        System.out.printf("[#279 proof] StrategyPromptSection contributed: %s%n", strategyContributed);
+        assertThat(strategyContributed)
+                .as("StrategyPromptSection should contribute by turn 4 (primed cases -> async reflect)")
+                .isTrue();
+    }
+
+    @Test
+    void moodEvolvesAcrossTurns() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.SIGNALS, 6);
+        var moodT1 = result.metrics().getFirst().promptSectionContent().get("MoodPromptSection");
+        var moodLast = result.metrics().getLast().promptSectionContent().get("MoodPromptSection");
+        assertThat(moodT1).isNotNull();
+        assertThat(moodLast).isNotNull();
+        assertThat(moodT1).isNotEqualTo(moodLast);
+        System.out.println("[#279 proof] Mood evolved between turns");
+    }
+
+    @Test
+    void mentalModelFormsBeliefsAndDesires() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.SIGNALS, 4);
+        var mmContributed = result.metrics().stream()
+                .anyMatch(m -> {
+                    var content = m.promptSectionContent().get("MentalModelPromptSection");
+                    return content != null && !content.isBlank();
+                });
+        System.out.printf("[#279 proof] MentalModelPromptSection contributed: %s%n", mmContributed);
+        assertThat(mmContributed).isTrue();
+    }
+
+    @Test
+    void drivesReflectRealSources() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.REAL_DRIVES, 6);
+        var driveContributed = result.metrics().stream()
+                .anyMatch(m -> m.promptSectionContent().containsKey("DrivePromptSection"));
+        System.out.printf("[#279 proof] DrivePromptSection contributed: %s%n", driveContributed);
+        assertThat(driveContributed).isTrue();
+    }
+
+    @Test
+    void userModelContributes() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.SIGNALS, 6);
+        var umContributed = result.metrics().stream()
+                .anyMatch(m -> m.promptSectionContent().containsKey("UserModelPromptSection"));
+        System.out.printf("[#279 proof] UserModelPromptSection contributed: %s%n", umContributed);
+        assertThat(umContributed).isTrue();
+    }
+
+    @Test
+    void goalsProposedByTurn8() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.FULL, 8);
+        var goalsContributed = result.metrics().stream()
+                .anyMatch(m -> m.promptSectionContent().containsKey("GoalPromptSection"));
+        System.out.printf("[#279 proof] GoalPromptSection contributed: %s%n", goalsContributed);
+        assertThat(goalsContributed)
+                .as("GoalPromptSection should contribute by turn 8")
+                .isTrue();
+    }
+
+    @Test
+    void narrativeFormsContent() throws IOException {
+        var result = runShortConversation(CognitionStack.Stage.NARRATIVE, 6);
+        var narContributed = result.metrics().stream()
+                .anyMatch(m -> {
+                    var content = m.promptSectionContent().get("NarrativePromptSection");
+                    return content != null && !content.isBlank();
+                });
+        System.out.printf("[#279 proof] NarrativePromptSection contributed: %s%n", narContributed);
+        assertThat(narContributed).isTrue();
+    }
+
+    private ConversationRunner.ConversationResult runShortConversation(
+            CognitionStack.Stage stage, int turns) throws IOException {
+        var compiled = loadCognition();
+        var world = loadWorld();
+        var descriptors = DescriptorLoader.load(SCENARIO);
+        var stack = CognitionStack.from(compiled, agentProvider, stage);
+
+        return ConversationRunner.builder()
+                .agentProvider(agentProvider)
+                .cognition(stack)
+                .world(world)
+                .descriptors(descriptors)
+                .maxTurns(turns)
+                .includeCognition(true)
+                .build()
+                .run();
+    }
+
     private static io.casehub.blocks.agentic.yaml.compiler.CompiledCognition loadCognition() throws IOException {
         try (var is = HistoricalEncounterLlmTest.class.getResourceAsStream(
                 "/examples/" + SCENARIO + "/cognition.yaml")) {
