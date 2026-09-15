@@ -161,4 +161,61 @@ class CloudEventIngestionAdapterTest {
 
         assertThat(captured).isEmpty();
     }
+
+    @Test
+    void normalizer_appliedBeforePublishing() {
+        var bus = new EventStreamBus<Map<String, Object>>();
+        var captured = new ArrayList<LevelEvent<Map<String, Object>>>();
+        bus.subscribe(e -> true, captured::add);
+
+        var adapter = new CloudEventIngestionAdapter<>(
+                bus, LEVEL, "io.casehub.test.",
+                CloudEventIngestionAdapterTest::parseJson,
+                payload -> {
+                    payload.putIfAbsent("faultType", "");
+                    payload.putIfAbsent("reason", "");
+                    return payload;
+                });
+
+        var ce = CloudEventBuilder.v1()
+                .withId("id-6")
+                .withType("io.casehub.test.node.recovered")
+                .withSource(URI.create("/test"))
+                .withData("application/json",
+                        "{\"nodeId\":\"N1\"}".getBytes(StandardCharsets.UTF_8))
+                .build();
+
+        adapter.accept(ce);
+
+        assertThat(captured).hasSize(1);
+        var payload = captured.get(0).payload();
+        assertThat(payload).containsEntry("nodeId", "N1");
+        assertThat(payload).containsEntry("faultType", "");
+        assertThat(payload).containsEntry("reason", "");
+    }
+
+    @Test
+    void noNormalizer_payloadUnchanged() {
+        var bus = new EventStreamBus<Map<String, Object>>();
+        var captured = new ArrayList<LevelEvent<Map<String, Object>>>();
+        bus.subscribe(e -> true, captured::add);
+
+        var adapter = new CloudEventIngestionAdapter<>(
+                bus, LEVEL, "io.casehub.test.",
+                CloudEventIngestionAdapterTest::parseJson);
+
+        var ce = CloudEventBuilder.v1()
+                .withId("id-7")
+                .withType("io.casehub.test.node.faulted")
+                .withSource(URI.create("/test"))
+                .withData("application/json",
+                        "{\"faultType\":\"CPU_OVERLOAD\"}".getBytes(StandardCharsets.UTF_8))
+                .build();
+
+        adapter.accept(ce);
+
+        assertThat(captured).hasSize(1);
+        assertThat(captured.get(0).payload()).containsEntry("faultType", "CPU_OVERLOAD");
+        assertThat(captured.get(0).payload()).doesNotContainKey("reason");
+    }
 }

@@ -15,15 +15,25 @@ public class CloudEventIngestionAdapter<E> {
     private final EventLevel level;
     private final String typePrefix;
     private final Function<byte[], E> deserializer;
+    private final Function<E, E> normalizer;
 
     public CloudEventIngestionAdapter(EventStreamBus<E> outputBus,
                                       EventLevel level,
                                       String typePrefix,
                                       Function<byte[], E> deserializer) {
+        this(outputBus, level, typePrefix, deserializer, Function.identity());
+    }
+
+    public CloudEventIngestionAdapter(EventStreamBus<E> outputBus,
+                                      EventLevel level,
+                                      String typePrefix,
+                                      Function<byte[], E> deserializer,
+                                      Function<E, E> normalizer) {
         this.outputBus = Objects.requireNonNull(outputBus);
         this.level = Objects.requireNonNull(level);
         this.typePrefix = Objects.requireNonNull(typePrefix);
         this.deserializer = Objects.requireNonNull(deserializer);
+        this.normalizer = Objects.requireNonNull(normalizer);
     }
 
     public void accept(CloudEvent ce) {
@@ -34,7 +44,7 @@ public class CloudEventIngestionAdapter<E> {
         if (data == null) {
             return;
         }
-        E payload = deserializer.apply(data.toBytes());
+        E payload = normalizer.apply(deserializer.apply(data.toBytes()));
         long timestamp = ce.getTime() != null
                 ? ce.getTime().toInstant().toEpochMilli()
                 : System.currentTimeMillis();
