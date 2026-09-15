@@ -15,6 +15,17 @@ import io.casehub.blocks.agentic.social.UserProfileStore;
 import io.casehub.blocks.agentic.social.drive.AffiliationDrive;
 import io.casehub.blocks.agentic.social.drive.AutonomyDrive;
 import io.casehub.blocks.agentic.social.drive.CompetenceDrive;
+import io.casehub.blocks.agentic.social.drive.CuriosityDrive;
+import io.casehub.blocks.agentic.social.goal.CuriosityGoalMapper;
+import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
+import io.casehub.blocks.memory.ArousalScorer;
+import io.casehub.blocks.memory.CompositeConfidenceScorer;
+import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
+import io.casehub.blocks.memory.RetentionConfig;
+import io.casehub.blocks.memory.SurpriseScorer;
+import io.casehub.blocks.memory.WeightedScorer;
+import io.casehub.neocortex.memory.cbr.ScopeDecay;
+import io.casehub.neocortex.memory.cbr.TemporalDecay;
 import io.casehub.blocks.agentic.social.goal.AffiliationGoalMapper;
 import io.casehub.blocks.agentic.social.goal.AutonomyGoalMapper;
 import io.casehub.blocks.agentic.social.goal.CompetenceGoalMapper;
@@ -108,6 +119,7 @@ public class CognitionStack {
 
         DriveOrchestrator drives;
         GoalProposalOrchestrator goals = null;
+        MemoryHygieneOrchestrator memoryHygiene = null;
         if (agentProvider != null && stage.ordinal() >= Stage.REAL_DRIVES.ordinal()) {
             cbrStore = new InMemoryCbrCaseMemoryStore();
             strategy = new StrategyLearningOrchestrator(
@@ -115,17 +127,38 @@ public class CognitionStack {
                     cbrStore,
                     (agentId, tenantId, since, maxEntries) -> List.of(),
                     agentProvider, config.strategyLearning());
+            memoryHygiene = new MemoryHygieneOrchestrator(
+                    cbrStore,
+                    new CompositeConfidenceScorer(List.of(
+                            new WeightedScorer(new ArousalScorer(), 0.5),
+                            new WeightedScorer(new SurpriseScorer(), 0.5))),
+                    new TemporalDecay.HalfLife(java.time.Duration.ofDays(365)),
+                    new ScopeDecay.Step(1.0),
+                    null,
+                    config.strategyLearning().memoryDomain(),
+                    List.of(config.strategyLearning().engagementCaseType()),
+                    RetentionConfig.DEFAULT,
+                    10,
+                    0.7,
+                    event -> {});
+            var curiosityDrive = new CuriosityDrive(memoryHygiene);
             var competence = new CompetenceDrive(strategy);
             var affiliation = new AffiliationDrive(userModel, 0.3,
                     java.time.Duration.ofHours(1));
             var autonomy = new AutonomyDrive(mentalModel, 0.5);
-            DriveSource curiosity = (a, t) ->
-                    new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
-            drives = new DriveOrchestrator(curiosity, competence,
+            drives = new DriveOrchestrator(curiosityDrive, competence,
                     affiliation, autonomy, mood, composer, config.drive());
 
             if (stage.ordinal() >= Stage.FULL.ordinal()) {
+                var goalConfig = new GoalProposalConfig(
+                        config.goalProposal().proposalThreshold(),
+                        config.goalProposal().relevanceThreshold(),
+                        config.goalProposal().maxDriveGoals(),
+                        config.goalProposal().staleAfter(),
+                        java.time.Duration.ofSeconds(30),
+                        config.goalProposal().failureAbandonmentThreshold());
                 var mapperList = List.<DriveGoalMapper>of(
+                        new CuriosityGoalMapper(curiosityDrive),
                         new CompetenceGoalMapper(competence),
                         new AffiliationGoalMapper(affiliation, 0.3,
                                 java.time.Duration.ofHours(1)),
@@ -137,7 +170,7 @@ public class CognitionStack {
                         noOpInstance(),
                         noOpInstance(),
                         noOpInstance(),
-                        config.goalProposal(),
+                        goalConfig,
                         config.goalEscalation());
             }
         } else {
@@ -149,7 +182,7 @@ public class CognitionStack {
         }
 
         var core = new CognitionCore(mood, drives, userModel, mentalModel,
-                strategy, narrative, goals, null, agentProvider);
+                strategy, narrative, goals, memoryHygiene, agentProvider);
         return new CognitionStack(core, stage, narrativeStore, agentProvider,
                 cbrStore, cbrStore != null ? config.strategyLearning() : null);
     }
