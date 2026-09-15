@@ -49,7 +49,7 @@ class CognitionCoreTest {
         core.tick("a", "t", null, (aid, tid) -> Set.of());
 
         var moodShift = new MoodSignal.DirectShift(0.2, 0.1, 0.05, "gift received");
-        var impact = new CognitiveImpact(null, moodShift, false, null);
+        var impact = new CognitiveImpact(null, moodShift, false, null, null);
         core.recordInteraction("a", "t", null, "gave a gift", "thank you", impact);
 
         core.tick("a", "t", null, (aid, tid) -> Set.of());
@@ -73,7 +73,7 @@ class CognitionCoreTest {
 
         var signal = new InteractionSignal.CustomSignal("stole item",
                 io.casehub.neocortex.memory.relationship.QualitySignal.NEGATIVE);
-        var impact = new CognitiveImpact(signal, null, true, null);
+        var impact = new CognitiveImpact(signal, null, true, null, null);
         core.recordInteraction("a", "t", "subject", "stole", "hey!", impact);
     }
 

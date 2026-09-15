@@ -154,13 +154,13 @@ public class CognitionStack {
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor) {
-        core.tick(agentId, tenantId, descriptor, Set.of());
+        core.tick(agentId, tenantId, descriptor, (a, t) -> Set.of());
     }
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
                      Set<String> activeSubjects) {
-        core.tick(agentId, tenantId, descriptor, activeSubjects);
+        core.tick(agentId, tenantId, descriptor, (a, t) -> activeSubjects);
     }
 
     public List<PromptSection> promptSections() {

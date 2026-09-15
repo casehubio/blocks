@@ -90,7 +90,7 @@ public class ConversationRunner {
                 var lastMessage = history.size() > 1
                         ? history.get(history.size() - 2).dialogue() : "";
                 cognition.core().recordInteraction(agentId, tenantId,
-                        subjectId, lastMessage, response);
+                        subjectId, lastMessage, response, null);
             }
 
             cognition.updateNarrative(agentId, tenantId, history);

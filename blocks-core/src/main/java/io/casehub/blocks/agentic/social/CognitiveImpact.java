@@ -7,11 +7,16 @@ public record CognitiveImpact(
         @Nullable InteractionSignal userModelSignal,
         @Nullable MoodSignal moodSignal,
         boolean suppressBdiExtraction,
-        @Nullable EngagementSignal strategySignal) {
+        @Nullable EngagementSignal strategySignal,
+        @Nullable String conversationId) {
 
     public static CognitiveImpact fromText(String description) {
         return new CognitiveImpact(
                 new InteractionSignal.CustomSignal(description, QualitySignal.NEUTRAL),
-                null, false, null);
+                null, false, null, null);
+    }
+
+    public static CognitiveImpact withConversationId(String conversationId) {
+        return new CognitiveImpact(null, null, false, null, conversationId);
     }
 }
