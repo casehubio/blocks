@@ -3,28 +3,51 @@ package io.casehub.blocks.memory;
 import io.casehub.neocortex.memory.cbr.CbrCase;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
 import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.experience.ContentScorer;
+import io.casehub.neocortex.memory.experience.ScoreableContent;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
-public final class SurpriseScorer implements ConfidenceScorer {
+public final class SurpriseScorer implements ContentScorer, ConfidenceScorer {
+
+    @Override
+    public double score(ScoreableContent content) {
+        Map<String, String> metadata = content.metadata();
+        if (metadata == null || metadata.isEmpty()) {return 0.5;}
+        int distinctValues = 0;
+        for (var value : metadata.values()) {
+            distinctValues += value.length();
+        }
+        return Math.clamp(Math.log1p(distinctValues) / 10.0, 0.0, 1.0);
+    }
 
     @Override
     public double score(ScoredCbrCase<? extends CbrCase> memory, Instant now) {
-        Map<String, FeatureValue> features = memory.cbrCase().features();
-        if (features == null || features.isEmpty()) {return 0.5;}
-        int distinctValues = 0;
-        for (var fv : features.values()) {
-            if (fv instanceof FeatureValue.StringVal sv) {
-                distinctValues += sv.value().length();
-            } else if (fv instanceof FeatureValue.NumberVal) {
-                distinctValues += 1;
-            } else if (fv instanceof FeatureValue.StringListVal sl) {
-                distinctValues += sl.values().size();
-            } else {
-                distinctValues += 1;
+        return score(toScoreableContent(memory, now));
+    }
+
+    static ScoreableContent toScoreableContent(ScoredCbrCase<? extends CbrCase> memory, Instant now) {
+        CbrCase c    = memory.cbrCase();
+        String  text = c.problem();
+        if (c.solution() != null) {
+            text = text + " " + c.solution();
+        }
+        Map<String, String> metadata = new HashMap<>();
+        if (c.features() != null) {
+            for (var entry : c.features().entrySet()) {
+                metadata.put(entry.getKey(), featureValueToString(entry.getValue()));
             }
         }
-        return Math.clamp(Math.log1p(distinctValues) / 10.0, 0.0, 1.0);
+        Instant timestamp = memory.storedAt() != null ? memory.storedAt() : now;
+        return new ScoreableContent(text != null ? text : "", metadata, timestamp);
+    }
+
+    private static String featureValueToString(FeatureValue fv) {
+        if (fv instanceof FeatureValue.StringVal sv) {return sv.value();}
+        if (fv instanceof FeatureValue.NumberVal nv) {return String.valueOf(nv.value());}
+        if (fv instanceof FeatureValue.StringListVal sl) {return String.join(",", sl.values());}
+        return fv.toString();
     }
 }
