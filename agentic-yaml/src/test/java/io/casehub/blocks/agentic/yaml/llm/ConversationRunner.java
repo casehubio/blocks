@@ -1,7 +1,9 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
+import io.casehub.blocks.agentic.social.CognitiveImpact;
 import io.casehub.blocks.agentic.social.CognitionMetrics;
 import io.casehub.blocks.agentic.social.CognitionSnapshot;
+import io.casehub.blocks.agentic.social.EngagementSignal;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledWorld;
 import io.casehub.blocks.speech.PromptContext;
 import io.casehub.blocks.speech.PromptSection;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class ConversationRunner {
@@ -54,6 +57,7 @@ public class ConversationRunner {
         var subjectIds = speakers.stream()
                 .map(AgentDescriptor::name)
                 .collect(Collectors.toSet());
+        var conversationId = tenantId + "-conv-" + UUID.randomUUID();
 
         for (int turn = 0; turn < maxTurns; turn++) {
             var speaker = speakers.get(turn % speakers.size());
@@ -90,7 +94,8 @@ public class ConversationRunner {
                 var lastMessage = history.size() > 1
                         ? history.get(history.size() - 2).dialogue() : "";
                 cognition.core().recordInteraction(agentId, tenantId,
-                        subjectId, lastMessage, response, null);
+                        subjectId, lastMessage, response,
+                        CognitiveImpact.withConversationId(conversationId));
             }
 
             cognition.updateNarrative(agentId, tenantId, history);
@@ -119,6 +124,23 @@ public class ConversationRunner {
             System.out.print(turnMetrics.summary());
             System.out.printf(">>> Turn %d/%d complete%n", turn + 1, maxTurns);
             System.out.flush();
+        }
+
+        if (cognition.core().strategy() != null) {
+            for (var speaker : speakers) {
+                var otherSpeaker = speakers.stream()
+                        .filter(s -> !s.name().equals(speaker.name()))
+                        .findFirst().map(AgentDescriptor::name).orElse(null);
+                cognition.core().strategy().record(
+                        new EngagementSignal.ConversationOutcome(
+                                conversationId,
+                                "Historical encounter: " + speakers.size() + " participants, " + history.size() + " turns",
+                                history.size()),
+                        speaker.name(), otherSpeaker, tenantId);
+            }
+            for (var speaker : speakers) {
+                cognition.tick(speaker.name(), tenantId, speaker, subjectIds);
+            }
         }
 
         var finalSnapshot = metrics.isEmpty() ? null

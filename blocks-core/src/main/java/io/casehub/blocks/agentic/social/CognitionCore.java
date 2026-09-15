@@ -167,10 +167,12 @@ public class CognitionCore {
                     safeRun(() -> strategy.record(strategySignal,
                             agentId, subjectId, tenantId));
                 } else {
+                    String caseId = (impact != null && impact.conversationId() != null)
+                            ? impact.conversationId() : null;
                     safeRun(() -> strategy.record(
                             new EngagementSignal.TurnOutcome(
                                     new EngagementEvent(agentId, subjectId,
-                                            tenantId, null,
+                                            tenantId, caseId,
                                             UUID.randomUUID().toString(),
                                             Instant.now(),
                                             userMessage.isBlank()

@@ -13,8 +13,13 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.mockito.ArgumentCaptor;
 
 class CognitionCoreTest {
 
@@ -75,6 +80,49 @@ class CognitionCoreTest {
                 io.casehub.neocortex.memory.relationship.QualitySignal.NEGATIVE);
         var impact = new CognitiveImpact(signal, null, true, null, null);
         core.recordInteraction("a", "t", "subject", "stole", "hey!", impact);
+    }
+
+    @Test
+    void recordInteractionUsesConversationIdFromImpactAsCaseId() {
+        var strategy = mock(StrategyLearningOrchestrator.class);
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                strategy, null, null, null, null);
+
+        var impact = CognitiveImpact.withConversationId("conv-abc");
+        core.recordInteraction("agent", "tenant", "subject",
+                "hello", "world", impact);
+
+        var captor = ArgumentCaptor.forClass(EngagementSignal.class);
+        verify(strategy).record(captor.capture(), eq("agent"), eq("subject"), eq("tenant"));
+        var signal = (EngagementSignal.TurnOutcome) captor.getValue();
+        assertThat(signal.event().caseId()).isEqualTo("conv-abc");
+    }
+
+    @Test
+    void recordInteractionWithNullConversationIdUsesNullCaseId() {
+        var strategy = mock(StrategyLearningOrchestrator.class);
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                strategy, null, null, null, null);
+
+        core.recordInteraction("agent", "tenant", "subject",
+                "hello", "world", null);
+
+        var captor = ArgumentCaptor.forClass(EngagementSignal.class);
+        verify(strategy).record(captor.capture(), eq("agent"), eq("subject"), eq("tenant"));
+        var signal = (EngagementSignal.TurnOutcome) captor.getValue();
+        assertThat(signal.event().caseId()).isNull();
     }
 
     @Test
