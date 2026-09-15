@@ -13,7 +13,7 @@ import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentDisposition;
 import io.casehub.neocortex.memory.mood.MoodState;
-import jakarta.enterprise.inject.Instance;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -163,10 +163,6 @@ class DriveOrchestratorTest {
         when(hygiene.knowledgeGaps("agent-1", "tenant-1"))
                 .thenReturn(new KnowledgeGapSummary(5, 10, 3));
 
-        Instance<MemoryHygieneOrchestrator> hygieneInstance = mock(Instance.class);
-        when(hygieneInstance.isResolvable()).thenReturn(true);
-        when(hygieneInstance.get()).thenReturn(hygiene);
-
         var strategy = mock(StrategyLearningOrchestrator.class);
         when(strategy.engagementTrend("agent-1", "tenant-1")).thenReturn(Optional.empty());
         var userModel = mock(UserModelOrchestrator.class);
@@ -174,12 +170,9 @@ class DriveOrchestratorTest {
         var mentalModel = mock(MentalModelOrchestrator.class);
         when(mentalModel.activeSnapshots("agent-1", "tenant-1")).thenReturn(List.of());
 
-        Instance<NarrativeOrchestrator> narrativeInstance = mock(Instance.class);
-        when(narrativeInstance.isResolvable()).thenReturn(false);
-
-        var orch = new DriveOrchestrator(hygieneInstance, strategy, userModel,
+        var orch = new DriveOrchestrator(Optional.of(hygiene), strategy, userModel,
                 mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults(),
-                narrativeInstance);
+                Optional.empty());
 
         var tick = orch.tick("agent-1", "tenant-1", descriptor);
         assertThat(tick).isInstanceOf(DriveTick.Updated.class);
@@ -190,9 +183,6 @@ class DriveOrchestratorTest {
     @SuppressWarnings("unchecked")
     @Test
     void cdiConstructor_without_hygiene_returns_zero_curiosity() {
-        Instance<MemoryHygieneOrchestrator> hygieneInstance = mock(Instance.class);
-        when(hygieneInstance.isResolvable()).thenReturn(false);
-
         var strategy = mock(StrategyLearningOrchestrator.class);
         when(strategy.engagementTrend("agent-1", "tenant-1")).thenReturn(Optional.empty());
         var userModel = mock(UserModelOrchestrator.class);
@@ -200,12 +190,9 @@ class DriveOrchestratorTest {
         var mentalModel = mock(MentalModelOrchestrator.class);
         when(mentalModel.activeSnapshots("agent-1", "tenant-1")).thenReturn(List.of());
 
-        Instance<NarrativeOrchestrator> narrativeInstance = mock(Instance.class);
-        when(narrativeInstance.isResolvable()).thenReturn(false);
-
-        var orch = new DriveOrchestrator(hygieneInstance, strategy, userModel,
+        var orch = new DriveOrchestrator(Optional.empty(), strategy, userModel,
                 mentalModel, moodOrchestrator, new DriveComposer(), DriveConfig.defaults(),
-                narrativeInstance);
+                Optional.empty());
 
         var tick = orch.tick("agent-1", "tenant-1", descriptor);
         assertThat(tick).isInstanceOf(DriveTick.Updated.class);

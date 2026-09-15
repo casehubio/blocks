@@ -12,7 +12,7 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.DispositionValue;
 import io.casehub.eidos.api.EvolutionType;
 import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
-import jakarta.enterprise.inject.Instance;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +37,6 @@ class PersonalityEvolutionOrchestratorTest {
     private AgentDescriptor                  descriptor;
     private ProbeContext probeContext;
 
-    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         signalStore = mock(DispositionSignalStore.class);
@@ -45,11 +44,9 @@ class PersonalityEvolutionOrchestratorTest {
         evolution = mock(DispositionEvolution.class);
         profileStore = mock(DispositionProfileStore.class);
         cbrStore = mock(CbrCaseMemoryStore.class);
-        Instance<TraitPressureSource<?>> sources = mock(Instance.class);
-        when(sources.stream()).thenReturn(java.util.stream.Stream.empty());
 
         orchestrator = new PersonalityEvolutionOrchestrator(
-                signalStore, health, evolution, profileStore, cbrStore, sources,
+                signalStore, health, evolution, profileStore, cbrStore, List.of(),
                 PersonalityEvolutionConfig.defaults());
 
         descriptor = mock(AgentDescriptor.class);

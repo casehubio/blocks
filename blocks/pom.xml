@@ -17,6 +17,13 @@
   <description>Reusable building blocks for CaseHub applications</description>
 
   <dependencies>
+    <!-- Core POJOs — business logic lives here -->
+    <dependency>
+      <groupId>io.casehub</groupId>
+      <artifactId>casehub-blocks-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Compile — summarisation API (extracted types) -->
     <dependency>
       <groupId>io.casehub</groupId>
@@ -60,6 +67,12 @@
       <groupId>org.jspecify</groupId>
       <artifactId>jspecify</artifactId>
       <version>1.0.0</version>
+    </dependency>
+
+    <!-- CDI container — wiring only -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-arc</artifactId>
     </dependency>
 
     <!-- Provided — reactive types -->
@@ -160,5 +173,20 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.smallrye</groupId>
+        <artifactId>jandex-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>make-index</id>
+            <goals><goal>jandex</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 
 </project>

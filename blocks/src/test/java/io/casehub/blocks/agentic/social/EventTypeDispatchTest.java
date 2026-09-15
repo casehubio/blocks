@@ -9,7 +9,7 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.DispositionValue;
 import io.casehub.eidos.api.SignalValence;
 import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
-import jakarta.enterprise.inject.Instance;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -41,15 +41,11 @@ class EventTypeDispatchTest {
             }
         };
 
-        @SuppressWarnings("unchecked")
-        Instance<TraitPressureSource<?>> sources = mock(Instance.class);
-        when(sources.stream()).thenReturn(java.util.stream.Stream.of(stringSrc, intSrc));
-
         var signalStore = mock(DispositionSignalStore.class);
         var orch = new PersonalityEvolutionOrchestrator(
                 signalStore, mock(DispositionHealth.class), mock(DispositionEvolution.class),
                 mock(DispositionProfileStore.class), mock(CbrCaseMemoryStore.class),
-                sources, PersonalityEvolutionConfig.defaults());
+                List.of(stringSrc, intSrc), PersonalityEvolutionConfig.defaults());
 
         var descriptor = mock(AgentDescriptor.class);
         when(descriptor.agentId()).thenReturn("a");

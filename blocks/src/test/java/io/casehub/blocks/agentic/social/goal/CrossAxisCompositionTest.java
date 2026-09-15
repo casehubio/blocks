@@ -14,7 +14,7 @@ import io.casehub.eidos.api.AgentGoal;
 import io.casehub.eidos.api.GoalPriority;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.eidos.api.Visibility;
-import jakarta.enterprise.inject.Instance;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,16 +47,13 @@ class CrossAxisCompositionTest {
         narrativeOrchestrator = mock(NarrativeOrchestrator.class);
         curiosityMapper = mock(DriveGoalMapper.class);
 
-        Instance<GoalSignalStore> signalStoreInstance = mock(Instance.class);
-        when(signalStoreInstance.isResolvable()).thenReturn(false);
-
         clock = Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneId.of("UTC"));
 
         orchestrator = new GoalProposalOrchestrator(
                 driveOrchestrator,
                 List.of(curiosityMapper),
                 null,
-                signalStoreInstance,
+                Optional.empty(),
                 narrativeOrchestrator,
                 null,
                 null,
@@ -167,13 +164,9 @@ class CrossAxisCompositionTest {
                         "LLM-enriched", proposal.driveIntensity(),
                         proposal.suggestedPriority(), proposal.proposalAttributes());
 
-        @SuppressWarnings("unchecked")
-        Instance<GoalSignalStore> signalStoreInstance = mock(Instance.class);
-        when(signalStoreInstance.isResolvable()).thenReturn(false);
-
         var enrichedOrchestrator = new GoalProposalOrchestrator(
                 driveOrchestrator, List.of(curiosityMapper), null,
-                signalStoreInstance, narrativeOrchestrator, null, enricher,
+                Optional.empty(), narrativeOrchestrator, null, enricher,
                 GoalProposalConfig.defaults(), GoalEscalationConfig.defaults(), clock);
 
         var theme = theme("connector", 0.8,

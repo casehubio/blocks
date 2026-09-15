@@ -21,7 +21,7 @@ import io.casehub.blocks.memory.KnowledgeGapSummary;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.GoalSignalStore;
-import jakarta.enterprise.inject.Instance;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 class GoalProposalIntegrationTest {
 
     @Test
-    @SuppressWarnings("unchecked")
     void fullTickCycle_driveToGoalProposal() {
         var hygieneOrchestrator = mock(MemoryHygieneOrchestrator.class);
         var strategyOrchestrator = mock(StrategyLearningOrchestrator.class);
@@ -81,14 +80,11 @@ class GoalProposalIntegrationTest {
         var affiliationMapper = new AffiliationGoalMapper(
                 affiliationDrive, 0.3, Duration.ofDays(7));
 
-        Instance<GoalSignalStore> signalStoreInstance = mock(Instance.class);
-        when(signalStoreInstance.isResolvable()).thenReturn(false);
-
         var clock = Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneId.of("UTC"));
         var goalOrchestrator = new GoalProposalOrchestrator(
                 driveOrchestrator,
                 List.of(curiosityMapper, affiliationMapper),
-                signalStoreInstance,
+                Optional.empty(),
                 GoalProposalConfig.defaults(),
                 clock);
 
@@ -104,7 +100,6 @@ class GoalProposalIntegrationTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void fullTickCycle_noProposalsWhenDrivesWeak() {
         var hygieneOrchestrator = mock(MemoryHygieneOrchestrator.class);
         var strategyOrchestrator = mock(StrategyLearningOrchestrator.class);
@@ -142,12 +137,9 @@ class GoalProposalIntegrationTest {
 
         driveOrchestrator.tick("a1", "t1", descriptor);
 
-        Instance<GoalSignalStore> signalStoreInstance = mock(Instance.class);
-        when(signalStoreInstance.isResolvable()).thenReturn(false);
-
         var clock = Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneId.of("UTC"));
         var goalOrchestrator = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(), signalStoreInstance,
+                driveOrchestrator, List.of(), Optional.empty(),
                 GoalProposalConfig.defaults(), clock);
 
         var tick = goalOrchestrator.tick("a1", "t1", descriptor);

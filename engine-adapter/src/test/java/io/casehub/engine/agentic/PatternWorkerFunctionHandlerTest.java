@@ -32,7 +32,9 @@ import io.casehub.engine.common.internal.executor.ExecutionMetadata;
 import io.casehub.engine.common.internal.executor.HandlerResult;
 import io.casehub.engine.internal.executor.WorkerRuntimeFactory;
 import io.casehub.worker.api.WorkerOutcome;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +54,7 @@ class PatternWorkerFunctionHandlerTest {
     checkpointStore = mock(PatternCheckpointStore.class);
     when(runtimeFactory.create(any(UUID.class), anyString(), any(WorkerContext.class)))
         .thenReturn(runtime);
-    handler = new PatternWorkerFunctionHandler(runtimeFactory, checkpointStore);
+    handler = new PatternWorkerFunctionHandler(runtimeFactory, checkpointStore, Optional.empty(), List.of());
   }
 
   @Test

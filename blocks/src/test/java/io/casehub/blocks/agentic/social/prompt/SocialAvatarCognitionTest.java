@@ -13,8 +13,7 @@ import io.casehub.blocks.speech.AssembledPrompt;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
-import io.casehub.platform.agent.AgentProvider;
-import jakarta.enterprise.inject.Instance;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,10 +40,8 @@ class SocialAvatarCognitionTest {
     private InnerLifeOrchestrator innerLife;
     private AgentRegistry registry;
 
-    @SuppressWarnings("unchecked")
     @BeforeEach
-    void setUp() throws Exception {
-        cognition = new SocialAvatarCognition();
+    void setUp() {
         mood = mock(MoodOrchestrator.class);
         drives = mock(DriveOrchestrator.class);
         mentalModel = mock(MentalModelOrchestrator.class);
@@ -53,44 +50,12 @@ class SocialAvatarCognitionTest {
         innerLife = mock(InnerLifeOrchestrator.class);
         registry = mock(AgentRegistry.class);
 
-        when(mood.currentMood(any(), any())).thenReturn(Optional.empty());
-        when(registry.findById(any(), any())).thenReturn(Optional.empty());
-
-        var narrativeInstance = (Instance<NarrativeOrchestrator>) mock(Instance.class);
-        when(narrativeInstance.isResolvable()).thenReturn(false);
-        var goalInstance = (Instance<GoalProposalOrchestrator>) mock(Instance.class);
-        when(goalInstance.isResolvable()).thenReturn(false);
-        var innerLifeInstance = (Instance<InnerLifeOrchestrator>) mock(Instance.class);
-        when(innerLifeInstance.isResolvable()).thenReturn(true);
-        when(innerLifeInstance.get()).thenReturn(innerLife);
-        var registryInstance = (Instance<AgentRegistry>) mock(Instance.class);
-        when(registryInstance.isResolvable()).thenReturn(true);
-        when(registryInstance.get()).thenReturn(registry);
-        var agentProviderInstance = (Instance<AgentProvider>) mock(Instance.class);
-        when(agentProviderInstance.isResolvable()).thenReturn(false);
-
-        var moodField = SocialAvatarCognition.class.getDeclaredField("mood");
-        moodField.setAccessible(true); moodField.set(cognition, mood);
-        var drivesField = SocialAvatarCognition.class.getDeclaredField("drives");
-        drivesField.setAccessible(true); drivesField.set(cognition, drives);
-        var mmField = SocialAvatarCognition.class.getDeclaredField("mentalModel");
-        mmField.setAccessible(true); mmField.set(cognition, mentalModel);
-        var umField = SocialAvatarCognition.class.getDeclaredField("userModel");
-        umField.setAccessible(true); umField.set(cognition, userModel);
-        var stField = SocialAvatarCognition.class.getDeclaredField("strategy");
-        stField.setAccessible(true); stField.set(cognition, strategy);
-        var narField = SocialAvatarCognition.class.getDeclaredField("narrative");
-        narField.setAccessible(true); narField.set(cognition, narrativeInstance);
-        var goalField = SocialAvatarCognition.class.getDeclaredField("goals");
-        goalField.setAccessible(true); goalField.set(cognition, goalInstance);
-        var ilField = SocialAvatarCognition.class.getDeclaredField("innerLife");
-        ilField.setAccessible(true); ilField.set(cognition, innerLifeInstance);
-        var regField = SocialAvatarCognition.class.getDeclaredField("agentRegistry");
-        regField.setAccessible(true); regField.set(cognition, registryInstance);
-        var apField = SocialAvatarCognition.class.getDeclaredField("agentProviderInstance");
-        apField.setAccessible(true); apField.set(cognition, agentProviderInstance);
-
-        cognition.init();
+        cognition = new SocialAvatarCognition(
+                mood, drives, mentalModel, userModel, strategy,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.of(innerLife),
+                Optional.of(registry));
     }
 
     @Test

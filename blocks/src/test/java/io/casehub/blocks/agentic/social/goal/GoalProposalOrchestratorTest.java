@@ -10,7 +10,7 @@ import io.casehub.eidos.api.GoalOutcomeCounts;
 import io.casehub.eidos.api.GoalPriority;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.eidos.api.Visibility;
-import jakarta.enterprise.inject.Instance;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,21 +35,17 @@ class GoalProposalOrchestratorTest {
     private Clock clock;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
         driveOrchestrator = mock(DriveOrchestrator.class);
         curiosityMapper = mock(DriveGoalMapper.class);
         competenceMapper = mock(DriveGoalMapper.class);
-
-        Instance<GoalSignalStore> signalStoreInstance = mock(Instance.class);
-        when(signalStoreInstance.isResolvable()).thenReturn(false);
 
         clock = Clock.fixed(Instant.parse("2026-08-23T12:00:00Z"), ZoneId.of("UTC"));
 
         orchestrator = new GoalProposalOrchestrator(
                 driveOrchestrator,
                 List.of(curiosityMapper, competenceMapper),
-                signalStoreInstance,
+                Optional.empty(),
                 GoalProposalConfig.defaults(),
                 clock);
     }
@@ -91,11 +87,8 @@ class GoalProposalOrchestratorTest {
     void respectsMaxDriveGoals() {
         var config = new GoalProposalConfig(0.4, 0.2, 2, Duration.ofMinutes(120),
                 Duration.ofMinutes(60), 5);
-        @SuppressWarnings("unchecked")
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
         var orch = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(curiosityMapper, competenceMapper), si, config, clock);
+                driveOrchestrator, List.of(curiosityMapper, competenceMapper), Optional.empty(), config, clock);
 
         var existingDriveGoals = List.of(
                 driveGoal("goal-a"), driveGoal("goal-b"));
@@ -116,11 +109,8 @@ class GoalProposalOrchestratorTest {
     void ranksProposalsByIntensity() {
         var config = new GoalProposalConfig(0.4, 0.2, 1, Duration.ofMinutes(120),
                 Duration.ofMinutes(60), 5);
-        @SuppressWarnings("unchecked")
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
         var orch = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(curiosityMapper, competenceMapper), si, config, clock);
+                driveOrchestrator, List.of(curiosityMapper, competenceMapper), Optional.empty(), config, clock);
 
         var profile = new DriveProfile("a1", "t1",
                 Map.of(DriveAxis.CURIOSITY, driveIntensity(DriveAxis.CURIOSITY, 0.5),
@@ -145,13 +135,10 @@ class GoalProposalOrchestratorTest {
 
     @Test
     void abandonsGoal_whenDriveWeakensAndStaleElapsed() {
-        @SuppressWarnings("unchecked")
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
         var config = new GoalProposalConfig(0.4, 0.2, 3, Duration.ZERO,
                 Duration.ZERO, 5);
         var orch = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(curiosityMapper), si, config, clock);
+                driveOrchestrator, List.of(curiosityMapper), Optional.empty(), config, clock);
 
         var driveGoal = driveGoal("explore-knowledge-gaps");
         var descriptor = AgentDescriptor.builder()
@@ -170,11 +157,8 @@ class GoalProposalOrchestratorTest {
     void respectsCooldown() {
         var config = new GoalProposalConfig(0.4, 0.2, 3, Duration.ofMinutes(120),
                 Duration.ofMinutes(60), 5);
-        @SuppressWarnings("unchecked")
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
         var orch = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(curiosityMapper), si, config, clock);
+                driveOrchestrator, List.of(curiosityMapper), Optional.empty(), config, clock);
 
         setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
         when(curiosityMapper.evaluate("a1", "t1", driveIntensity(DriveAxis.CURIOSITY, 0.7)))
@@ -216,19 +200,15 @@ class GoalProposalOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void failureAbandonment_whenThresholdExceeded() {
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(true);
         GoalSignalStore store = mock(GoalSignalStore.class);
-        when(si.get()).thenReturn(store);
         when(store.outcomeCounts("a1", "t1"))
                 .thenReturn(Map.of("explore-knowledge-gaps", new GoalOutcomeCounts(0, 5)));
 
         var config = new GoalProposalConfig(0.4, 0.2, 3, Duration.ofMinutes(120),
                 Duration.ZERO, 5);
         var orch = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(curiosityMapper), si, config, clock);
+                driveOrchestrator, List.of(curiosityMapper), Optional.of(store), config, clock);
 
         var descriptor = AgentDescriptor.builder()
                 .agentId("a1").name("A").slot("s").tenancyId("t1")
@@ -244,19 +224,15 @@ class GoalProposalOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void failureSuppression_preventsReproposal() {
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(true);
         GoalSignalStore store = mock(GoalSignalStore.class);
-        when(si.get()).thenReturn(store);
         when(store.outcomeCounts("a1", "t1"))
                 .thenReturn(Map.of("explore-knowledge-gaps", new GoalOutcomeCounts(0, 5)));
 
         var config = new GoalProposalConfig(0.4, 0.2, 3, Duration.ofMinutes(120),
                 Duration.ZERO, 5);
         var orch = new GoalProposalOrchestrator(
-                driveOrchestrator, List.of(curiosityMapper), si, config, clock);
+                driveOrchestrator, List.of(curiosityMapper), Optional.of(store), config, clock);
 
         var descriptor = AgentDescriptor.builder()
                 .agentId("a1").name("A").slot("s").tenancyId("t1")
@@ -280,15 +256,11 @@ class GoalProposalOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void usesFormationStrategy_whenPresent() {
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
-
         DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
         var orch = new GoalProposalOrchestrator(
                 driveOrchestrator, List.of(curiosityMapper), strategy,
-                si, GoalProposalConfig.defaults(), clock);
+                Optional.empty(), GoalProposalConfig.defaults(), clock);
 
         setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
         when(strategy.propose(org.mockito.ArgumentMatchers.any(DriveGoalFormationContext.class)))
@@ -305,15 +277,11 @@ class GoalProposalOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void fallsBackToMapper_whenStrategyReturnsNull() {
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
-
         DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
         var orch = new GoalProposalOrchestrator(
                 driveOrchestrator, List.of(curiosityMapper), strategy,
-                si, GoalProposalConfig.defaults(), clock);
+                Optional.empty(), GoalProposalConfig.defaults(), clock);
 
         setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
         when(strategy.propose(org.mockito.ArgumentMatchers.any(DriveGoalFormationContext.class)))
@@ -331,11 +299,7 @@ class GoalProposalOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void strategyReceivesCorrectContext() {
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
-
         org.mockito.ArgumentCaptor<DriveGoalFormationContext> captor =
                 org.mockito.ArgumentCaptor.forClass(DriveGoalFormationContext.class);
         DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
@@ -349,7 +313,7 @@ class GoalProposalOrchestratorTest {
 
         var orch = new GoalProposalOrchestrator(
                 driveOrchestrator, List.of(), strategy,
-                si, GoalProposalConfig.defaults(), clock);
+                Optional.empty(), GoalProposalConfig.defaults(), clock);
 
         setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.65);
         orch.tick("a1", "t1", descriptor);
@@ -364,18 +328,14 @@ class GoalProposalOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void fallsBackToMapper_whenStrategyThrows() {
-        Instance<GoalSignalStore> si = mock(Instance.class);
-        when(si.isResolvable()).thenReturn(false);
-
         DriveGoalFormationStrategy strategy = mock(DriveGoalFormationStrategy.class);
         when(strategy.propose(org.mockito.ArgumentMatchers.any(DriveGoalFormationContext.class)))
                 .thenThrow(new RuntimeException("LLM unavailable"));
 
         var orch = new GoalProposalOrchestrator(
                 driveOrchestrator, List.of(curiosityMapper), strategy,
-                si, GoalProposalConfig.defaults(), clock);
+                Optional.empty(), GoalProposalConfig.defaults(), clock);
 
         setupDrives("a1", "t1", DriveAxis.CURIOSITY, 0.7);
         when(curiosityMapper.evaluate("a1", "t1", driveIntensity(DriveAxis.CURIOSITY, 0.7)))

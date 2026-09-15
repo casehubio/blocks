@@ -20,35 +20,23 @@
     </description>
 
     <dependencies>
-        <!-- Blocks: ExecutionModel, OrchestratedDriver, AgentRef, PatternType -->
+        <!-- Core POJOs — business logic lives here -->
         <dependency>
             <groupId>io.casehub</groupId>
-            <artifactId>casehub-blocks</artifactId>
+            <artifactId>casehub-blocks-engine-adapter-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Engine common: WorkerFunctionHandler SPI, HandlerResult -->
+        <!-- Engine common: EventBusAddresses (CDI wiring references) -->
         <dependency>
             <groupId>io.casehub</groupId>
             <artifactId>casehub-engine-common</artifactId>
         </dependency>
 
-        <!-- Engine runtime: WorkerRuntimeFactory -->
+        <!-- Engine runtime: WorkerRuntimeFactory (CDI injection) -->
         <dependency>
             <groupId>io.casehub</groupId>
             <artifactId>casehub-engine</artifactId>
-        </dependency>
-
-        <!-- Engine API: WorkerRuntime, WorkerContext, PlanningConstraints -->
-        <dependency>
-            <groupId>io.casehub</groupId>
-            <artifactId>casehub-engine-api</artifactId>
-        </dependency>
-
-        <!-- Worker API: WorkerFunction, WorkerResult -->
-        <dependency>
-            <groupId>io.casehub</groupId>
-            <artifactId>casehub-worker-api</artifactId>
         </dependency>
 
         <!-- Reactive types (provided — blocks brings them transitively) -->

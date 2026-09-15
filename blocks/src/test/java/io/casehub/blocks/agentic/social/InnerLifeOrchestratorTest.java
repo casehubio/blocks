@@ -10,7 +10,7 @@ import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.smallrye.mutiny.Multi;
-import jakarta.enterprise.inject.Instance;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,12 +47,9 @@ class InnerLifeOrchestratorTest {
         when(descriptor.disposition()).thenReturn(disposition);
     }
 
-    @SuppressWarnings("unchecked")
     private InnerLifeOrchestrator makeOrchestrator(CivilityConstraint... constraints) {
-        Instance<CivilityConstraint> cdi = mock(Instance.class);
-        when(cdi.stream()).thenReturn(java.util.stream.Stream.of(constraints));
         return new InnerLifeOrchestrator(
-                reflectionOrchestrator, agentProvider, cdi,
+                reflectionOrchestrator, agentProvider, List.of(constraints),
                 InnerLifeConfig.defaults(), driveOrchestrator);
     }
 

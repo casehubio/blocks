@@ -11,7 +11,8 @@ import io.casehub.qhorus.api.store.ThreadSummaryStore;
 import io.casehub.qhorus.api.store.query.MessageQuery;
 import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.platform.api.identity.ActorType;
-import jakarta.enterprise.event.Event;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -35,7 +36,8 @@ class ThreadSummaryObserverTest {
     private ContentSummariser<Message, SummaryResult> summariser;
     private CrossTenantMessageStore messageStore;
     private ThreadSummaryStore threadSummaryStore;
-    private Event<ThreadSummaryUpdatedEvent> summaryEvents;
+    private Consumer<ThreadSummaryUpdatedEvent> summaryEvents;
+    private AtomicReference<ThreadSummaryUpdatedEvent> capturedEvent;
 
     private static final UUID CHANNEL_ID = UUID.randomUUID();
     private static final String CHANNEL_NAME = "test-channel";
@@ -48,9 +50,10 @@ class ThreadSummaryObserverTest {
         summariser = mock(ContentSummariser.class);
         messageStore = mock(CrossTenantMessageStore.class);
         threadSummaryStore = mock(ThreadSummaryStore.class);
-        summaryEvents = mock(Event.class);
+        capturedEvent = new AtomicReference<>();
+        summaryEvents = capturedEvent::set;
         observer = new ThreadSummaryObserver(
-                summariser, messageStore, threadSummaryStore, summaryEvents);
+                summariser, messageStore, threadSummaryStore, summaryEvents, null);
     }
 
     @Test
@@ -177,11 +180,9 @@ class ThreadSummaryObserverTest {
 
         observer.summariseThread(CHANNEL_ID, CORRELATION_ID, CHANNEL_NAME, TENANCY_ID);
 
-        ArgumentCaptor<ThreadSummaryUpdatedEvent> cap =
-                ArgumentCaptor.forClass(ThreadSummaryUpdatedEvent.class);
-        verify(summaryEvents).fireAsync(cap.capture());
-        assertThat(cap.getValue().channelName()).isEqualTo(CHANNEL_NAME);
-        assertThat(cap.getValue().correlationId()).isEqualTo(CORRELATION_ID);
+        assertThat(capturedEvent.get()).isNotNull();
+        assertThat(capturedEvent.get().channelName()).isEqualTo(CHANNEL_NAME);
+        assertThat(capturedEvent.get().correlationId()).isEqualTo(CORRELATION_ID);
     }
 
     private Message mockMessage() {
