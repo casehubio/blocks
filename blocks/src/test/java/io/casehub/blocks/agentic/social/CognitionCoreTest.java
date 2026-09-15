@@ -126,6 +126,72 @@ class CognitionCoreTest {
     }
 
     @Test
+    void recordInteractionDerivesPositiveQualityFromHighArousalPositivePleasure() {
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        mood.record(new MoodSignal.InteractionAppraisal(0.2, 0.4, 0.1, "engaged"),
+                "a", "t");
+        mood.tick("a", "t");
+
+        var userModel = mock(UserModelOrchestrator.class);
+        DriveSource baseline = (a, t) -> new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "b");
+        var drives = new DriveOrchestrator(baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, userModel, null,
+                null, null, null, null, null);
+
+        core.recordInteraction("a", "t", "subject", "hello", "world", null);
+
+        var captor = ArgumentCaptor.forClass(InteractionSignal.class);
+        verify(userModel).record(captor.capture(), eq("a"), eq("subject"), eq("t"));
+        assertThat(((InteractionSignal.CustomSignal) captor.getValue()).quality())
+                .isEqualTo(io.casehub.neocortex.memory.relationship.QualitySignal.POSITIVE);
+    }
+
+    @Test
+    void recordInteractionDerivesNegativeQualityFromLowArousalNegativePleasure() {
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        mood.record(new MoodSignal.InteractionAppraisal(-0.2, -0.2, -0.1, "bored"),
+                "a", "t");
+        mood.tick("a", "t");
+
+        var userModel = mock(UserModelOrchestrator.class);
+        DriveSource baseline = (a, t) -> new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "b");
+        var drives = new DriveOrchestrator(baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, userModel, null,
+                null, null, null, null, null);
+
+        core.recordInteraction("a", "t", "subject", "hello", "world", null);
+
+        var captor = ArgumentCaptor.forClass(InteractionSignal.class);
+        verify(userModel).record(captor.capture(), eq("a"), eq("subject"), eq("t"));
+        assertThat(((InteractionSignal.CustomSignal) captor.getValue()).quality())
+                .isEqualTo(io.casehub.neocortex.memory.relationship.QualitySignal.NEGATIVE);
+    }
+
+    @Test
+    void recordInteractionDerivesNeutralForHighArousalNegativePleasure() {
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        mood.record(new MoodSignal.InteractionAppraisal(-0.15, 0.4, 0.0, "debate"),
+                "a", "t");
+        mood.tick("a", "t");
+
+        var userModel = mock(UserModelOrchestrator.class);
+        DriveSource baseline = (a, t) -> new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "b");
+        var drives = new DriveOrchestrator(baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, userModel, null,
+                null, null, null, null, null);
+
+        core.recordInteraction("a", "t", "subject", "hello", "world", null);
+
+        var captor = ArgumentCaptor.forClass(InteractionSignal.class);
+        verify(userModel).record(captor.capture(), eq("a"), eq("subject"), eq("t"));
+        assertThat(((InteractionSignal.CustomSignal) captor.getValue()).quality())
+                .isEqualTo(io.casehub.neocortex.memory.relationship.QualitySignal.NEUTRAL);
+    }
+
+    @Test
     void promptSectionsSkipsNullOrchestrators() {
         var core = minimalCore();
         var sections = core.promptSections();

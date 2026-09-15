@@ -152,8 +152,7 @@ public class CognitionCore {
             if (config.userModelEnabled() && userModel != null) {
                 var signal = (impact != null && impact.userModelSignal() != null)
                         ? impact.userModelSignal()
-                        : new InteractionSignal.CustomSignal(
-                                userMessage, QualitySignal.NEUTRAL);
+                        : deriveQualitySignal(agentId, tenantId, userMessage);
                 safeRun(() -> userModel.record(signal, agentId, subjectId, tenantId));
             }
             if (config.mentalModelEnabled() && mentalModel != null
@@ -249,6 +248,23 @@ public class CognitionCore {
                 "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
         var matcher = pattern.matcher(json);
         return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private InteractionSignal deriveQualitySignal(String agentId, String tenantId,
+                                                   String userMessage) {
+        QualitySignal quality = QualitySignal.NEUTRAL;
+        var currentMood = mood.currentMood(agentId, tenantId);
+        if (currentMood.isPresent()) {
+            var m = currentMood.get();
+            double pleasure = m.pleasure();
+            double arousal = m.arousal();
+            if (arousal > 0.3 && pleasure > 0.1) {
+                quality = QualitySignal.POSITIVE;
+            } else if (arousal < -0.1 && pleasure < -0.1) {
+                quality = QualitySignal.NEGATIVE;
+            }
+        }
+        return new InteractionSignal.CustomSignal(userMessage, quality);
     }
 
     private static final String BDI_EXTRACTION_PROMPT = """
