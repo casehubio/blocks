@@ -3,6 +3,7 @@ package io.casehub.blocks.agentic.social;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
 import io.casehub.blocks.agentic.social.prompt.DrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.GoalPromptSection;
@@ -327,6 +328,8 @@ public class CognitionCore {
         var desc = lastDescriptor;
         if (desc != null && desc.disposition() != null)
             sections.add(new PersonalityPromptSection(desc.disposition().dispositionProfile()));
+        if (desc != null && desc.constraints() != null && !desc.constraints().isEmpty())
+            sections.add(new ConstraintPromptSection(desc.constraints()));
         if (config.moodEnabled())
             sections.add(new MoodPromptSection(mood));
         if (config.drivesEnabled())

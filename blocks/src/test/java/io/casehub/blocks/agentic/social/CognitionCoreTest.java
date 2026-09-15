@@ -107,6 +107,26 @@ class CognitionCoreTest {
         core.tick("agent1", "tenant1", null, (aid, tid) -> Set.of("other-agent"));
     }
 
+    @Test
+    void promptSectionsIncludesConstraintsAfterTick() {
+        var core = minimalCore();
+        var descriptor = stubDescriptor();
+        when(descriptor.constraints()).thenReturn(
+                List.of(new io.casehub.eidos.api.AgentConstraint(
+                        "observation-first", "Always ground understanding in direct observation",
+                        io.casehub.eidos.api.Visibility.PUBLIC,
+                        io.casehub.eidos.api.ConstraintSeverity.HARD)));
+        core.tick("a", "t", descriptor, (aid, tid) -> Set.of());
+        var sections = core.promptSections();
+        var constraintSection = sections.stream()
+                .filter(s -> {
+                    var text = s.contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null));
+                    return text != null && text.contains("constraints");
+                })
+                .findFirst();
+        assertThat(constraintSection).isPresent();
+    }
+
     private static CognitionCore minimalCore() {
         var mood = new MoodOrchestrator(MoodConfig.defaults());
         DriveSource baseline = (a, t) ->
