@@ -81,7 +81,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .build()
                 .run();
 
@@ -105,7 +105,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(false)
                 .build()
                 .run();
@@ -141,7 +141,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(true)
                 .build()
                 .run();
@@ -177,7 +177,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(true)
                 .build()
                 .run();
@@ -212,7 +212,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(true)
                 .build()
                 .run();
@@ -245,7 +245,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(true)
                 .build()
                 .run();
@@ -276,7 +276,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(stack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(true)
                 .build()
                 .run();
@@ -308,7 +308,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(baselineStack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(false)
                 .build()
                 .run();
@@ -320,7 +320,7 @@ class HistoricalEncounterLlmTest {
                 .cognition(fullStack)
                 .world(world)
                 .descriptors(descriptors)
-                .maxTurns(8)
+                .maxTurns(12)
                 .includeCognition(true)
                 .build()
                 .run();

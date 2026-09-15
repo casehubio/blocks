@@ -186,7 +186,7 @@ public class ConversationRunner {
         private CognitionStack cognition;
         private CompiledWorld world;
         private List<AgentDescriptor> descriptors;
-        private int maxTurns = 6;
+        private int maxTurns = 12;
         private String tenantId = "showcase";
         private boolean includeCognition = true;
 
