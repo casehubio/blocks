@@ -9,6 +9,7 @@ import io.casehub.blocks.agentic.social.prompt.GoalPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MentalModelPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MoodPromptSection;
 import io.casehub.blocks.agentic.social.prompt.NarrativePromptSection;
+import io.casehub.blocks.agentic.social.prompt.PersonalityPromptSection;
 import io.casehub.blocks.agentic.social.prompt.StrategyPromptSection;
 import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
@@ -43,6 +44,7 @@ public class CognitionCore {
     private final @Nullable MemoryHygieneOrchestrator memoryHygiene;
     private final @Nullable AgentProvider agentProvider;
     private final CognitionConfig config;
+    private volatile @Nullable AgentDescriptor lastDescriptor;
 
     public CognitionCore(MoodOrchestrator mood,
                           DriveOrchestrator drives,
@@ -94,6 +96,7 @@ public class CognitionCore {
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
                      SubjectResolver resolver) {
+        this.lastDescriptor = descriptor;
         if (config.moodEnabled()) {
             if (mood.currentMood(agentId, tenantId).isEmpty()) {
                 mood.record(new MoodSignal.InteractionAppraisal(0, 0, 0, "init"),
@@ -321,6 +324,9 @@ public class CognitionCore {
 
     public List<PromptSection> promptSections() {
         var sections = new ArrayList<PromptSection>();
+        var desc = lastDescriptor;
+        if (desc != null && desc.disposition() != null)
+            sections.add(new PersonalityPromptSection(desc.disposition().dispositionProfile()));
         if (config.moodEnabled())
             sections.add(new MoodPromptSection(mood));
         if (config.drivesEnabled())

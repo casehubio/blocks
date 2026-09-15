@@ -85,6 +85,23 @@ class CognitionCoreTest {
     }
 
     @Test
+    void promptSectionsIncludesPersonalityAfterTick() {
+        var core = minimalCore();
+        var descriptor = stubDescriptor();
+        var disposition = mock(io.casehub.eidos.api.AgentDisposition.class);
+        when(disposition.dispositionProfile()).thenReturn(
+                List.of(new io.casehub.eidos.api.DispositionValue("independent", 0.8)));
+        when(descriptor.disposition()).thenReturn(disposition);
+        core.tick("a", "t", descriptor, (aid, tid) -> Set.of());
+        var sections = core.promptSections();
+        assertThat(sections).hasSize(3);
+        var personalitySection = sections.get(0);
+        var text = personalitySection.contribute(
+                new io.casehub.blocks.speech.PromptContext("a", "t", null));
+        assertThat(text).contains("independent");
+    }
+
+    @Test
     void tickWithSubjectsSkipsNullOrchestrators() {
         var core = minimalCore();
         core.tick("agent1", "tenant1", null, (aid, tid) -> Set.of("other-agent"));
