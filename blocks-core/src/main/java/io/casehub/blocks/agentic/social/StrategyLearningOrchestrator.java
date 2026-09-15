@@ -179,6 +179,12 @@ public class StrategyLearningOrchestrator {
             if (event.affectShift() != null) {
                 state.affectSum += event.affectShift();
             }
+            var caseId = event.caseId();
+            if (caseId != null && !caseId.isBlank()) {
+                state.conversationTurns
+                        .computeIfAbsent(caseId, k -> new ArrayList<>())
+                        .add(entry);
+            }
         }
 
         double engagementRate = state.totalSignals > 0
@@ -203,14 +209,10 @@ public class StrategyLearningOrchestrator {
 
         for (var convEntry : drainedConversations) {
             var conv = convEntry.signal;
-            var matchedTurns = drainedTurns.stream()
-                    .filter(t -> convEntry.subjectId.equals(t.subjectId)
-                            && conv.conversationId().equals(t.signal.event().caseId()))
-                    .toList();
+            var accumulated = state.conversationTurns.remove(conv.conversationId());
+            if (accumulated == null || accumulated.isEmpty()) continue;
 
-            if (matchedTurns.isEmpty()) continue;
-
-            var features = extractFeatures(matchedTurns, convEntry.subjectId, state.agentId);
+            var features = extractFeatures(accumulated, convEntry.subjectId, state.agentId);
             var summary = conv.conversationSummary() != null
                     ? conv.conversationSummary()
                     : "Conversation with " + convEntry.subjectId + " (" + conv.turnCount() + " turns)";
@@ -583,6 +585,7 @@ public class StrategyLearningOrchestrator {
         final String tenantId;
         final ArrayDeque<TurnEntry> pendingTurns;
         final ArrayDeque<ConversationEntry> pendingConversations;
+        final ConcurrentHashMap<String, List<TurnEntry>> conversationTurns = new ConcurrentHashMap<>();
         int totalSignals;
         int totalResponded;
         double affectSum;

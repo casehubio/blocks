@@ -182,6 +182,73 @@ class StrategyLearningOrchestratorTest {
         assertThat(result).isInstanceOf(StrategyLearningTick.Observed.class);
     }
 
+    // --- turn accumulation across ticks ---
+
+    @Test void tick_turnsAccumulateAcrossTicks_andMatchConversationOutcome() {
+        // Record 4 turns with shared caseId, ticking between each
+        for (int i = 0; i < 4; i++) {
+            orchestrator.record(turnOutcome("conv-1", true, 0.1 * i, 100 + i * 50),
+                    "agent-1", "user-1", "tenant-1");
+            var result = orchestrator.tick("agent-1", "tenant-1");
+            assertThat(result).isInstanceOf(StrategyLearningTick.Observed.class);
+        }
+
+        // Now send ConversationOutcome with matching ID
+        orchestrator.record(
+                new EngagementSignal.ConversationOutcome("conv-1", "summary", 4),
+                "agent-1", "user-1", "tenant-1");
+        var result = orchestrator.tick("agent-1", "tenant-1");
+
+        assertThat(result).isInstanceOf(StrategyLearningTick.Learned.class);
+        var learned = (StrategyLearningTick.Learned) result;
+        assertThat(learned.casesStored()).isEqualTo(1);
+        assertThat(learned.conversationsStored()).contains("conv-1");
+
+        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
+                any(), anyString(), any(), any());
+        var features = captor.getValue().features();
+        assertThat(((FeatureValue.NumberVal) features.get("turnCount")).value())
+                .isEqualTo(4.0);
+    }
+
+    @Test void tick_turnsWithDifferentCaseIds_accumulateSeparately() {
+        orchestrator.record(turnOutcome("conv-A", true, 0.3, 100), "agent-1", "user-1", "tenant-1");
+        orchestrator.tick("agent-1", "tenant-1");
+        orchestrator.record(turnOutcome("conv-B", true, 0.5, 200), "agent-1", "user-1", "tenant-1");
+        orchestrator.tick("agent-1", "tenant-1");
+        orchestrator.record(turnOutcome("conv-A", true, 0.1, 150), "agent-1", "user-1", "tenant-1");
+        orchestrator.tick("agent-1", "tenant-1");
+
+        // Only close conv-A — should only get 2 turns
+        orchestrator.record(
+                new EngagementSignal.ConversationOutcome("conv-A", "summary-A", 2),
+                "agent-1", "user-1", "tenant-1");
+        var result = orchestrator.tick("agent-1", "tenant-1");
+
+        assertThat(result).isInstanceOf(StrategyLearningTick.Learned.class);
+        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
+                any(), anyString(), any(), any());
+        assertThat(((FeatureValue.NumberVal) captor.getValue().features().get("turnCount")).value())
+                .isEqualTo(2.0);
+    }
+
+    @Test void tick_turnsWithNullCaseId_notAccumulated() {
+        orchestrator.record(turnOutcome(null, true, 0.3, 100), "agent-1", "user-1", "tenant-1");
+        orchestrator.tick("agent-1", "tenant-1");
+        orchestrator.record(turnOutcome(null, true, 0.5, 200), "agent-1", "user-1", "tenant-1");
+        orchestrator.tick("agent-1", "tenant-1");
+
+        orchestrator.record(
+                new EngagementSignal.ConversationOutcome("conv-1", "summary", 2),
+                "agent-1", "user-1", "tenant-1");
+        var result = orchestrator.tick("agent-1", "tenant-1");
+
+        // ConversationOutcome has no matching accumulated turns, so no case stored
+        assertThat(result).isInstanceOf(StrategyLearningTick.Observed.class);
+    }
+
     // --- currentStrategy ---
 
     @Test void currentStrategy_returnsEmpty_whenNoProfile() {
