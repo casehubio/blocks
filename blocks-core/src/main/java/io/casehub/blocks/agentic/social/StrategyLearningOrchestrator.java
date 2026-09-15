@@ -21,6 +21,7 @@ import io.casehub.platform.api.path.Path;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -30,6 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -37,6 +40,13 @@ import java.util.logging.Logger;
 public class StrategyLearningOrchestrator {
 
     private static final Logger LOG = Logger.getLogger(StrategyLearningOrchestrator.class.getName());
+
+    private static final ExecutorService REFLECT_EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                var t = new Thread(r, "strategy-reflect");
+                t.setDaemon(true);
+                return t;
+            });
 
     private static final String SYSTEM_PROMPT = """
             You are a metacognitive strategy advisor for an AI agent. Analyze the agent's \
@@ -248,9 +258,89 @@ public class StrategyLearningOrchestrator {
             return new StrategyLearningTick.Observed(
                     drainedTurns.size(), engagementRate, meanSentiment);
         }
+
+        maybeAutoReflect(state);
+
         return new StrategyLearningTick.Learned(
                 drainedTurns.size(), engagementRate, meanSentiment,
                 List.copyOf(storedConversations), casesStored);
+    }
+
+    private void maybeAutoReflect(AgentLearningState state) {
+        int totalCases = countAgentCases(state.agentId, state.tenantId);
+        if (totalCases < config.minCasesForReflection()) return;
+        if (state.lastReflectTimestamp != null
+                && Duration.between(state.lastReflectTimestamp, clock.instant())
+                    .compareTo(config.staleStateTimeout()) < 0) return;
+
+        REFLECT_EXECUTOR.submit(() -> doReflectAsync(state.agentId, state.tenantId));
+    }
+
+    private int countAgentCases(String agentId, String tenantId) {
+        var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
+                        config.engagementCaseType(), Map.of(), config.maxReflectionSources())
+                .withMinSimilarity(0.0);
+        return (int) cbrStore.retrieveSimilar(query, CbrCase.class).stream()
+                .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+                .count();
+    }
+
+    private void doReflectAsync(String agentId, String tenantId) {
+        try {
+            StrategyProfile profile;
+            List<? extends ScoredCbrCase<CbrCase>> cases;
+
+            var lock = tickLocks.computeIfAbsent(stateKey(agentId, tenantId),
+                    k -> new ReentrantLock());
+            lock.lock();
+            try {
+                profile = currentStrategy(agentId, tenantId)
+                        .orElseGet(() -> defaultProfile(agentId, tenantId));
+                var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
+                                config.engagementCaseType(), Map.of(), config.maxReflectionSources())
+                        .withMinSimilarity(0.0);
+                cases = cbrStore.retrieveSimilar(query, CbrCase.class).stream()
+                        .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+                        .toList();
+            } finally {
+                lock.unlock();
+            }
+
+            if (cases.size() < config.minCasesForReflection()) return;
+
+            TrendProfile trends = analyzeTrends(cases);
+            var perSubjectSummary = summarizePerSubject(cases);
+            var userPrompt = buildReflectionPrompt(profile, trends, List.of(), perSubjectSummary);
+
+            String llmResponse;
+            try {
+                var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
+                var responseText = new StringBuilder();
+                agentProvider.invoke(sessionConfig)
+                        .subscribe().asStream()
+                        .filter(e -> e instanceof AgentEvent.TextDelta)
+                        .map(e -> ((AgentEvent.TextDelta) e).text())
+                        .forEach(responseText::append);
+                llmResponse = responseText.toString();
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Async reflect LLM failed for " + agentId, e);
+                return;
+            }
+
+            var state = states.get(stateKey(agentId, tenantId));
+            lock.lock();
+            try {
+                applyReflectionResult(profile, llmResponse, trends, cases.size(),
+                        agentId, tenantId, state);
+                if (state != null) {
+                    state.lastReflectTimestamp = clock.instant();
+                }
+            } finally {
+                lock.unlock();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Async reflect failed for " + agentId, e);
+        }
     }
 
     private Map<String, FeatureValue> extractFeatures(List<TurnEntry> turns,
@@ -585,6 +675,7 @@ public class StrategyLearningOrchestrator {
         final String tenantId;
         final ArrayDeque<TurnEntry> pendingTurns;
         final ArrayDeque<ConversationEntry> pendingConversations;
+        // ArrayList values are safe: all access is under the per-agent tickLock
         final ConcurrentHashMap<String, List<TurnEntry>> conversationTurns = new ConcurrentHashMap<>();
         int totalSignals;
         int totalResponded;

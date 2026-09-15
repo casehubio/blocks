@@ -15,11 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -247,6 +249,76 @@ class StrategyLearningOrchestratorTest {
 
         // ConversationOutcome has no matching accumulated turns, so no case stored
         assertThat(result).isInstanceOf(StrategyLearningTick.Observed.class);
+    }
+
+    // --- auto-reflect ---
+
+    @SuppressWarnings("unchecked")
+    @Test void tick_autoTriggersReflect_whenEnoughCasesStored() throws Exception {
+        var storedCases = new CopyOnWriteArrayList<ScoredCbrCase<CbrCase>>();
+        var testCbrStore = mock(CbrCaseMemoryStore.class);
+        doAnswer(inv -> {
+            var c = mock(CbrCase.class);
+            when(c.producerAgentId()).thenReturn((String) inv.getArgument(2));
+            when(c.features()).thenReturn(Map.of(
+                    "conversationTimestamp", FeatureValue.number((double) System.currentTimeMillis()),
+                    "continuationRate", FeatureValue.number(0.7),
+                    "meanAffectShift", FeatureValue.number(0.1),
+                    "avgResponseLength", FeatureValue.number(100.0)));
+            storedCases.add(new ScoredCbrCase<>(c, "case-" + storedCases.size(), 1.0));
+            return null;
+        }).when(testCbrStore).store(any(FeatureVectorCbrCase.class), anyString(), anyString(),
+                any(), anyString(), any(), any());
+        when(testCbrStore.retrieveSimilar(any(), any()))
+                .thenAnswer(inv -> new ArrayList<>(storedCases));
+
+        var config = new StrategyLearningConfig(
+                1, 2, 50, 10, 0.5, 100, Duration.ofSeconds(1),
+                new io.casehub.neocortex.memory.MemoryDomain("test"),
+                "engagement-evidence", "strategy-profile");
+        var storedProfile = new java.util.concurrent.atomic.AtomicReference<StrategyProfile>();
+        var testStrategyStore = mock(StrategyStore.class);
+        doAnswer(inv -> { storedProfile.set(inv.getArgument(0)); return null; })
+                .when(testStrategyStore).store(any(StrategyProfile.class));
+        when(testStrategyStore.lookup("agent-1", "tenant-1"))
+                .thenAnswer(inv -> java.util.Optional.ofNullable(storedProfile.get()));
+        mockLlmResponse("{\"guidelines\":[\"use specific examples\"],\"dimensionDeltas\":{}}");
+
+        var testOrchestrator = new StrategyLearningOrchestrator(
+                testStrategyStore, testCbrStore,
+                (a, t, s, m) -> List.of(), agentProvider, null, config, clock);
+
+        // Pre-store 2 cases to cross minCasesForReflection(2)
+        for (int i = 0; i < 2; i++) {
+            var features = Map.<String, FeatureValue>of(
+                    "subjectId", FeatureValue.string("user"),
+                    "agentId", FeatureValue.string("agent-1"),
+                    "conversationTimestamp", FeatureValue.number(1000.0 + i * 100),
+                    "turnCount", FeatureValue.number(3.0));
+            var cbrCase = new FeatureVectorCbrCase(
+                    "case-" + i, "-", null, null, features, null, "agent-1");
+            testCbrStore.store(cbrCase, "engagement-evidence", "agent-1",
+                    new io.casehub.neocortex.memory.MemoryDomain("test"),
+                    "tenant-1", null, io.casehub.platform.api.path.Path.root());
+        }
+
+        // Record turns + ConversationOutcome to trigger case storage + auto-reflect
+        for (int j = 0; j < 3; j++) {
+            testOrchestrator.record(turnOutcome("conv-x", true, 0.1, 100),
+                    "agent-1", "user-1", "tenant-1");
+        }
+        testOrchestrator.record(
+                new EngagementSignal.ConversationOutcome("conv-x", "summary", 3),
+                "agent-1", "user-1", "tenant-1");
+        testOrchestrator.tick("agent-1", "tenant-1");
+
+        // Wait for async reflect
+        Thread.sleep(3000);
+
+        var strategy = testOrchestrator.currentStrategy("agent-1", "tenant-1");
+        assertThat(strategy).isPresent();
+        assertThat(strategy.get().guidelines()).isNotEmpty();
+        assertThat(strategy.get().guidelines()).contains("use specific examples");
     }
 
     // --- currentStrategy ---
