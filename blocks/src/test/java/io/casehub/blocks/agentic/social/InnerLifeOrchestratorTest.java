@@ -10,7 +10,6 @@ import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.smallrye.mutiny.Multi;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +44,8 @@ class InnerLifeOrchestratorTest {
         var disposition = mock(AgentDisposition.class);
         when(disposition.dispositionProfile()).thenReturn(List.of());
         when(descriptor.disposition()).thenReturn(disposition);
+        when(driveOrchestrator.currentDrives("agent-1", "tenant-1"))
+                .thenReturn(java.util.Optional.of(mock(io.casehub.blocks.agentic.social.drive.DriveProfile.class)));
     }
 
     private InnerLifeOrchestrator makeOrchestrator(CivilityConstraint... constraints) {
@@ -164,12 +165,25 @@ class InnerLifeOrchestratorTest {
     }
 
     @Test
-    void tick_calls_drive_orchestrator_tick() {
+    void tickDoesNotCallDriveOrchestratorTick() {
         var orch = makeOrchestrator(ctx -> new CivilityCheck.Permitted());
         orch.observe(event("something happened"), descriptor);
 
         orch.tick(descriptor, "context");
 
-        verify(driveOrchestrator).tick("agent-1", "tenant-1", descriptor);
+        verify(driveOrchestrator, never()).tick(any(), any(), any());
     }
+
+    @Test
+    void tickReturnsSilentWhenDrivesNotCurrent() {
+        when(driveOrchestrator.currentDrives("agent-1", "tenant-1"))
+                .thenReturn(java.util.Optional.empty());
+        var orch = makeOrchestrator();
+        orch.observe(event("observation"), descriptor);
+        var result = orch.tick(descriptor, "context");
+        assertThat(result).isInstanceOf(InnerLifeTick.Silent.class);
+        assertThat(((InnerLifeTick.Silent) result).reason())
+                .isEqualTo("drives not current");
+    }
+
 }

@@ -8,6 +8,7 @@ import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveSource;
 import io.casehub.eidos.api.AgentDescriptor;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Set;
@@ -18,8 +19,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import org.mockito.ArgumentCaptor;
 
 class CognitionCoreTest {
 
@@ -240,6 +239,84 @@ class CognitionCoreTest {
                 .findFirst();
         assertThat(constraintSection).isPresent();
     }
+
+
+    @Test
+    void tickExecutesInPhaseOrder() {
+        var mood = mock(MoodOrchestrator.class);
+        when(mood.currentMood(any(), any())).thenReturn(java.util.Optional.empty());
+        var drives        = mock(DriveOrchestrator.class);
+        var strategy      = mock(StrategyLearningOrchestrator.class);
+        var userModel     = mock(UserModelOrchestrator.class);
+        var mentalModel   = mock(MentalModelOrchestrator.class);
+        var narrative     = mock(io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator.class);
+        var goals         = mock(io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator.class);
+        var memoryHygiene = mock(io.casehub.blocks.memory.MemoryHygieneOrchestrator.class);
+
+        var core = new CognitionCore(mood, drives, userModel, mentalModel,
+                                     strategy, narrative, goals, memoryHygiene);
+
+        var descriptor = stubDescriptor();
+        core.tick("a1", "t1", descriptor, (a, t) -> Set.of("subject-1"));
+
+        var inOrder = org.mockito.Mockito.inOrder(mood, memoryHygiene, narrative, strategy,
+                                                  userModel, mentalModel, drives, goals);
+        inOrder.verify(mood).tick("a1", "t1");
+        inOrder.verify(memoryHygiene).tick("a1", "t1");
+        inOrder.verify(narrative).tick("a1", "t1");
+        inOrder.verify(strategy).tick("a1", "t1");
+        inOrder.verify(userModel).tick("a1", "subject-1", "t1");
+        inOrder.verify(mentalModel).tick("a1", "subject-1", "t1");
+        inOrder.verify(drives).tick("a1", "t1", descriptor);
+        inOrder.verify(goals).tick("a1", "t1", descriptor);
+    }
+
+    @Test
+    void customParticipantExecutesAtRegisteredPhase() {
+        var core     = minimalCore();
+        var executed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        core.addParticipant(CognitionPhase.TERMINAL, ctx -> executed.set(true));
+        core.tick("a1", "t1", stubDescriptor(), (a, t) -> Set.of());
+        assertThat(executed.get()).isTrue();
+    }
+
+    @Test
+    void addParticipantRejectsSourcePerSubject() {
+        var core = minimalCore();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                                                                   core.addParticipant(CognitionPhase.SOURCE_PER_SUBJECT, ctx -> {}))
+                                       .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void customParticipantErrorDoesNotCrashTick() {
+        var core = minimalCore();
+        core.addParticipant(CognitionPhase.FOUNDATION, ctx -> {
+            throw new RuntimeException("boom");
+        });
+        var secondExecuted = new java.util.concurrent.atomic.AtomicBoolean(false);
+        core.addParticipant(CognitionPhase.TERMINAL, ctx -> secondExecuted.set(true));
+        core.tick("a1", "t1", stubDescriptor(), (a, t) -> Set.of());
+        assertThat(secondExecuted.get()).isTrue();
+    }
+
+    @Test
+    void disabledBuiltinDoesNotPreventCustomParticipant() {
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var config = CognitionConfig.all().with("drives", false);
+        var core = new CognitionCore(mood, drives,
+                                     null, null, null, null, null, null, null, null, config);
+        var executed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        core.addParticipant(CognitionPhase.DERIVED, ctx -> executed.set(true));
+        core.tick("a1", "t1", stubDescriptor(), (a, t) -> Set.of());
+        assertThat(executed.get()).isTrue();
+    }
+
 
     private static CognitionCore minimalCore() {
         var mood = new MoodOrchestrator(MoodConfig.defaults());

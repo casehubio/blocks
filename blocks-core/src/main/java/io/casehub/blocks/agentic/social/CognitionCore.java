@@ -16,18 +16,17 @@ import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.neocortex.memory.engagement.EngagementEvent;
+import io.casehub.neocortex.memory.relationship.QualitySignal;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
-import io.casehub.neocortex.memory.engagement.EngagementEvent;
-import io.casehub.neocortex.memory.relationship.QualitySignal;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import java.util.UUID;
 
 public class CognitionCore {
@@ -43,8 +42,12 @@ public class CognitionCore {
     private final @Nullable NarrativeOrchestrator narrative;
     private final @Nullable GoalProposalOrchestrator goals;
     private final @Nullable MemoryHygieneOrchestrator memoryHygiene;
+    private final @Nullable InnerLifeOrchestrator     innerLife;
+
     private final @Nullable AgentProvider agentProvider;
     private final CognitionConfig config;
+    private final java.util.Map<CognitionPhase, java.util.List<CognitionTickParticipant>> customParticipants = new java.util.EnumMap<>(CognitionPhase.class);
+
     private volatile @Nullable AgentDescriptor lastDescriptor;
 
     public CognitionCore(MoodOrchestrator mood,
@@ -56,7 +59,7 @@ public class CognitionCore {
                           @Nullable GoalProposalOrchestrator goals,
                           @Nullable MemoryHygieneOrchestrator memoryHygiene) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-                goals, memoryHygiene, null, CognitionConfig.all());
+                goals, memoryHygiene, null, null, CognitionConfig.all());
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -69,7 +72,7 @@ public class CognitionCore {
                           @Nullable MemoryHygieneOrchestrator memoryHygiene,
                           @Nullable AgentProvider agentProvider) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-                goals, memoryHygiene, agentProvider, CognitionConfig.all());
+                goals, memoryHygiene, null, agentProvider, CognitionConfig.all());
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -80,6 +83,7 @@ public class CognitionCore {
                           @Nullable NarrativeOrchestrator narrative,
                           @Nullable GoalProposalOrchestrator goals,
                           @Nullable MemoryHygieneOrchestrator memoryHygiene,
+                          @Nullable InnerLifeOrchestrator innerLife,
                           @Nullable AgentProvider agentProvider,
                           CognitionConfig config) {
         this.mood = mood;
@@ -90,6 +94,7 @@ public class CognitionCore {
         this.narrative = narrative;
         this.goals = goals;
         this.memoryHygiene = memoryHygiene;
+        this.innerLife = innerLife;
         this.agentProvider = agentProvider;
         this.config = config;
     }
@@ -98,30 +103,27 @@ public class CognitionCore {
                      @Nullable AgentDescriptor descriptor,
                      SubjectResolver resolver) {
         this.lastDescriptor = descriptor;
-        if (config.moodEnabled()) {
-            if (mood.currentMood(agentId, tenantId).isEmpty()) {
-                mood.record(new MoodSignal.InteractionAppraisal(0, 0, 0, "init"),
-                        agentId, tenantId);
-            }
-            mood.tick(agentId, tenantId);
-        }
+        var context = new CognitionTickContext(agentId, tenantId, descriptor, resolver);
 
+        // FOUNDATION
+        if (config.moodEnabled()) {
+            safeRun(() -> tickMood(agentId, tenantId));
+        }
         if (config.memoryHygieneEnabled() && memoryHygiene != null) {
             safeRun(() -> memoryHygiene.tick(agentId, tenantId));
         }
+        runCustomParticipants(CognitionPhase.FOUNDATION, context);
 
+        // SOURCE
         if (config.narrativeEnabled() && narrative != null) {
             safeRun(() -> narrative.tick(agentId, tenantId));
         }
-
-        if (config.drivesEnabled() && descriptor != null) {
-            safeRun(() -> drives.tick(agentId, tenantId, descriptor));
-        }
-
         if (config.strategyEnabled() && strategy != null) {
             safeRun(() -> strategy.tick(agentId, tenantId));
         }
+        runCustomParticipants(CognitionPhase.SOURCE, context);
 
+        // SOURCE_PER_SUBJECT
         for (String subjectId : resolver.relevantSubjects(agentId, tenantId)) {
             if (config.userModelEnabled() && userModel != null) {
                 safeRun(() -> userModel.tick(agentId, subjectId, tenantId));
@@ -131,9 +133,17 @@ public class CognitionCore {
             }
         }
 
+        // DERIVED
+        if (config.drivesEnabled() && descriptor != null) {
+            safeRun(() -> drives.tick(agentId, tenantId, descriptor));
+        }
+        runCustomParticipants(CognitionPhase.DERIVED, context);
+
+        // TERMINAL
         if (config.goalsEnabled() && goals != null && descriptor != null) {
             safeRun(() -> goals.tick(agentId, tenantId, descriptor));
         }
+        runCustomParticipants(CognitionPhase.TERMINAL, context);
     }
 
     public void recordInteraction(String agentId, String tenantId,
@@ -378,6 +388,33 @@ public class CognitionCore {
     public @Nullable NarrativeOrchestrator narrative() { return narrative; }
     public @Nullable GoalProposalOrchestrator goals() { return goals; }
     public @Nullable MemoryHygieneOrchestrator memoryHygiene() { return memoryHygiene; }
+
+    public @Nullable InnerLifeOrchestrator innerLife()         {return innerLife;}
+
+
+    public void addParticipant(CognitionPhase phase, CognitionTickParticipant participant) {
+        if (phase == CognitionPhase.SOURCE_PER_SUBJECT) {
+            throw new IllegalArgumentException("SOURCE_PER_SUBJECT does not accept custom participants");
+        }
+        customParticipants.computeIfAbsent(phase, k -> new java.util.ArrayList<>()).add(participant);
+    }
+
+    private void runCustomParticipants(CognitionPhase phase, CognitionTickContext context) {
+        var participants = customParticipants.get(phase);
+        if (participants == null) {return;}
+        for (var participant : participants) {
+            safeRun(() -> participant.tick(context));
+        }
+    }
+
+
+    private void tickMood(String agentId, String tenantId) {
+        if (mood.currentMood(agentId, tenantId).isEmpty()) {
+            mood.record(new MoodSignal.InteractionAppraisal(0, 0, 0, "init"),
+                        agentId, tenantId);
+        }
+        mood.tick(agentId, tenantId);
+    }
 
     private void safeRun(Runnable action) {
         try {

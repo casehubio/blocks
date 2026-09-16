@@ -18,6 +18,7 @@ class CognitionConfigTest {
         assertThat(config.narrativeEnabled()).isTrue();
         assertThat(config.goalsEnabled()).isTrue();
         assertThat(config.memoryHygieneEnabled()).isTrue();
+        assertThat(config.innerLifeEnabled()).isTrue();
     }
 
     @Test
@@ -31,6 +32,14 @@ class CognitionConfigTest {
         assertThat(config.narrativeEnabled()).isFalse();
         assertThat(config.goalsEnabled()).isFalse();
         assertThat(config.memoryHygieneEnabled()).isFalse();
+        assertThat(config.innerLifeEnabled()).isFalse();
+    }
+
+    @Test
+    void withTogglesInnerLife() {
+        var config = CognitionConfig.all().with("innerLife", false);
+        assertThat(config.innerLifeEnabled()).isFalse();
+        assertThat(config.moodEnabled()).isTrue();
     }
 
     @Test

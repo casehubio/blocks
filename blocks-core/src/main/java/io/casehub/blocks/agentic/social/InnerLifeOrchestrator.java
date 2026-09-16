@@ -94,7 +94,14 @@ public class InnerLifeOrchestrator {
     private InnerLifeTick doTick(final AgentDescriptor descriptor,
                                   final String channelContext,
                                   final String agentKey) {
-        driveOrchestrator.tick(descriptor.agentId(), descriptor.tenancyId(), descriptor);
+        if (driveOrchestrator.currentDrives(
+                descriptor.agentId(), descriptor.tenancyId()).isEmpty()) {
+            LOG.log(Level.WARNING,
+                    "InnerLife tick called without current drive profile for "
+                            + descriptor.agentId()
+                            + " — ensure CognitionCore.tick() has run first");
+            return new InnerLifeTick.Silent("drives not current");
+        }
 
         var state = agentStates.computeIfAbsent(agentKey, k -> new AgentState());
         state.lastActivityTimestamp = Instant.now();

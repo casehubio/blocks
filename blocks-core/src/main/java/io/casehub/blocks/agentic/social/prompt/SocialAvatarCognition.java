@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social.prompt;
 
+import io.casehub.blocks.agentic.social.CognitionConfig;
 import io.casehub.blocks.agentic.social.CognitionCore;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
@@ -33,7 +34,6 @@ public class SocialAvatarCognition implements AvatarCognition {
     private final StrategyLearningOrchestrator strategy;
     private final Optional<NarrativeOrchestrator> narrative;
     private final Optional<GoalProposalOrchestrator> goals;
-    private final Optional<InnerLifeOrchestrator> innerLife;
     private final Optional<AgentRegistry> agentRegistry;
     private final CognitionCore core;
 
@@ -53,10 +53,10 @@ public class SocialAvatarCognition implements AvatarCognition {
         this.strategy = strategy;
         this.narrative = narrative;
         this.goals = goals;
-        this.innerLife = innerLife;
         this.agentRegistry = agentRegistry;
         this.core = new CognitionCore(mood, drives, userModel, mentalModel, strategy,
-                narrative.orElse(null), goals.orElse(null), null);
+                narrative.orElse(null), goals.orElse(null), null,
+                innerLife.orElse(null), null, CognitionConfig.all());
     }
 
     @Override
@@ -81,10 +81,10 @@ public class SocialAvatarCognition implements AvatarCognition {
     @Override
     public @Nullable String evaluateProactive(String agentId, String tenantId,
                                                String channelContext) {
-        if (innerLife.isEmpty() || agentRegistry.isEmpty()) return null;
+        if (core.innerLife() == null || !core.config().innerLifeEnabled() || agentRegistry.isEmpty()) return null;
         return agentRegistry.get().findById(agentId, tenantId)
                 .map(desc -> {
-                    var support = new ProactiveSpeechSupport(innerLife.get(), desc);
+                    var support = new ProactiveSpeechSupport(core.innerLife(), desc);
                     return support.evaluateProactive(channelContext);
                 })
                 .orElse(null);
@@ -95,9 +95,9 @@ public class SocialAvatarCognition implements AvatarCognition {
                                    @Nullable String subjectId,
                                    String userMessage, String response) {
         core.recordInteraction(agentId, tenantId, subjectId, userMessage, response, null);
-        if (innerLife.isPresent() && agentRegistry.isPresent()) {
+        if (core.innerLife() != null && agentRegistry.isPresent()) {
             agentRegistry.get().findById(agentId, tenantId)
-                    .ifPresent(desc -> record(() -> innerLife.get().observeResponse(desc)));
+                    .ifPresent(desc -> record(() -> core.innerLife().observeResponse(desc)));
         }
     }
 
