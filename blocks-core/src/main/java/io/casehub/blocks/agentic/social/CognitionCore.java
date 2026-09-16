@@ -16,6 +16,7 @@ import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.eidos.api.ConstraintSeverity;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.relationship.QualitySignal;
 import io.casehub.blocks.agent.StructuredAgentInvoker;
@@ -349,8 +350,14 @@ public class CognitionCore {
         var desc = lastDescriptor;
         if (desc != null && desc.disposition() != null)
             sections.add(new PersonalityPromptSection(desc.disposition().dispositionProfile()));
-        if (desc != null && desc.constraints() != null && !desc.constraints().isEmpty())
-            sections.add(new ConstraintPromptSection(desc.constraints()));
+        if (desc != null && desc.constraints() != null && !desc.constraints().isEmpty()) {
+            var softConstraints = desc.constraints().stream()
+                    .filter(c -> c.severity() != ConstraintSeverity.HARD)
+                    .toList();
+            if (!softConstraints.isEmpty()) {
+                sections.add(new ConstraintPromptSection(softConstraints));
+            }
+        }
         if (config.moodEnabled())
             sections.add(new MoodPromptSection(mood));
         if (config.drivesEnabled())

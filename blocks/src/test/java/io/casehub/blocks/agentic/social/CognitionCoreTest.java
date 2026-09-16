@@ -221,7 +221,7 @@ class CognitionCoreTest {
     }
 
     @Test
-    void promptSectionsIncludesConstraintsAfterTick() {
+    void promptSectionsExcludesHardConstraints() {
         var core = minimalCore();
         var descriptor = stubDescriptor();
         when(descriptor.constraints()).thenReturn(
@@ -237,7 +237,34 @@ class CognitionCoreTest {
                     return text != null && text.contains("constraints");
                 })
                 .findFirst();
+        assertThat(constraintSection).isEmpty();
+    }
+
+    @Test
+    void promptSectionsIncludesSoftConstraints() {
+        var core = minimalCore();
+        var descriptor = stubDescriptor();
+        when(descriptor.constraints()).thenReturn(
+                List.of(
+                        new io.casehub.eidos.api.AgentConstraint(
+                                "no-break", "Never break cover",
+                                io.casehub.eidos.api.Visibility.PUBLIC,
+                                io.casehub.eidos.api.ConstraintSeverity.HARD),
+                        new io.casehub.eidos.api.AgentConstraint(
+                                "be-polite", "Always be polite",
+                                io.casehub.eidos.api.Visibility.PUBLIC,
+                                io.casehub.eidos.api.ConstraintSeverity.SOFT)));
+        core.tick("a", "t", descriptor, (aid, tid) -> Set.of());
+        var sections = core.promptSections();
+        var constraintSection = sections.stream()
+                .filter(s -> {
+                    var text = s.contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null));
+                    return text != null && text.contains("Always be polite");
+                })
+                .findFirst();
         assertThat(constraintSection).isPresent();
+        var text = constraintSection.get().contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null));
+        assertThat(text).doesNotContain("Never break cover");
     }
 
 
