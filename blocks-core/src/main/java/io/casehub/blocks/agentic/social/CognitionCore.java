@@ -3,6 +3,7 @@ package io.casehub.blocks.agentic.social;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.prompt.CharacterDrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
 import io.casehub.blocks.agentic.social.prompt.DrivePromptSection;
@@ -18,6 +19,7 @@ import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.ConstraintSeverity;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
+import io.casehub.neocortex.mindmap.MindMapStore;
 import io.casehub.neocortex.memory.relationship.QualitySignal;
 import io.casehub.blocks.agent.StructuredAgentInvoker;
 import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
@@ -49,6 +51,7 @@ public class CognitionCore {
     private final @Nullable AgentProvider agentProvider;
     private final CognitionConfig config;
     private final java.util.Map<CognitionPhase, java.util.List<CognitionTickParticipant>> customParticipants = new java.util.EnumMap<>(CognitionPhase.class);
+    private final @Nullable MindMapStore mindMapStore;
 
     private volatile @Nullable AgentDescriptor lastDescriptor;
 
@@ -88,6 +91,22 @@ public class CognitionCore {
                           @Nullable InnerLifeOrchestrator innerLife,
                           @Nullable AgentProvider agentProvider,
                           CognitionConfig config) {
+        this(mood, drives, userModel, mentalModel, strategy, narrative,
+             goals, memoryHygiene, innerLife, agentProvider, config, null);
+    }
+
+    public CognitionCore(MoodOrchestrator mood,
+                          DriveOrchestrator drives,
+                          @Nullable UserModelOrchestrator userModel,
+                          @Nullable MentalModelOrchestrator mentalModel,
+                          @Nullable StrategyLearningOrchestrator strategy,
+                          @Nullable NarrativeOrchestrator narrative,
+                          @Nullable GoalProposalOrchestrator goals,
+                          @Nullable MemoryHygieneOrchestrator memoryHygiene,
+                          @Nullable InnerLifeOrchestrator innerLife,
+                          @Nullable AgentProvider agentProvider,
+                          CognitionConfig config,
+                          @Nullable MindMapStore mindMapStore) {
         this.mood = mood;
         this.drives = drives;
         this.userModel = userModel;
@@ -98,8 +117,10 @@ public class CognitionCore {
         this.memoryHygiene = memoryHygiene;
         this.innerLife = innerLife;
         this.agentProvider = agentProvider;
-        this.config = config;
+        this.config        = config;
+        this.mindMapStore  = mindMapStore;
     }
+
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
@@ -347,36 +368,34 @@ public class CognitionCore {
 
     public List<PromptSection> promptSections() {
         var sections = new ArrayList<PromptSection>();
-        var desc = lastDescriptor;
-        if (desc != null && desc.disposition() != null)
+        var desc     = lastDescriptor;
+        if (desc != null && desc.disposition() != null) {
             sections.add(new PersonalityPromptSection(desc.disposition().dispositionProfile()));
+        }
         if (desc != null && desc.constraints() != null && !desc.constraints().isEmpty()) {
             var softConstraints = desc.constraints().stream()
-                    .filter(c -> c.severity() != ConstraintSeverity.HARD)
-                    .toList();
+                                      .filter(c -> c.severity() != ConstraintSeverity.HARD)
+                                      .toList();
             if (!softConstraints.isEmpty()) {
                 sections.add(new ConstraintPromptSection(softConstraints));
             }
         }
-        if (config.moodEnabled())
-            sections.add(new MoodPromptSection(mood));
-        if (config.drivesEnabled())
-            sections.add(new DrivePromptSection(drives));
-        if (config.narrativeEnabled() && narrative != null)
-            sections.add(new NarrativePromptSection(narrative));
-        if (config.userModelEnabled() && userModel != null)
-            sections.add(new UserModelPromptSection(userModel));
-        if (config.mentalModelEnabled() && mentalModel != null)
+        if (config.moodEnabled()) {sections.add(new MoodPromptSection(mood));}
+        if (config.drivesEnabled()) {sections.add(new DrivePromptSection(drives));}
+        if (config.narrativeEnabled() && narrative != null) {sections.add(new NarrativePromptSection(narrative));}
+        if (config.userModelEnabled() && userModel != null) {sections.add(new UserModelPromptSection(userModel));}
+        if (config.mentalModelEnabled() && mentalModel != null) {
             sections.add(new MentalModelPromptSection(mentalModel));
-        if (config.strategyEnabled() && strategy != null)
-            sections.add(new StrategyPromptSection(strategy));
-        if (config.goalsEnabled() && goals != null)
-            sections.add(new GoalPromptSection(goals));
+        }
+        if (config.strategyEnabled() && strategy != null) {sections.add(new StrategyPromptSection(strategy));}
+        if (config.goalsEnabled() && goals != null) {sections.add(new GoalPromptSection(goals));}
+        if (config.characterDrivesEnabled() && mindMapStore != null) {
+            sections.add(new CharacterDrivePromptSection(mindMapStore));
+        }
         if (config.directivePrompts()) {
             return sections.stream().map(DirectiveSection::wrap).toList();
         }
-        return sections;
-    }
+        return sections;}
 
     public CognitionConfig config() { return config; }
 
