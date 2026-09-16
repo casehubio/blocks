@@ -102,17 +102,7 @@ public class SocialAvatarCognition implements AvatarCognition {
     }
 
     List<PromptSection> buildSections(String agentId, String tenantId) {
-        var sections = new ArrayList<PromptSection>();
-        if (agentRegistry.isPresent()) {
-            agentRegistry.get().findById(agentId, tenantId)
-                    .ifPresent(desc -> {
-                        var profile = desc.disposition() != null
-                                ? desc.disposition().dispositionProfile() : null;
-                        sections.add(new PersonalityPromptSection(profile));
-                    });
-        }
-        sections.addAll(core.promptSections());
-        return sections;
+        return new ArrayList<>(core.promptSections());
     }
 
     private @Nullable AgentDescriptor resolveDescriptor(String agentId, String tenantId) {
