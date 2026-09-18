@@ -1,5 +1,8 @@
 package io.casehub.blocks.agentic.social.drive.adaptation;
 
+import io.casehub.blocks.agentic.social.need.NeedSatisfactionConfig;
+import io.casehub.blocks.agentic.social.need.NeedTier;
+import io.casehub.blocks.agentic.social.need.NeedTierMappingProvider;
 import io.casehub.neocortex.mindmap.MindMapNode;
 import io.casehub.neocortex.mindmap.MindMapStore;
 import io.casehub.neocortex.mindmap.MindMapSubgraph;
@@ -13,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.logging.Logger;
 
 @Priority(17)
@@ -26,14 +30,27 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
     private final MindMapStore mindMapStore;
     private final Map<String, Map<String, List<DriveReinforcementEntry>>> reinforcementMap;
     private final DriveAdaptationConfig config;
+    private final Map<String, Set<NeedTier>> tierMapping;
+    private final NeedSatisfactionConfig needConfig;
 
     public DriveAdaptationPhase(
             MindMapStore mindMapStore,
             Map<String, Map<String, List<DriveReinforcementEntry>>> reinforcementMap,
             DriveAdaptationConfig config) {
+        this(mindMapStore, reinforcementMap, config, null, null);
+    }
+
+    public DriveAdaptationPhase(
+            MindMapStore mindMapStore,
+            Map<String, Map<String, List<DriveReinforcementEntry>>> reinforcementMap,
+            DriveAdaptationConfig config,
+            NeedTierMappingProvider tierMappingProvider,
+            NeedSatisfactionConfig needConfig) {
         this.mindMapStore = mindMapStore;
         this.reinforcementMap = reinforcementMap;
         this.config = config;
+        this.tierMapping = tierMappingProvider != null ? tierMappingProvider.tierMapping() : Map.of();
+        this.needConfig = needConfig;
     }
 
     @Override
@@ -55,14 +72,17 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
 
         var driveNodes = new HashMap<String, MindMapNode>();
         var experienceNodes = new ArrayList<MindMapNode>();
+        var needSatisfactionNodes = new HashMap<NeedTier, MindMapNode>();
         String cursorNodeId = null;
         String lastProcessedId = null;
+        String agentId = null;
 
         for (var node : nodes) {
             var kind = node.properties().get("cognitiveKind");
             if (DRIVE_KIND.equals(kind)) {
                 var driveType = node.properties().get("drive-type");
                 if (driveType != null) driveNodes.put(driveType, node);
+                if (agentId == null) agentId = node.properties().get("agent-id");
             } else if (EXPERIENCE_PROVENANCE.equals(node.provenance())) {
                 experienceNodes.add(node);
             }
@@ -84,19 +104,51 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
             return;
         }
 
-        var agentId = driveNodes.values().iterator().next()
-            .properties().get("agent-id");
+        if (agentId == null) {
+            agentId = driveNodes.values().iterator().next().properties().get("agent-id");
+        }
+
+        for (var node : nodes) {
+            var kind = node.properties().get("cognitiveKind");
+            if ("need-satisfaction".equals(kind) && agentId.equals(node.properties().get("agent-id"))) {
+                var tierName = node.properties().get("tier");
+                if (tierName != null) {
+                    try {
+                        needSatisfactionNodes.put(NeedTier.valueOf(tierName), node);
+                    } catch (IllegalArgumentException ignored) {}
+                }
+            }
+        }
+
         var agentReinforcement = reinforcementMap.get(agentId);
-        if (agentReinforcement == null) return;
+        if (agentReinforcement == null) {
+            applyDecayAndSave(needSatisfactionNodes, tenantId);
+            return;
+        }
 
         var newExperiences = filterNewExperiences(experienceNodes, lastProcessedId);
-        if (newExperiences.isEmpty()) return;
+        if (newExperiences.isEmpty()) {
+            applyDecayAndSave(needSatisfactionNodes, tenantId);
+            return;
+        }
 
         var rewardAccumulator = accumulateRewards(newExperiences, agentReinforcement);
-        applyUpdates(driveNodes, rewardAccumulator, tenantId);
+
+        var currentSatisfaction = loadCurrentSatisfaction(needSatisfactionNodes);
+        accumulateTierSatisfaction(currentSatisfaction, newExperiences, agentReinforcement);
+        applyUpdates(driveNodes, rewardAccumulator, currentSatisfaction, tenantId);
+        applyDecay(currentSatisfaction);
+        saveSatisfaction(needSatisfactionNodes, currentSatisfaction, tenantId);
 
         var lastId = newExperiences.get(newExperiences.size() - 1).id();
         saveCursor(subgraph.id(), cursorNodeId, lastId, tenantId);
+    }
+
+    private void applyDecayAndSave(Map<NeedTier, MindMapNode> needSatisfactionNodes, String tenantId) {
+        if (needConfig == null || needSatisfactionNodes.isEmpty()) return;
+        var currentSatisfaction = loadCurrentSatisfaction(needSatisfactionNodes);
+        applyDecay(currentSatisfaction);
+        saveSatisfaction(needSatisfactionNodes, currentSatisfaction, tenantId);
     }
 
     private List<MindMapNode> filterNewExperiences(
@@ -165,6 +217,7 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
     private void applyUpdates(
             Map<String, MindMapNode> driveNodes,
             Map<String, DriveReward> rewardAccumulator,
+            Map<NeedTier, Double> currentSatisfaction,
             String tenantId) {
         for (var entry : rewardAccumulator.entrySet()) {
             var driveNode = driveNodes.get(entry.getKey());
@@ -172,7 +225,17 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
 
             double currentIntensity = Double.parseDouble(
                 driveNode.properties().getOrDefault("intensity", "0.5"));
-            double delta = entry.getValue().effectiveReward() * config.learningRate();
+
+            double effectiveLR = config.learningRate();
+            var tiers = tierMapping.get(entry.getKey());
+            if (tiers != null && !tiers.isEmpty() && !currentSatisfaction.isEmpty()) {
+                double avgSatisfaction = tiers.stream()
+                    .mapToDouble(t -> currentSatisfaction.getOrDefault(t, 0.5))
+                    .average().orElse(0.5);
+                effectiveLR = config.learningRate() * (1 - avgSatisfaction);
+            }
+
+            double delta = entry.getValue().effectiveReward() * effectiveLR;
             double newIntensity = currentIntensity * (1 + delta);
             newIntensity = Math.clamp(newIntensity, config.minIntensity(), config.maxIntensity());
 
@@ -180,6 +243,85 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
                 NodeUpdate.empty().withPropertiesToSet(
                     Map.of("intensity", String.valueOf(newIntensity))),
                 tenantId);
+        }
+    }
+
+    private void accumulateTierSatisfaction(
+            Map<NeedTier, Double> currentSatisfaction,
+            List<MindMapNode> experiences,
+            Map<String, List<DriveReinforcementEntry>> agentReinforcement) {
+        if (needConfig == null || tierMapping.isEmpty()) return;
+
+        var tierRaw = new HashMap<NeedTier, Double>();
+        var tierCount = new HashMap<NeedTier, Integer>();
+
+        for (var exp : experiences) {
+            var eventType = exp.properties().get("event-type");
+            if (eventType == null) continue;
+            var entries = agentReinforcement.get(eventType);
+            if (entries == null) continue;
+
+            for (var entry : entries) {
+                var tiers = tierMapping.get(entry.driveType());
+                if (tiers == null) continue;
+
+                double padValue = extractPadValue(exp, entry.rewardAxis());
+                if (padValue > 0) {
+                    for (var tier : tiers) {
+                        tierRaw.merge(tier, needConfig.satisfactionIncrement() * padValue, Double::sum);
+                        tierCount.merge(tier, 1, Integer::sum);
+                    }
+                } else if (padValue < 0) {
+                    for (var tier : tiers) {
+                        tierRaw.merge(tier, -(needConfig.dissatisfactionIncrement() * Math.abs(padValue)), Double::sum);
+                        tierCount.merge(tier, 1, Integer::sum);
+                    }
+                }
+            }
+        }
+
+        for (var entry : tierRaw.entrySet()) {
+            var tier = entry.getKey();
+            int count = tierCount.getOrDefault(tier, 1);
+            double effectiveDelta = entry.getValue() / (1 + Math.log(count));
+            double current = currentSatisfaction.getOrDefault(tier, 0.5);
+            currentSatisfaction.put(tier, Math.clamp(current + effectiveDelta, 0.0, 1.0));
+        }
+    }
+
+    private void applyDecay(Map<NeedTier, Double> currentSatisfaction) {
+        if (needConfig == null) return;
+        for (NeedTier tier : NeedTier.values()) {
+            double satisfaction = currentSatisfaction.getOrDefault(tier, 0.5);
+            double restingLevel = needConfig.restingLevel(tier);
+            double decayRate = needConfig.decayRate(tier);
+            double decayed = restingLevel + (satisfaction - restingLevel) * (1 - decayRate);
+            currentSatisfaction.put(tier, Math.clamp(decayed, 0.0, 1.0));
+        }
+    }
+
+    private Map<NeedTier, Double> loadCurrentSatisfaction(Map<NeedTier, MindMapNode> needNodes) {
+        var result = new HashMap<NeedTier, Double>();
+        for (var entry : needNodes.entrySet()) {
+            double val = Double.parseDouble(
+                entry.getValue().properties().getOrDefault("satisfaction", "0.5"));
+            result.put(entry.getKey(), val);
+        }
+        return result;
+    }
+
+    private void saveSatisfaction(
+            Map<NeedTier, MindMapNode> needNodes,
+            Map<NeedTier, Double> currentSatisfaction,
+            String tenantId) {
+        for (var entry : currentSatisfaction.entrySet()) {
+            var node = needNodes.get(entry.getKey());
+            if (node != null) {
+                mindMapStore.updateNode(node.id(),
+                    NodeUpdate.empty().withPropertiesToSet(
+                        Map.of("satisfaction", String.valueOf(entry.getValue()))),
+                    tenantId);
+            }
         }
     }
 
