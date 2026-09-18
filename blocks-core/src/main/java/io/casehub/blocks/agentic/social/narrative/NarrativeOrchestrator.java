@@ -1,14 +1,14 @@
 package io.casehub.blocks.agentic.social.narrative;
 
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class NarrativeOrchestrator {
 
     private final NarrativeStore store;
     private final ConcurrentHashMap<String, NarrativeState> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public NarrativeOrchestrator(NarrativeStore store) {
         this.store = store;
@@ -16,9 +16,7 @@ public class NarrativeOrchestrator {
 
     public NarrativeTick tick(String agentId, String tenantId) {
         var key = agentId + ":" + tenantId;
-        var lock = tickLocks.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
-        try {
+        return tickLocks.withLock(key, () -> {
             var loaded = store.load(agentId, tenantId);
             var previous = cache.get(key);
 
@@ -51,9 +49,7 @@ public class NarrativeOrchestrator {
 
             return new NarrativeTick.Updated(previous, loaded,
                     newEpisodeIds, newThemeLabels);
-        } finally {
-            lock.unlock();
-        }
+        });
     }
 
     public Optional<NarrativeState> currentNarrative(String agentId, String tenantId) {

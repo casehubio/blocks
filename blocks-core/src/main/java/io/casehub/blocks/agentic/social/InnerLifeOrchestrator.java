@@ -18,8 +18,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -47,7 +47,7 @@ public class InnerLifeOrchestrator {
     private final DriveOrchestrator        driveOrchestrator;
 
     private final ConcurrentHashMap<String, AgentState> agentStates = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public InnerLifeOrchestrator(
             final ReflectionOrchestrator reflectionOrchestrator,
@@ -83,13 +83,7 @@ public class InnerLifeOrchestrator {
 
     public InnerLifeTick tick(final AgentDescriptor descriptor, final String channelContext) {
         var agentKey = agentKey(descriptor);
-        var lock = tickLocks.computeIfAbsent(agentKey, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(descriptor, channelContext, agentKey);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(agentKey, () -> doTick(descriptor, channelContext, agentKey));
     }
 
     private InnerLifeTick doTick(final AgentDescriptor descriptor,

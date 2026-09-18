@@ -14,6 +14,7 @@ import io.casehub.neocortex.memory.cbr.TrendProfile;
 import io.casehub.neocortex.memory.cbr.TrendSpec;
 import io.casehub.neocortex.memory.cbr.TrendType;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
+import io.casehub.blocks.agent.KeyedLock;
 import io.casehub.blocks.agent.StructuredAgentInvoker;
 import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
@@ -34,7 +35,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -76,7 +76,7 @@ public class StrategyLearningOrchestrator {
     private final Clock clock;
 
     private final ConcurrentHashMap<String, AgentLearningState> states = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public StrategyLearningOrchestrator(StrategyStore strategyStore,
                                          CbrCaseMemoryStore cbrStore,
@@ -125,25 +125,11 @@ public class StrategyLearningOrchestrator {
             return new StrategyLearningTick.NoChange("no pending signals");
         }
 
-        var lock = tickLocks.computeIfAbsent(stateKey(agentId, tenantId),
-                k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(state);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(stateKey(agentId, tenantId), () -> doTick(state));
     }
 
     public StrategyReflection reflect(String agentId, String tenantId) {
-        var lock = tickLocks.computeIfAbsent(stateKey(agentId, tenantId),
-                k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doReflect(agentId, tenantId);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(stateKey(agentId, tenantId), () -> doReflect(agentId, tenantId));
     }
 
     public Optional<StrategyProfile> currentStrategy(String agentId, String tenantId) {
@@ -291,21 +277,20 @@ public class StrategyLearningOrchestrator {
             StrategyProfile profile;
             List<? extends ScoredCbrCase<CbrCase>> cases;
 
-            var lock = tickLocks.computeIfAbsent(stateKey(agentId, tenantId),
-                    k -> new ReentrantLock());
-            lock.lock();
-            try {
-                profile = currentStrategy(agentId, tenantId)
+            record Snapshot(StrategyProfile profile, List<? extends ScoredCbrCase<CbrCase>> cases) {}
+            var snapshot = tickLocks.withLock(stateKey(agentId, tenantId), () -> {
+                var p = currentStrategy(agentId, tenantId)
                         .orElseGet(() -> defaultProfile(agentId, tenantId));
                 var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
                                 config.engagementCaseType(), Map.of(), config.maxReflectionSources())
                         .withMinSimilarity(0.0);
-                cases = cbrStore.retrieveSimilar(query, CbrCase.class).stream()
+                var c = cbrStore.retrieveSimilar(query, CbrCase.class).stream()
                         .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
                         .toList();
-            } finally {
-                lock.unlock();
-            }
+                return new Snapshot(p, c);
+            });
+            profile = snapshot.profile();
+            cases = snapshot.cases();
 
             if (cases.size() < config.minCasesForReflection()) return;
 
@@ -327,16 +312,13 @@ public class StrategyLearningOrchestrator {
             }
 
             var state = states.get(stateKey(agentId, tenantId));
-            lock.lock();
-            try {
+            tickLocks.withLock(stateKey(agentId, tenantId), () -> {
                 applyReflectionResult(profile, llmResponse, trends, cases.size(),
                         agentId, tenantId, state);
                 if (state != null) {
                     state.lastReflectTimestamp = clock.instant();
                 }
-            } finally {
-                lock.unlock();
-            }
+            });
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Async reflect failed for " + agentId, e);
         }

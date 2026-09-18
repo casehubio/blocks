@@ -18,9 +18,9 @@ import io.casehub.neocortex.memory.cbr.PersonalityTransitionSchema;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class PersonalityEvolutionOrchestrator {
 
@@ -33,7 +33,7 @@ public class PersonalityEvolutionOrchestrator {
     private final PersonalityEvolutionConfig   config;
 
     private final ConcurrentHashMap<String, AtomicBoolean> haltFlags = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public PersonalityEvolutionOrchestrator(
             final DispositionSignalStore signalStore,
@@ -84,13 +84,7 @@ public class PersonalityEvolutionOrchestrator {
 
     public EvolutionTick tick(final AgentDescriptor descriptor, final ProbeContext probeContext) {
         var agentKey = agentKey(descriptor);
-        var lock = tickLocks.computeIfAbsent(agentKey, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(descriptor, probeContext, agentKey);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(agentKey, () -> doTick(descriptor, probeContext, agentKey));
     }
 
     private EvolutionTick doTick(final AgentDescriptor descriptor,

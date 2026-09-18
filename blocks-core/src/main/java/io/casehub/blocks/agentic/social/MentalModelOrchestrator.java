@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social;
 
+import io.casehub.blocks.agent.KeyedLock;
 import io.casehub.blocks.agent.StructuredAgentInvoker;
 import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.conversation.CommonGroundState;
@@ -16,7 +17,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,7 +43,7 @@ public class MentalModelOrchestrator {
     private final Clock clock;
 
     private final ConcurrentHashMap<String, SubjectMentalState> states = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public MentalModelOrchestrator(MentalModelStore modelStore,
                                    AgentProvider agentProvider,
@@ -91,14 +91,10 @@ public class MentalModelOrchestrator {
             }
         }
 
-        var lock = tickLocks.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(state);
-        } finally {
-            lock.unlock();
-            evictStale();
-        }
+        final var finalState = state;
+        var result = tickLocks.withLock(key, () -> doTick(finalState));
+        evictStale();
+        return result;
     }
 
     public List<MentalProjection> project(String agentId, String subjectId, String tenantId) {

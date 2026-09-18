@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social;
 
+import io.casehub.blocks.agent.KeyedLock;
 import io.casehub.blocks.agent.StructuredAgentInvoker;
 import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
@@ -10,7 +11,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,7 +37,7 @@ public class UserModelOrchestrator {
     private final UserModelConfig config;
 
     private final ConcurrentHashMap<String, SubjectState> states = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public UserModelOrchestrator(UserProfileStore profileStore,
                                  AgentProvider agentProvider,
@@ -80,14 +80,10 @@ public class UserModelOrchestrator {
             }
         }
 
-        var lock = tickLocks.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(state);
-        } finally {
-            lock.unlock();
-            evictStale();
-        }
+        final var finalState = state;
+        var result = tickLocks.withLock(key, () -> doTick(finalState));
+        evictStale();
+        return result;
     }
 
     public @Nullable UserProfile currentProfile(String agentId, String subjectId, String tenantId) {

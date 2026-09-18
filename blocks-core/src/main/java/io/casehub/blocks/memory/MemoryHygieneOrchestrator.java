@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -43,7 +43,7 @@ public class MemoryHygieneOrchestrator {
     private final double crossLinkSimilarityThreshold;
     private final Consumer<HygieneEvent> eventSink;
 
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
     private final ConcurrentHashMap<String, KnowledgeGapSummary> gapStates = new ConcurrentHashMap<>();
 
 
@@ -73,16 +73,14 @@ public class MemoryHygieneOrchestrator {
     }
 
     public HygieneTick tick(String agentId, String tenantId) {
-        var lock = tickLocks.computeIfAbsent(agentId + ":" + tenantId, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(agentId, tenantId);
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "Memory hygiene tick failed for " + agentId, e);
-            return new HygieneTick.Failed(e.getMessage());
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(agentId + ":" + tenantId, () -> {
+            try {
+                return doTick(agentId, tenantId);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Memory hygiene tick failed for " + agentId, e);
+                return new HygieneTick.Failed(e.getMessage());
+            }
+        });
     }
 
     public KnowledgeGapSummary knowledgeGaps(String agentId, String tenantId) {

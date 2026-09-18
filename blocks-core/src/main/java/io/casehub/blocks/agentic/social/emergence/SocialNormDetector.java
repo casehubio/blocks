@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class SocialNormDetector {
 
@@ -27,7 +27,7 @@ public class SocialNormDetector {
     private final Clock clock;
 
     private final ConcurrentHashMap<String, DetectedNorms> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public SocialNormDetector(CbrCaseMemoryStore cbrStore, NormDetectionConfig config) {
         this(cbrStore, config, Clock.systemUTC());
@@ -42,9 +42,7 @@ public class SocialNormDetector {
     }
 
     public NormDetectionTick tick(String tenantId) {
-        var lock = tickLocks.computeIfAbsent(tenantId, k -> new ReentrantLock());
-        lock.lock();
-        try {
+        return tickLocks.withLock(tenantId, () -> {
             var observations = loadObservations(tenantId);
             var previous = cache.get(tenantId);
             var previousNormsByPattern = indexByPattern(previous);
@@ -119,9 +117,7 @@ public class SocialNormDetector {
             }
 
             return new NormDetectionTick.Updated(previous, detected, newNormIds, declinedNormIds);
-        } finally {
-            lock.unlock();
-        }
+        });
     }
 
     public Optional<DetectedNorms> currentNorms(String tenantId) {

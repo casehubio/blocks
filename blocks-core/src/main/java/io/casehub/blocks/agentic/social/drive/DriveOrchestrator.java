@@ -17,8 +17,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class DriveOrchestrator {
 
@@ -33,7 +33,7 @@ public class DriveOrchestrator {
     private final @Nullable NarrativeOrchestrator narrativeOrchestrator;
 
     private final ConcurrentHashMap<String, DriveProfile> profiles = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public DriveOrchestrator(
             Optional<MemoryHygieneOrchestrator> hygieneOrchestrator,
@@ -93,9 +93,7 @@ public class DriveOrchestrator {
 
     public DriveTick tick(String agentId, String tenantId, AgentDescriptor descriptor) {
         var key = agentId + ":" + tenantId;
-        var lock = tickLocks.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
-        try {
+        return tickLocks.withLock(key, () -> {
             var raw = new EnumMap<DriveAxis, DriveIntensity>(DriveAxis.class);
             raw.put(DriveAxis.CURIOSITY, curiosity.evaluate(agentId, tenantId));
             raw.put(DriveAxis.COMPETENCE, competence.evaluate(agentId, tenantId));
@@ -139,9 +137,7 @@ public class DriveOrchestrator {
                 return new DriveTick.NoChange("all axes within threshold");
             }
             return new DriveTick.Updated(previous, newProfile, changed);
-        } finally {
-            lock.unlock();
-        }
+        });
     }
 
     public Optional<DriveProfile> currentDrives(String agentId, String tenantId) {

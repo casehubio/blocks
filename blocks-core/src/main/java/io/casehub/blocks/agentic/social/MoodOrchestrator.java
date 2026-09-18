@@ -13,8 +13,8 @@ import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 @ApplicationScoped
 public class MoodOrchestrator {
@@ -23,7 +23,7 @@ public class MoodOrchestrator {
     private final Clock clock;
 
     private final ConcurrentHashMap<String, AgentMoodState> states = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     @Inject
     public MoodOrchestrator(MoodConfig config) {
@@ -48,14 +48,7 @@ public class MoodOrchestrator {
             return new MoodTick.NoChange("no mood state");
         }
 
-        var lock = tickLocks.computeIfAbsent(stateKey(agentId, tenantId),
-                k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(state);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(stateKey(agentId, tenantId), () -> doTick(state));
     }
 
     public Optional<MoodState> currentMood(String agentId, String tenantId) {

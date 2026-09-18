@@ -145,6 +145,7 @@ Shared LLM invocation utility — eliminates the 17-site `AgentProvider.invoke()
 | `StructuredAgentInvoker` | Static utility: `invokeText(AgentProvider, AgentSessionConfig) → InvocationResult<String>`, `invoke(AgentProvider, AgentSessionConfig, Class<T>) → InvocationResult<T>` (typed JSON), `invokeRaw(AgentProvider, AgentSessionConfig) → InvocationResult<JsonNode>`. Captures `InvocationComplete` for metadata. `stripFences()` removes markdown code fences. `extractJson()` locates embedded JSON in surrounding prose. |
 | `InvocationResult<T>` | Sealed: `Success<T>(value, metadata)`, `ParseError<T>(rawResponse, parseError, metadata)`, `AgentError<T>(reason)`. Replaces ad-hoc null returns, exception swallowing, and log+fallback patterns. |
 | `InvocationMetadata` | Record: `inputTokens`, `outputTokens`, `thinkingTokens`, `cacheReadTokens`, `cacheWriteTokens`, `totalCostUsd`, `durationMs`, `apiDurationMs`. Captured from `AgentEvent.InvocationComplete`. `EMPTY` sentinel for missing completion events. |
+| `KeyedLock` | Per-key tick locking utility. `withLock(String key, Supplier<T>)` and `withLock(String key, Runnable)` — acquires a per-key `ReentrantLock`, executes, releases. `stateKey(agentId, tenantId)` composite key helper. Replaces 16 identical lock/try/finally sites across 13 orchestrator classes. |
 
 ## Package: `io.casehub.blocks.attestation`
 

@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class GoalProposalOrchestrator {
@@ -42,7 +42,7 @@ public class GoalProposalOrchestrator {
     private final GoalEscalationConfig escalationConfig;
 
     private final ConcurrentHashMap<String, GoalProposalState> states = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public GoalProposalOrchestrator(
             DriveOrchestrator driveOrchestrator,
@@ -90,13 +90,7 @@ public class GoalProposalOrchestrator {
 
     public GoalProposalTick tick(String agentId, String tenantId, AgentDescriptor descriptor) {
         String key = agentId + "|" + tenantId;
-        ReentrantLock lock = tickLocks.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(agentId, tenantId, descriptor, key);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(key, () -> doTick(agentId, tenantId, descriptor, key));
     }
 
     public void registerGoals(String agentId, String tenantId,

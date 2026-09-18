@@ -16,8 +16,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class CollectiveGoalFormation {
@@ -28,7 +28,7 @@ public class CollectiveGoalFormation {
     private final Clock clock;
 
     private final ConcurrentHashMap<String, List<CollectiveGoalProposal>> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
     private final ConcurrentHashMap<String, Instant> cooldowns = new ConcurrentHashMap<>();
 
     public CollectiveGoalFormation(DriveOrchestrator driveOrchestrator,
@@ -48,13 +48,7 @@ public class CollectiveGoalFormation {
     }
 
     public CollectiveGoalTick tick(String tenantId) {
-        var lock = tickLocks.computeIfAbsent(tenantId, k -> new ReentrantLock());
-        lock.lock();
-        try {
-            return doTick(tenantId);
-        } finally {
-            lock.unlock();
-        }
+        return tickLocks.withLock(tenantId, () -> doTick(tenantId));
     }
 
     public Optional<List<CollectiveGoalProposal>> currentProposals(String tenantId) {

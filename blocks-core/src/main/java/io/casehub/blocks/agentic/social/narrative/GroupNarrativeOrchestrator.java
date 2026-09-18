@@ -1,17 +1,17 @@
 package io.casehub.blocks.agentic.social.narrative;
 
+import io.casehub.blocks.agent.KeyedLock;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class GroupNarrativeOrchestrator {
 
     private final NarrativeStore store;
     private final Set<String> memberIds;
     private final ConcurrentHashMap<String, NarrativeState> cache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, ReentrantLock> tickLocks = new ConcurrentHashMap<>();
+    private final KeyedLock tickLocks = new KeyedLock();
 
     public GroupNarrativeOrchestrator(NarrativeStore store, Set<String> memberIds) {
         this.store = Objects.requireNonNull(store);
@@ -20,9 +20,7 @@ public class GroupNarrativeOrchestrator {
 
     public NarrativeTick tick(String groupId, String tenantId) {
         var key = groupId + ":" + tenantId;
-        var lock = tickLocks.computeIfAbsent(key, k -> new ReentrantLock());
-        lock.lock();
-        try {
+        return tickLocks.withLock(key, () -> {
             var loaded = store.load(groupId, tenantId);
             var previous = cache.get(key);
 
@@ -54,9 +52,7 @@ public class GroupNarrativeOrchestrator {
                     .toList();
 
             return new NarrativeTick.Updated(previous, loaded, newEpisodeIds, newThemeLabels);
-        } finally {
-            lock.unlock();
-        }
+        });
     }
 
     public Optional<NarrativeState> currentNarrative(String groupId, String tenantId) {
