@@ -3,6 +3,8 @@ package io.casehub.blocks.agentic.social;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
+import io.casehub.blocks.agentic.social.need.NeedTier;
+import io.casehub.blocks.agentic.social.need.NeedTierMappingProvider;
 import io.casehub.blocks.agentic.social.prompt.CharacterDrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
@@ -11,6 +13,7 @@ import io.casehub.blocks.agentic.social.prompt.GoalPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MentalModelPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MoodPromptSection;
 import io.casehub.blocks.agentic.social.prompt.NarrativePromptSection;
+import io.casehub.blocks.agentic.social.prompt.NeedsPyramidPromptSection;
 import io.casehub.blocks.agentic.social.prompt.PersonalityPromptSection;
 import io.casehub.blocks.agentic.social.prompt.StrategyPromptSection;
 import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
@@ -52,6 +55,7 @@ public class CognitionCore {
     private final CognitionConfig config;
     private final java.util.Map<CognitionPhase, java.util.List<CognitionTickParticipant>> customParticipants = new java.util.EnumMap<>(CognitionPhase.class);
     private final @Nullable MindMapStore mindMapStore;
+    private final java.util.Map<String, java.util.Set<NeedTier>> needTierMapping;
 
     private volatile @Nullable AgentDescriptor lastDescriptor;
 
@@ -92,7 +96,7 @@ public class CognitionCore {
                           @Nullable AgentProvider agentProvider,
                           CognitionConfig config) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-             goals, memoryHygiene, innerLife, agentProvider, config, null);
+             goals, memoryHygiene, innerLife, agentProvider, config, null, null);
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -106,7 +110,8 @@ public class CognitionCore {
                           @Nullable InnerLifeOrchestrator innerLife,
                           @Nullable AgentProvider agentProvider,
                           CognitionConfig config,
-                          @Nullable MindMapStore mindMapStore) {
+                          @Nullable MindMapStore mindMapStore,
+                          @Nullable NeedTierMappingProvider needTierMappingProvider) {
         this.mood = mood;
         this.drives = drives;
         this.userModel = userModel;
@@ -119,6 +124,7 @@ public class CognitionCore {
         this.agentProvider = agentProvider;
         this.config        = config;
         this.mindMapStore  = mindMapStore;
+        this.needTierMapping = needTierMappingProvider != null ? needTierMappingProvider.tierMapping() : java.util.Map.of();
     }
 
 
@@ -391,6 +397,9 @@ public class CognitionCore {
         if (config.goalsEnabled() && goals != null) {sections.add(new GoalPromptSection(goals));}
         if (config.characterDrivesEnabled() && mindMapStore != null) {
             sections.add(new CharacterDrivePromptSection(mindMapStore));
+        }
+        if (config.needsPyramidEnabled() && mindMapStore != null) {
+            sections.add(new NeedsPyramidPromptSection(mindMapStore, needTierMapping));
         }
         if (config.directivePrompts()) {
             return sections.stream().map(DirectiveSection::wrap).toList();
