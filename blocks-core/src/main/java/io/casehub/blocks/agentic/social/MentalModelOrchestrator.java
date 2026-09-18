@@ -1,7 +1,8 @@
 package io.casehub.blocks.agentic.social;
 
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.conversation.CommonGroundState;
-import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -298,14 +299,9 @@ public class MentalModelOrchestrator {
                     lines.length, recentText);
 
             var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-            var responseText = new StringBuilder();
-            agentProvider.invoke(sessionConfig)
-                    .subscribe().asStream()
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .forEach(responseText::append);
-
-            applyInferenceResult(state, responseText.toString());
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+            if (textResult instanceof InvocationResult.AgentError<?>) return;
+            applyInferenceResult(state, ((InvocationResult.Success<String>) textResult).value());
         } catch (Exception e) {
             LOG.log(Level.WARNING, "LLM inference failed for " + state.subjectId, e);
         }

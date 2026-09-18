@@ -1,14 +1,14 @@
 package io.casehub.blocks.agentic.social.goal;
 
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.agentic.social.narrative.DerivedTheme;
 import io.casehub.blocks.agentic.social.narrative.NarrativeState;
-import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
-import java.util.stream.Collectors;
 
 public class LlmCrossAxisGoalEnricher implements CrossAxisGoalEnricher {
 
@@ -28,26 +28,17 @@ public class LlmCrossAxisGoalEnricher implements CrossAxisGoalEnricher {
     public @Nullable DriveGoalProposal enrich(DriveGoalProposal heuristic,
                                                NarrativeState narrative,
                                                DerivedTheme sourceTheme) {
-        try {
-            String prompt = buildPrompt(heuristic, narrative, sourceTheme);
-            var config = AgentSessionConfig.of(SYSTEM_PROMPT, prompt, TIMEOUT);
+        String prompt = buildPrompt(heuristic, narrative, sourceTheme);
+        var config = AgentSessionConfig.of(SYSTEM_PROMPT, prompt, TIMEOUT);
 
-            String response = agentProvider.invoke(config)
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .collect().with(Collectors.joining())
-                    .await().indefinitely();
+        var result = StructuredAgentInvoker.invokeText(agentProvider, config);
+        if (!(result instanceof InvocationResult.Success<String> s)) return null;
 
-            if (response == null || response.isBlank()) return null;
-
-            return new DriveGoalProposal(heuristic.axis(), heuristic.goalName(),
-                    response.trim(),
-                    "LLM-enriched cross-axis: " + sourceTheme.label(),
-                    heuristic.driveIntensity(), heuristic.suggestedPriority(),
-                    heuristic.proposalAttributes());
-        } catch (Exception e) {
-            return null;
-        }
+        return new DriveGoalProposal(heuristic.axis(), heuristic.goalName(),
+                s.value().trim(),
+                "LLM-enriched cross-axis: " + sourceTheme.label(),
+                heuristic.driveIntensity(), heuristic.suggestedPriority(),
+                heuristic.proposalAttributes());
     }
 
     private String buildPrompt(DriveGoalProposal proposal, NarrativeState narrative,

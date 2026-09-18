@@ -28,7 +28,8 @@ import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.ledger.routing.TrustCandidateClassifier.ClassifiedCandidate;
 import io.casehub.ledger.routing.TrustCandidateClassifier.Phase;
 import io.casehub.ledger.routing.TrustCandidateClassifier.ScoredCandidate;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -182,16 +183,8 @@ final class RoutingSupport {
 
     static @Nullable String invokeAndCollect(AgentProvider provider,
                                              String systemPrompt, String userPrompt) {
-        try {
-            var config = AgentSessionConfig.of(systemPrompt, userPrompt);
-            var result = provider.invoke(config)
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .collect().with(Collectors.joining())
-                    .await().indefinitely();
-            return result == null || result.isBlank() ? null : result;
-        } catch (Exception e) {
-            return null;
-        }
+        var result = StructuredAgentInvoker.invokeText(provider,
+                AgentSessionConfig.of(systemPrompt, userPrompt));
+        return result instanceof InvocationResult.Success<String> s ? s.value() : null;
     }
 }

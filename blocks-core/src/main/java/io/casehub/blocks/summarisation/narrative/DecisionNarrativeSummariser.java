@@ -1,7 +1,8 @@
 package io.casehub.blocks.summarisation.narrative;
 
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.summarisation.ContentSummariser;
-import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import jakarta.json.Json;
@@ -15,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
+
 
 public class DecisionNarrativeSummariser
         implements ContentSummariser<StepDecisionSummary, DecisionNarrative> {
@@ -69,12 +70,12 @@ public class DecisionNarrativeSummariser
         var userPrompt = assembleUserPrompt(items, previous);
 
         try {
-            var responseText = agentProvider.invoke(AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt))
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .collect().asList()
-                    .await().indefinitely()
-                    .stream().collect(Collectors.joining());
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider,
+                    AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt));
+            if (textResult instanceof InvocationResult.AgentError<?>) {
+                return CompletableFuture.completedFuture(templateFallback(items, previous, caseId, allStepNames));
+            }
+            var responseText = ((InvocationResult.Success<String>) textResult).value();
 
             if (responseText == null || responseText.isBlank()) {
                 return CompletableFuture.completedFuture(templateFallback(items, previous, caseId, allStepNames));

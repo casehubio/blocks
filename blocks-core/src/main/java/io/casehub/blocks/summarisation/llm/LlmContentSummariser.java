@@ -1,8 +1,9 @@
 package io.casehub.blocks.summarisation.llm;
 
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.summarisation.ContentSummariser;
 import io.casehub.blocks.summarisation.SummaryMode;
-import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.casehub.qhorus.api.spi.SummaryResult;
@@ -11,9 +12,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class LlmContentSummariser<T> implements ContentSummariser<T, SummaryResult> {
 
@@ -57,18 +58,17 @@ public class LlmContentSummariser<T> implements ContentSummariser<T, SummaryResu
         String userPrompt = buildPrompt(items, previous);
         var config = AgentSessionConfig.of(systemPrompt, userPrompt);
 
-        return agentProvider.invoke(config)
-                .filter(e -> e instanceof AgentEvent.TextDelta)
-                .map(e -> ((AgentEvent.TextDelta) e).text())
-                .collect().with(Collectors.joining())
-                .map(text -> {
-                    var annotations = new HashMap<>(
-                            previous != null ? previous.annotations() : Map.of());
-                    annotations.put("tier", "synthesised");
-                    annotations.put("itemCount", String.valueOf(items.size()));
-                    return new SummaryResult(text, annotations);
-                })
-                .convert().toCompletionStage();
+        var result = StructuredAgentInvoker.invokeText(agentProvider, config);
+        if (result instanceof InvocationResult.AgentError<String> err) {
+            return CompletableFuture.failedFuture(
+                    new RuntimeException("LLM summarisation failed: " + err.reason()));
+        }
+        var text = ((InvocationResult.Success<String>) result).value();
+        var annotations = new HashMap<>(
+                previous != null ? previous.annotations() : Map.of());
+        annotations.put("tier", "synthesised");
+        annotations.put("itemCount", String.valueOf(items.size()));
+        return CompletableFuture.completedFuture(new SummaryResult(text, annotations));
     }
 
     private String buildPrompt(List<T> items, @Nullable SummaryResult previous) {

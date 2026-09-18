@@ -4,7 +4,8 @@ import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.summarisation.LevelEvent;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import jakarta.json.Json;
@@ -160,13 +161,11 @@ public class InnerLifeOrchestrator {
 
         MotivationAssessment assessment;
         try {
-            var responseText = agentProvider.invoke(sessionConfig)
-                                            .filter(e -> e instanceof AgentEvent.TextDelta)
-                                            .map(e -> ((AgentEvent.TextDelta) e).text())
-                                            .collect().asList()
-                                            .await().indefinitely()
-                                            .stream().collect(Collectors.joining());
-            assessment = parseAssessment(responseText);
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+            if (textResult instanceof InvocationResult.AgentError<?>) {
+                throw new RuntimeException("LLM invocation returned empty");
+            }
+            assessment = parseAssessment(((InvocationResult.Success<String>) textResult).value());
         } catch (Exception e) {
             LOG.log(Level.WARNING, "LLM invocation failed for agent " + descriptor.agentId(), e);
             return new InnerLifeTick.Silent("llm failure");

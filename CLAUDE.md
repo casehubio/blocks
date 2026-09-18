@@ -57,6 +57,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `agentic-yaml/src/test/java/io/casehub/blocks/agentic/yaml/` | Tests for YAML agentic surface |
 | `agentic-yaml-deployment/src/main/java/io/casehub/blocks/agentic/yaml/deployment/` | Quarkus deployment module — `AgenticYamlProcessor` (YAML discovery, validation), `AgenticRecorder` (runtime compiler registration) |
 | `docs/summarisation/CAPABILITY-MATRIX.md` | Summarisation capability matrix — maps 29 capabilities across 11 examples |
+| `src/main/java/io/casehub/blocks/agent/` | Shared LLM invocation utility — `StructuredAgentInvoker` (static: `invokeText()`, `invoke(Class<T>)`, `invokeRaw()` with sealed `InvocationResult<T>` and `InvocationMetadata`; markdown fence stripping, JSON extraction, `InvocationComplete` capture). `stripFences()` and `extractJson()` also available standalone. |
+| `src/test/java/io/casehub/blocks/agent/` | Tests for agent utility |
 | `src/main/java/io/casehub/blocks/attestation/` | Attestation write-path types — `AttestationIntent`, `AttestationIntentWriter` (+ `NoOpAttestationIntentWriter` `@DefaultBean`), `LifecycleAttestationObserver<E>` SPI, `AttestationContext` |
 | `src/test/java/io/casehub/blocks/attestation/` | Tests for attestation types |
 | `src/main/java/io/casehub/blocks/trust/` | Trust-lifecycle SPIs — `IntakeClassifier<S>`, `VouchService` with pluggable `VouchConstraint` chain |
@@ -133,6 +135,16 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `speech-ws/src/main/java/io/casehub/blocks/speech/ws/` | Avatar WebSocket endpoint — `SpeechWebSocket` (Quarkus WebSocket at `/ws/avatar`), `SpeechSession` (per-connection business logic), `VisemeMapping` (IPA→Oculus viseme with per-viseme weights and minimum duration enforcement), `PromptAssembler` SPI with `DefaultPromptAssembler`, `AvatarConfig` |
 | `speech-ws/src/main/java/io/casehub/blocks/speech/ws/protocol/` | WebSocket protocol DTOs — `AvatarMessage` sealed hierarchy (Start, Stop, Partial, Transcript, Response, Phonemes, Error), `VisemeFrame` (viseme + timing + weight), `ConversationTurn`, `MessageCodec` (gson JSON encode/decode) |
 | `speech-ws/src/test/java/io/casehub/blocks/speech/ws/` | Tests for avatar WebSocket (88 tests) |
+
+## Package: `io.casehub.blocks.agent`
+
+Shared LLM invocation utility — eliminates the 17-site `AgentProvider.invoke()` → collect TextDelta → parse JSON boilerplate. Not CDI-managed — stateless static methods, caller passes `AgentProvider`.
+
+| Class | What it does |
+|-------|-------------|
+| `StructuredAgentInvoker` | Static utility: `invokeText(AgentProvider, AgentSessionConfig) → InvocationResult<String>`, `invoke(AgentProvider, AgentSessionConfig, Class<T>) → InvocationResult<T>` (typed JSON), `invokeRaw(AgentProvider, AgentSessionConfig) → InvocationResult<JsonNode>`. Captures `InvocationComplete` for metadata. `stripFences()` removes markdown code fences. `extractJson()` locates embedded JSON in surrounding prose. |
+| `InvocationResult<T>` | Sealed: `Success<T>(value, metadata)`, `ParseError<T>(rawResponse, parseError, metadata)`, `AgentError<T>(reason)`. Replaces ad-hoc null returns, exception swallowing, and log+fallback patterns. |
+| `InvocationMetadata` | Record: `inputTokens`, `outputTokens`, `thinkingTokens`, `cacheReadTokens`, `cacheWriteTokens`, `totalCostUsd`, `durationMs`, `apiDurationMs`. Captured from `AgentEvent.InvocationComplete`. `EMPTY` sentinel for missing completion events. |
 
 ## Package: `io.casehub.blocks.attestation`
 

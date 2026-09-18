@@ -12,7 +12,8 @@ import io.casehub.engine.plan.DagPlan;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionStrategy;
 import io.casehub.engine.plan.TaskNode;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -22,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class LlmDecomposition<T> implements DecompositionStrategy<T> {
 
@@ -125,13 +125,11 @@ public class LlmDecomposition<T> implements DecompositionStrategy<T> {
             var userPrompt   = buildUserPrompt(goal, agenticCtx);
             var config       = AgentSessionConfig.of(systemPrompt, userPrompt);
 
-            var text = agentProvider.invoke(config)
-                                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                                    .collect().with(Collectors.joining())
-                                    .await().indefinitely();
-
-            return resolveEntries(text, goal.name(), agenticCtx);
+            var result = StructuredAgentInvoker.invokeText(agentProvider, config);
+            if (result instanceof InvocationResult.AgentError<String> err) {
+                throw new RuntimeException("LLM decomposition failed: " + err.reason());
+            }
+            return resolveEntries(((InvocationResult.Success<String>) result).value(), goal.name(), agenticCtx);
         } catch (Exception e) {
             LOG.log(System.Logger.Level.WARNING,
                     "LLM decomposition failed for ''{0}'' at depth {1}",

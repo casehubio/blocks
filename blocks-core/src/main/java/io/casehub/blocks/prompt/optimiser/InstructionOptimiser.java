@@ -7,7 +7,8 @@ import io.casehub.blocks.prompt.PromptOptimiser;
 import io.casehub.blocks.prompt.PromptSignature;
 import io.casehub.blocks.prompt.PromptVariant;
 import io.casehub.blocks.prompt.VariantOutcome;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -51,22 +52,18 @@ public class InstructionOptimiser implements PromptOptimiser {
             return CompletableFuture.completedFuture(new OptimiserResult(List.of(), null, 0.0));
         }
 
-        try {
-            var userPrompt = buildMetaPrompt(signature, dataset.outcomes());
-            var sessionConfig = AgentSessionConfig.of(META_SYSTEM_PROMPT, userPrompt);
+        var userPrompt = buildMetaPrompt(signature, dataset.outcomes());
+        var sessionConfig = AgentSessionConfig.of(META_SYSTEM_PROMPT, userPrompt);
 
-            var response = agentProvider.invoke(sessionConfig)
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .collect().with(Collectors.joining())
-                    .await().indefinitely();
-
-            var delta = response != null && !response.isBlank() ? response.strip() : null;
-            return CompletableFuture.completedFuture(new OptimiserResult(List.of(), delta, 0.0));
-        } catch (Exception e) {
-            LOG.log(System.Logger.Level.WARNING, "Instruction optimisation failed", e);
-            return CompletableFuture.completedFuture(new OptimiserResult(List.of(), null, 0.0));
+        var result = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+        if (result instanceof InvocationResult.Success<String> s) {
+            return CompletableFuture.completedFuture(
+                    new OptimiserResult(List.of(), s.value().strip(), 0.0));
         }
+        if (result instanceof InvocationResult.AgentError<?> err) {
+            LOG.log(System.Logger.Level.WARNING, "Instruction optimisation failed: {0}", err.reason());
+        }
+        return CompletableFuture.completedFuture(new OptimiserResult(List.of(), null, 0.0));
     }
 
     private String buildMetaPrompt(PromptSignature signature, List<VariantOutcome> outcomes) {

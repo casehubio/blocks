@@ -18,7 +18,8 @@ import io.casehub.blocks.speech.PromptSection;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.relationship.QualitySignal;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -219,13 +220,9 @@ public class CognitionCore {
             var userPrompt = "Other person said:\n" + truncatedMsg
                     + "\n\nAgent responded:\n" + truncatedResp;
             var config = AgentSessionConfig.of(MOOD_APPRAISAL_PROMPT, userPrompt);
-            var sb = new StringBuilder();
-            agentProvider.invoke(config)
-                    .subscribe().asStream()
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .forEach(sb::append);
-            var json = sb.toString();
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider, config);
+            if (textResult instanceof InvocationResult.AgentError<?>) return;
+            var json = ((InvocationResult.Success<String>) textResult).value();
             var jsonStart = json.indexOf('{');
             var jsonEnd = json.lastIndexOf('}');
             if (jsonStart >= 0 && jsonEnd > jsonStart) {
@@ -298,13 +295,9 @@ public class CognitionCore {
                         ? utterance.substring(0, 500) + "..." : utterance;
                 var config = AgentSessionConfig.of(BDI_EXTRACTION_PROMPT,
                         "What " + subjectId + " said:\n" + truncated);
-                var sb = new StringBuilder();
-                agentProvider.invoke(config)
-                        .subscribe().asStream()
-                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                        .forEach(sb::append);
-                var json = sb.toString();
+                var bdiResult = StructuredAgentInvoker.invokeText(agentProvider, config);
+                if (bdiResult instanceof InvocationResult.AgentError<?>) throw new RuntimeException("BDI extraction failed");
+                var json = ((InvocationResult.Success<String>) bdiResult).value();
                 recordExtractedSignals(agentId, subjectId, tenantId, json);
                 return;
             } catch (Exception e) {

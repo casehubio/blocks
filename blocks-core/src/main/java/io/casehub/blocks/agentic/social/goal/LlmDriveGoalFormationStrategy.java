@@ -2,15 +2,15 @@ package io.casehub.blocks.agentic.social.goal;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.eidos.api.AgentGoal;
-import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
-import java.util.stream.Collectors;
 
 public class LlmDriveGoalFormationStrategy implements DriveGoalFormationStrategy {
 
@@ -40,18 +40,10 @@ public class LlmDriveGoalFormationStrategy implements DriveGoalFormationStrategy
         String userPrompt = buildPrompt(context);
         var    config     = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt, DEFAULT_TIMEOUT);
 
-        String response;
-        try {
-            response = agentProvider.invoke(config)
-                                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                                    .collect().with(Collectors.joining())
-                                    .await().indefinitely();
-        } catch (Exception e) {
-            return null;
-        }
+        var result = StructuredAgentInvoker.invokeText(agentProvider, config);
+        if (!(result instanceof InvocationResult.Success<String> s)) return null;
 
-        return parseResponse(response, context.axis(), context.intensity());
+        return parseResponse(s.value(), context.axis(), context.intensity());
     }
 
     private String buildPrompt(DriveGoalFormationContext context) {

@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.casehub.engine.plan.DecompositionContext;
 import io.casehub.engine.plan.DecompositionMethod;
 import io.casehub.engine.plan.TaskNode;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 
@@ -43,24 +44,19 @@ public class LlmDecompositionHeuristic<T> implements DecompositionHeuristic<T> {
     public List<ScoredMethod<T>> evaluate(TaskNode.CompoundTask<T> task,
                                           List<DecompositionMethod<T>> methods,
                                           DecompositionContext<T> context) {
-        try {
-            var prompt = buildPrompt(task, methods, context);
-            var config = AgentSessionConfig.of(SYSTEM_PROMPT, prompt);
+        var prompt = buildPrompt(task, methods, context);
+        var config = AgentSessionConfig.of(SYSTEM_PROMPT, prompt);
 
-            var text = agentProvider.invoke(config)
-                                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                                    .collect().with(Collectors.joining())
-                                    .await().indefinitely();
-
-            return parseResponse(text, methods);
-        } catch (Exception e) {
-            LOG.log(System.Logger.Level.WARNING,
-                    "LLM heuristic evaluation failed — falling back to equal scores", e);
-            return methods.stream()
-                          .map(m -> new ScoredMethod<>(m, 0.0))
-                          .toList();
+        var result = StructuredAgentInvoker.invokeText(agentProvider, config);
+        if (result instanceof InvocationResult.Success<String> s) {
+            return parseResponse(s.value(), methods);
         }
+
+        LOG.log(System.Logger.Level.WARNING,
+                "LLM heuristic evaluation failed — falling back to equal scores");
+        return methods.stream()
+                      .map(m -> new ScoredMethod<>(m, 0.0))
+                      .toList();
     }
 
     private String buildPrompt(TaskNode.CompoundTask<T> task,
@@ -103,14 +99,7 @@ public class LlmDecompositionHeuristic<T> implements DecompositionHeuristic<T> {
         double[] scores = new double[methods.size()];
 
         if (text != null && !text.isBlank()) {
-            var trimmed = text.trim();
-            if (trimmed.startsWith("```")) {
-                int start = trimmed.indexOf('\n');
-                int end = trimmed.lastIndexOf("```");
-                if (start >= 0 && end > start) {
-                    trimmed = trimmed.substring(start + 1, end).trim();
-                }
-            }
+            var trimmed = StructuredAgentInvoker.stripFences(text.trim());
 
             try {
                 var root = MAPPER.readTree(trimmed);

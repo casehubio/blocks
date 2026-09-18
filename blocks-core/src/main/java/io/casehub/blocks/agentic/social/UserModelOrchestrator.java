@@ -1,6 +1,7 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -267,14 +268,9 @@ public class UserModelOrchestrator {
                     lines.length, recentText);
 
             var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-            var responseText = new StringBuilder();
-            agentProvider.invoke(sessionConfig)
-                    .subscribe().asStream()
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .forEach(responseText::append);
-
-            return parseResult(responseText.toString());
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+            if (textResult instanceof InvocationResult.AgentError<?>) return null;
+            return parseResult(((InvocationResult.Success<String>) textResult).value());
         } catch (Exception e) {
             LOG.log(Level.WARNING, "LLM synthesis failed for " + state.subjectId, e);
             return null;

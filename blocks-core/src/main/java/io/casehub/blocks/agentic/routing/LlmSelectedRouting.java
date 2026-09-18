@@ -1,14 +1,14 @@
 package io.casehub.blocks.agentic.routing;
 
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.agentic.AgentCardSupport;
 import io.casehub.blocks.agentic.RoutingCandidate;
-import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * LLM-driven agent selection — asks a language model to pick the best agent
@@ -64,13 +64,11 @@ public class LlmSelectedRouting<T> implements RoutingStrategy<T> {
             var userPrompt = buildUserPrompt(context);
             var config     = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
 
-            var text = agentProvider.invoke(config)
-                                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                                    .collect().with(Collectors.joining())
-                                    .await().indefinitely();
-
-            return parseSelection(text, context.candidates());
+            var result = StructuredAgentInvoker.invokeText(agentProvider, config);
+            if (result instanceof InvocationResult.AgentError<String> err) {
+                return new RoutingDecision.Unresolvable("LLM routing failed: " + err.reason());
+            }
+            return parseSelection(((InvocationResult.Success<String>) result).value(), context.candidates());
         } catch (Exception e) {
             LOG.log(System.Logger.Level.WARNING, "LLM routing failed", e);
             return new RoutingDecision.Unresolvable("LLM routing failed: " + e.getMessage());

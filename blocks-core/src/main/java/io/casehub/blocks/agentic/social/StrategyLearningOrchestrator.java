@@ -14,7 +14,8 @@ import io.casehub.neocortex.memory.cbr.TrendProfile;
 import io.casehub.neocortex.memory.cbr.TrendSpec;
 import io.casehub.neocortex.memory.cbr.TrendType;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.casehub.platform.api.path.Path;
@@ -315,13 +316,11 @@ public class StrategyLearningOrchestrator {
             String llmResponse;
             try {
                 var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-                var responseText = new StringBuilder();
-                agentProvider.invoke(sessionConfig)
-                        .subscribe().asStream()
-                        .filter(e -> e instanceof AgentEvent.TextDelta)
-                        .map(e -> ((AgentEvent.TextDelta) e).text())
-                        .forEach(responseText::append);
-                llmResponse = responseText.toString();
+                var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+                if (textResult instanceof InvocationResult.AgentError<String> err) {
+                    throw new RuntimeException(err.reason());
+                }
+                llmResponse = ((InvocationResult.Success<String>) textResult).value();
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Async reflect LLM failed for " + agentId, e);
                 return;
@@ -429,13 +428,11 @@ public class StrategyLearningOrchestrator {
         String llmResponse;
         try {
             var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-            var responseText = new StringBuilder();
-            agentProvider.invoke(sessionConfig)
-                    .subscribe().asStream()
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .forEach(responseText::append);
-            llmResponse = responseText.toString();
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+            if (textResult instanceof InvocationResult.AgentError<String> err) {
+                throw new RuntimeException(err.reason());
+            }
+            llmResponse = ((InvocationResult.Success<String>) textResult).value();
         } catch (Exception e) {
             LOG.log(Level.WARNING, "LLM synthesis failed for " + agentId, e);
             return new StrategyReflection.NoChange("LLM synthesis failed");

@@ -3,7 +3,8 @@ package io.casehub.blocks.agentic.social.narrative;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.memory.ReflectionEntry;
 import io.casehub.blocks.summarisation.ContentSummariser;
-import io.casehub.platform.agent.AgentEvent;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import jakarta.json.Json;
@@ -84,12 +85,12 @@ public class NarrativeContentSummariser
 
         String responseText;
         try {
-            responseText = agentProvider.invoke(AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt))
-                    .filter(e -> e instanceof AgentEvent.TextDelta)
-                    .map(e -> ((AgentEvent.TextDelta) e).text())
-                    .collect().asList()
-                    .await().indefinitely()
-                    .stream().collect(Collectors.joining());
+            var textResult = StructuredAgentInvoker.invokeText(agentProvider,
+                    AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt));
+            if (textResult instanceof InvocationResult.AgentError<?>) {
+                throw new RuntimeException("LLM invocation returned empty");
+            }
+            responseText = ((InvocationResult.Success<String>) textResult).value();
         } catch (Exception e) {
             LOG.warning("LLM invocation failed: " + e.getMessage());
             return CompletableFuture.completedFuture(previous);
