@@ -136,7 +136,7 @@ and their implementation status. Update as gaps close.
 | Capability | Status | Notes |
 |-----------|--------|-------|
 | SummaryMode (APPEND / EDIT) | Done | #254 — mode field on SummariserDefinition |
-| TieredContentSummariser thresholds | Gap | smallThreshold, mediumThreshold are YAML; delegates are code |
+| TieredContentSummariser thresholds | Done | #290 — tiered type in SummariserRegistry with recursive delegates |
 | LlmContentSummariser (preamble, mode) | Partial | preamble + mode YAML; AgentProvider CDI |
 | ContentSummariser.asSummariser() bridge | Done | Built into summarisation-api |
 
@@ -149,7 +149,7 @@ and their implementation status. Update as gaps close.
 | Capability | Status | Notes |
 |-----------|--------|-------|
 | CloudEventIngestionAdapter config (typePrefix, tenancyId extension) | Done | #254 — typePrefix on SourceDefinition |
-| CloudEventEmitter config (cloudEventType) | Gap | Type name is YAML; serialiser is code |
+| CloudEventEmitter config (cloudEventType) | Done | Wired via EmitDefinition → PipelineCompiler |
 | PipelineTickScheduler (tickInterval) | Done | #254 — tickInterval on PipelineDefinition |
 | EventSink | Code-only | @FunctionalInterface |
 
@@ -334,8 +334,8 @@ and their implementation status. Update as gaps close.
 | agentic-yaml | Normative (6) | 5 | **5** | — | — | — | — |
 | agentic-yaml | Expression/infra (7-8) | 7 | **7** | — | — | — | — |
 | summarisation-yaml | Pipeline (9-10) | 14 | **14** | — | — | — | — |
-| summarisation-yaml | Extensions (11) | 4 | 2 | 1 | 1 | — | — |
-| cloudevents | Bridge (12) | 4 | 2 | 1 | — | 1 | — |
+| summarisation-yaml | Extensions (11) | 4 | 3 | — | 1 | — | — |
+| cloudevents | Bridge (12) | 4 | 3 | — | — | 1 | — |
 | summarisation-api | Core (13) | 7 | **4** | — | — | 3 | — |
 | blocks | Social configs (14) | 13 | **13** | — | — | — | — |
 | blocks | Affordance (15) | 8 | **7** | — | 1 | — | — |
@@ -349,7 +349,7 @@ and their implementation status. Update as gaps close.
 | speech-ws | Avatar (23) | 2 | — | — | — | — | 2 |
 | speech-sherpa | Models (24) | 4 | **3** | — | — | — | 1 |
 | annotations | Governance (25) | 3 | **2** | 1 | — | — | — |
-| **Total** | | **164** | **141** | **3** | **4** | **4** | **11** |
+| **Total** | | **164** | **143** | **1** | **4** | **4** | **11** |
 
-**Coverage: 141/149 countable (95%).** Countable excludes N/A (runtime data, static utilities)
-and Code-only (functional interfaces). 3 remaining Gaps, 4 Partials at their natural ceiling.
+**Coverage: 143/149 countable (96%).** Countable excludes N/A (runtime data, static utilities)
+and Code-only (functional interfaces). 1 remaining Gap, 4 Partials at their natural ceiling.
