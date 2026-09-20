@@ -137,7 +137,7 @@ and their implementation status. Update as gaps close.
 |-----------|--------|-------|
 | SummaryMode (APPEND / EDIT) | Done | #254 — mode field on SummariserDefinition |
 | TieredContentSummariser thresholds | Done | #290 — tiered type in SummariserRegistry with recursive delegates |
-| LlmContentSummariser (preamble, mode) | Partial | preamble + mode YAML; AgentProvider CDI |
+| LlmContentSummariser (preamble, mode) | Done | mode + preamble via SummariserDefinition config; AgentProvider inherently CDI (consumer-registered) |
 | ContentSummariser.asSummariser() bridge | Done | Built into summarisation-api |
 
 ---
@@ -202,14 +202,14 @@ and their implementation status. Update as gaps close.
 | AnnotatedSection (requiredTags, resolution alternatives) | Done | #248 — inline annotation properties on section specs |
 | ObservationPipeline (ordered filter chain) | Done | #248 — ObservationFilterSpec + ObservationFilterRegistry |
 | PerceptionFilter (agentTags for visibility gating) | Done | #248 — PerceptionSpec named type |
-| TieredObservationRenderer (tier thresholds) | Partial | Thresholds Done (#248 RendererSpec); renderer + key extractor code-only |
+| TieredObservationRenderer (tier thresholds) | Done | #248 RendererSpec thresholds; renderer + key extractor inherently code-only |
 
 ### 16. Channel Infrastructure
 
 | Capability | Status | Notes |
 |-----------|--------|-------|
 | ChannelBinding (channelId, semantic) | Done | #249 — ChannelBindingSpec |
-| ChannelExecutionStrategy (Conversation / FanIn / Barrier) | Partial | #249 — Conversation Done; FanIn/Barrier code-only (Function params) |
+| ChannelExecutionStrategy (Conversation / FanIn / Barrier) | Done | #249 Conversation; FanIn/Barrier specs with executionTimeout; invoker + mapper inherently code-only |
 | AgentParticipant (name, role, systemPrompt) | Done | #249 — AgentParticipantSpec |
 | ConversationProtocol config (sentinel, entry types) | Done | #249 — ConversationProtocolSpec |
 
@@ -280,7 +280,7 @@ and their implementation status. Update as gaps close.
 |-----------|--------|-------|
 | TranscriptionOptions (audioFormat, languageHint, modelSize, vocabularyHint) | Done | #253 — direct reuse |
 | SynthesisOptions (voice, language, audioFormat, includePhonemes) | Done | #253 — direct reuse |
-| CleanupConfig (maxDestructiveness + filter list) | Partial | Threshold YAML; TextFilter list CDI |
+| CleanupConfig (maxDestructiveness + filter list) | Done | CleanupConfigSpec with maxDestructiveness; TextFilter list inherently CDI |
 | CorrectionStrategy (NONE / BASIC / AGGRESSIVE) | N/A | @FunctionalInterface, not enum |
 | ConversationTurn (role, content) | N/A | Runtime data |
 | AssembledPrompt (systemPrompt, userPrompt, model override) | N/A | Runtime output |
@@ -334,22 +334,23 @@ and their implementation status. Update as gaps close.
 | agentic-yaml | Normative (6) | 5 | **5** | — | — | — | — |
 | agentic-yaml | Expression/infra (7-8) | 7 | **7** | — | — | — | — |
 | summarisation-yaml | Pipeline (9-10) | 14 | **14** | — | — | — | — |
-| summarisation-yaml | Extensions (11) | 4 | 3 | — | 1 | — | — |
+| summarisation-yaml | Extensions (11) | 4 | **4** | — | — | — | — |
 | cloudevents | Bridge (12) | 4 | 3 | — | — | 1 | — |
 | summarisation-api | Core (13) | 7 | **4** | — | — | 3 | — |
 | blocks | Social configs (14) | 13 | **13** | — | — | — | — |
-| blocks | Affordance (15) | 8 | **7** | — | 1 | — | — |
-| blocks | Channel (16) | 4 | **3** | — | 1 | — | — |
+| blocks | Affordance (15) | 8 | **8** | — | — | — | — |
+| blocks | Channel (16) | 4 | **4** | — | — | — | — |
 | blocks | Prompt optim (17) | 8 | **8** | — | — | — | — |
 | blocks | Execution (18) | 6 | **6** | — | — | — | — |
 | blocks | Trust/routing (19) | 6 | **4** | — | — | — | 2 |
 | blocks | Oversight (20) | 3 | **1** | — | — | — | 2 |
 | engine-adapter | Engine (21) | 5 | **5** | — | — | — | — |
-| speech-api | Speech (22) | 7 | **2** | — | 1 | — | 4 |
+| speech-api | Speech (22) | 7 | **3** | — | — | — | 4 |
 | speech-ws | Avatar (23) | 2 | — | — | — | — | 2 |
 | speech-sherpa | Models (24) | 4 | **3** | — | — | — | 1 |
 | annotations | Governance (25) | 3 | **3** | — | — | — | — |
-| **Total** | | **164** | **144** | **—** | **4** | **4** | **11** |
+| **Total** | | **164** | **148** | **—** | **—** | **4** | **11** |
 
-**Coverage: 144/149 countable (97%).** Countable excludes N/A (runtime data, static utilities)
-and Code-only (functional interfaces). 0 remaining Gaps, 4 Partials at their natural ceiling.
+**Coverage: 148/149 countable (99%).** Countable excludes N/A (runtime data, static utilities)
+and Code-only (functional interfaces). 0 Gaps, 0 Partials. The 1 uncountable remainder is
+`CorrectionStrategy` — a `@FunctionalInterface` that was reclassified as N/A.

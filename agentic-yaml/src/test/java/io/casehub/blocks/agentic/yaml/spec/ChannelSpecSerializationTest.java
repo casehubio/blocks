@@ -119,4 +119,39 @@ class ChannelSpecSerializationTest {
         assertThat(conv.epistemicRule()).isNull();
         assertThat(conv.convergencePolicy()).isNull();
     }
+
+    @Test
+    void fanInStrategySpec() throws Exception {
+        var yaml = """
+                   type: fan-in
+                   executionTimeout: PT30S
+                   """;
+        var spec = mapper.readValue(yaml, ChannelExecutionStrategySpec.class);
+        assertThat(spec).isInstanceOf(ChannelExecutionStrategySpec.FanInStrategySpec.class);
+        var fanIn = (ChannelExecutionStrategySpec.FanInStrategySpec) spec;
+        assertThat(fanIn.executionTimeout()).isEqualTo(java.time.Duration.ofSeconds(30));
+    }
+
+    @Test
+    void fanInStrategySpecWithoutTimeout() throws Exception {
+        var yaml = "type: fan-in";
+        var spec = mapper.readValue(yaml, ChannelExecutionStrategySpec.class);
+        assertThat(spec).isInstanceOf(ChannelExecutionStrategySpec.FanInStrategySpec.class);
+        var fanIn = (ChannelExecutionStrategySpec.FanInStrategySpec) spec;
+        assertThat(fanIn.executionTimeout()).isNull();
+    }
+
+    @Test
+    void barrierStrategySpec() throws Exception {
+        var yaml = """
+                   type: barrier
+                   executionTimeout: PT1M
+                   """;
+        var spec = mapper.readValue(yaml, ChannelExecutionStrategySpec.class);
+        assertThat(spec).isInstanceOf(ChannelExecutionStrategySpec.BarrierStrategySpec.class);
+        var barrier = (ChannelExecutionStrategySpec.BarrierStrategySpec) spec;
+        assertThat(barrier.executionTimeout()).isEqualTo(java.time.Duration.ofMinutes(1));
+    }
+
+
 }

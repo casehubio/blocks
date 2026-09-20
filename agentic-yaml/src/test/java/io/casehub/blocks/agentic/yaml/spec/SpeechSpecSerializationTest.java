@@ -202,4 +202,30 @@ class SpeechSpecSerializationTest {
             assertThat(result.variant()).isEqualTo("0.1b-int8");
         }
     }
+
+
+    @Nested
+    class CleanupConfigSpecs {
+
+        @Test
+        void deserialises_with_max_destructiveness() throws Exception {
+            var yaml = "maxDestructiveness: 3";
+            var spec = mapper.readValue(yaml, CleanupConfigSpec.class);
+            assertThat(spec.maxDestructiveness()).isEqualTo(3);
+        }
+
+        @Test
+        void rejects_negative_destructiveness() {
+            assertThatThrownBy(() -> new CleanupConfigSpec(-1))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void defaults_to_max_int_when_unset() throws Exception {
+            var yaml = "{}";
+            var spec = mapper.readValue(yaml, CleanupConfigSpec.class);
+            assertThat(spec.maxDestructiveness()).isEqualTo(Integer.MAX_VALUE);
+        }
+    }
+
 }
