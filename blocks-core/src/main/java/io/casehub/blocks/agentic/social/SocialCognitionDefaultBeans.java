@@ -120,4 +120,12 @@ public class SocialCognitionDefaultBeans {
     io.casehub.blocks.agentic.social.emergence.NormFilter normFilter() {
         return (norms, agentId, tenantId) -> norms;
     }
+
+    @Produces
+    @DefaultBean
+    @Singleton
+    io.casehub.blocks.agentic.social.belief.BeliefRevisionConfig beliefRevisionConfig() {
+        return io.casehub.blocks.agentic.social.belief.BeliefRevisionConfig.defaults();
+    }
+
 }

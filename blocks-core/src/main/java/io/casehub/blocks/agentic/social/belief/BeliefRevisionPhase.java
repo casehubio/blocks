@@ -12,6 +12,8 @@ import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import io.casehub.platform.api.identity.PrincipalId;
 import jakarta.annotation.Priority;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,29 +25,31 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Priority(16)
+@ApplicationScoped
 public class BeliefRevisionPhase implements ConsolidationPhase {
 
-    private static final Logger LOG = Logger.getLogger(BeliefRevisionPhase.class.getName());
-    private static final String CURSOR_NODE_NAME = "belief-revision-cursor";
-    private static final String BELIEF_TRAIT = "Belieflike";
+    private static final Logger LOG                   = Logger.getLogger(BeliefRevisionPhase.class.getName());
+    private static final String CURSOR_NODE_NAME      = "belief-revision-cursor";
+    private static final String BELIEF_TRAIT          = "Belieflike";
     private static final String EXPERIENCE_PROVENANCE = "experience-consolidation";
-    private static final String REVISION_PROVENANCE = "belief-revision";
+    private static final String REVISION_PROVENANCE   = "belief-revision";
 
     private static final String SYSTEM_PROMPT = """
-            You are analyzing a character's beliefs against recent evidence from their experiences.
-            For each belief that is contradicted by the evidence, identify the contradiction.
-            Respond with JSON only. If no contradictions are found, return {"contradictions": []}.
-            """;
+                                                You are analyzing a character's beliefs against recent evidence from their experiences.
+                                                For each belief that is contradicted by the evidence, identify the contradiction.
+                                                Respond with JSON only. If no contradictions are found, return {"contradictions": []}.
+                                                """;
 
-    private final MindMapStore mindMapStore;
-    private final AgentProvider agentProvider;
+    private final MindMapStore         mindMapStore;
+    private final AgentProvider        agentProvider;
     private final BeliefRevisionConfig config;
 
+    @Inject
     public BeliefRevisionPhase(MindMapStore mindMapStore, AgentProvider agentProvider,
                                BeliefRevisionConfig config) {
-        this.mindMapStore = mindMapStore;
+        this.mindMapStore  = mindMapStore;
         this.agentProvider = agentProvider;
-        this.config = config;
+        this.config        = config;
     }
 
     @Override
@@ -57,23 +61,23 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
     public void run(String tenantId, List<String> subgraphPriority) {
         var subgraphs = mindMapStore.listSubgraphs(tenantId);
         var cognitiveSubgraphs = subgraphs.stream()
-            .filter(sg -> "cognitive".equals(sg.type()))
-            .toList();
-        if (cognitiveSubgraphs.isEmpty()) return;
+                                          .filter(sg -> "cognitive".equals(sg.type()))
+                                          .toList();
+        if (cognitiveSubgraphs.isEmpty()) {return;}
 
-        var allBeliefs = new HashMap<String, List<MindMapNode>>();
-        var allEvidence = new HashMap<String, List<MindMapNode>>();
+        var    allBeliefs       = new HashMap<String, List<MindMapNode>>();
+        var    allEvidence      = new HashMap<String, List<MindMapNode>>();
         String cursorSubgraphId = null;
-        String cursorNodeId = null;
-        String lastProcessedId = null;
+        String cursorNodeId     = null;
+        String lastProcessedId  = null;
 
         for (var sg : cognitiveSubgraphs) {
             var nodes = mindMapStore.nodesIn(sg.id(), tenantId);
             for (var node : nodes) {
                 if (CURSOR_NODE_NAME.equals(node.name())) {
                     cursorSubgraphId = sg.id();
-                    cursorNodeId = node.id();
-                    lastProcessedId = node.properties().get("last-processed-node-id");
+                    cursorNodeId     = node.id();
+                    lastProcessedId  = node.properties().get("last-processed-node-id");
                     continue;
                 }
                 if (node.traits().contains(BELIEF_TRAIT)) {
@@ -90,14 +94,14 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
             }
         }
 
-        if (allBeliefs.isEmpty()) return;
+        if (allBeliefs.isEmpty()) {return;}
 
         String latestProcessedId = lastProcessedId;
         for (var agentId : allBeliefs.keySet()) {
-            var beliefs = allBeliefs.get(agentId);
-            var evidence = allEvidence.getOrDefault(agentId, List.of());
+            var beliefs     = allBeliefs.get(agentId);
+            var evidence    = allEvidence.getOrDefault(agentId, List.of());
             var newEvidence = filterNewEvidence(evidence, lastProcessedId);
-            if (newEvidence.isEmpty()) continue;
+            if (newEvidence.isEmpty()) {continue;}
 
             processAgent(agentId, beliefs, newEvidence, tenantId);
 
@@ -114,44 +118,44 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
     }
 
     private List<MindMapNode> filterNewEvidence(List<MindMapNode> evidence, String lastProcessedId) {
-        if (lastProcessedId == null) return evidence;
+        if (lastProcessedId == null) {return evidence;}
         return evidence.stream()
-            .filter(n -> n.id().compareTo(lastProcessedId) > 0)
-            .toList();
+                       .filter(n -> n.id().compareTo(lastProcessedId) > 0)
+                       .toList();
     }
 
     private void processAgent(String agentId, List<MindMapNode> beliefs,
                               List<MindMapNode> evidence, String tenantId) {
         try {
             var contradictions = detectContradictions(agentId, beliefs, evidence);
-            if (contradictions.isEmpty()) return;
+            if (contradictions.isEmpty()) {return;}
 
             for (var c : contradictions) {
                 var beliefNode = beliefs.stream()
-                    .filter(b -> b.id().equals(c.beliefNodeId) || b.name().equals(c.beliefText))
-                    .findFirst().orElse(null);
-                if (beliefNode == null) continue;
+                                        .filter(b -> b.id().equals(c.beliefNodeId) || b.name().equals(c.beliefText))
+                                        .findFirst().orElse(null);
+                if (beliefNode == null) {continue;}
 
                 double currentConfidence = beliefNode.confidence().value();
-                double effectiveDecay = config.beliefDecayPerContradiction() * c.contradictionStrength;
-                double newConfidence = Math.max(0.0, currentConfidence - effectiveDecay);
+                double effectiveDecay    = config.beliefDecayPerContradiction() * c.contradictionStrength;
+                double newConfidence     = Math.max(0.0, currentConfidence - effectiveDecay);
                 if (newConfidence < config.beliefSupersessionThreshold()) {
                     var subjectKey = beliefNode.property("subject").orElse(beliefNode.name());
                     var newNodeId = mindMapStore.addNode(
-                        NodeInput.of(c.revisedBelief, beliefNode.subgraphId())
-                            .withConfidence(Confidence.inferred(
-                                config.revisedBeliefInitialConfidence(), Instant.now()))
-                            .withProvenance(REVISION_PROVENANCE)
-                            .withTraits(Set.of(BELIEF_TRAIT))
-                            .withProperties(Map.of("subject", subjectKey))
-                            .withPrincipalId(PrincipalId.agent(agentId)),
-                        tenantId);
+                            NodeInput.of(c.revisedBelief, beliefNode.subgraphId())
+                                     .withConfidence(Confidence.inferred(
+                                             config.revisedBeliefInitialConfidence(), Instant.now()))
+                                     .withProvenance(REVISION_PROVENANCE)
+                                     .withTraits(Set.of(BELIEF_TRAIT))
+                                     .withProperties(Map.of("subject", subjectKey))
+                                     .withPrincipalId(PrincipalId.agent(agentId)),
+                            tenantId);
                     mindMapStore.supersede(beliefNode.id(), newNodeId, c.reasoning, tenantId);
                 } else {
                     mindMapStore.updateNode(beliefNode.id(),
-                        NodeUpdate.empty().withConfidence(
-                            new Confidence(ConfidenceOrigin.INFERRED, newConfidence, Instant.now())),
-                        tenantId);
+                                            NodeUpdate.empty().withConfidence(
+                                                    new Confidence(ConfidenceOrigin.INFERRED, newConfidence, Instant.now())),
+                                            tenantId);
                 }
             }
         } catch (Exception e) {
@@ -164,12 +168,12 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
                          double contradictionStrength, String revisedBelief) {}
 
     private List<Contradiction> detectContradictions(String agentId,
-            List<MindMapNode> beliefs, List<MindMapNode> evidence) {
+                                                     List<MindMapNode> beliefs, List<MindMapNode> evidence) {
         var beliefsText = new StringBuilder();
         for (int i = 0; i < beliefs.size(); i++) {
             var b = beliefs.get(i);
             beliefsText.append(String.format("%d. [%s] \"%s\" (confidence: %.2f)\n",
-                i + 1, b.id(), b.name(), b.confidence().value()));
+                                             i + 1, b.id(), b.name(), b.confidence().value()));
         }
 
         var evidenceText = new StringBuilder();
@@ -179,27 +183,27 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
         }
 
         var userPrompt = String.format("""
-                Character: %s
-
-                Current beliefs:
-                %s
-                Recent evidence:
-                %s
-                For each belief contradicted by this evidence, provide JSON:
-                - beliefNodeId: the ID in brackets above
-                - beliefText: the belief text
-                - contradictingEvidence: which evidence contradicts it
-                - reasoning: why it's a contradiction
-                - contradictionStrength: 0.0 (barely relevant) to 1.0 (directly disproven)
-                - revisedBelief: what the character should now believe (one sentence, their perspective)""",
-                agentId, beliefsText, evidenceText);
+                                       Character: %s
+                                       
+                                       Current beliefs:
+                                       %s
+                                       Recent evidence:
+                                       %s
+                                       For each belief contradicted by this evidence, provide JSON:
+                                       - beliefNodeId: the ID in brackets above
+                                       - beliefText: the belief text
+                                       - contradictingEvidence: which evidence contradicts it
+                                       - reasoning: why it's a contradiction
+                                       - contradictionStrength: 0.0 (barely relevant) to 1.0 (directly disproven)
+                                       - revisedBelief: what the character should now believe (one sentence, their perspective)""",
+                                       agentId, beliefsText, evidenceText);
 
         var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-        var responseText = new StringBuilder();
+        var responseText  = new StringBuilder();
         agentProvider.invoke(sessionConfig).subscribe().asStream()
-            .filter(e -> e instanceof AgentEvent.TextDelta)
-            .map(e -> ((AgentEvent.TextDelta) e).text())
-            .forEach(responseText::append);
+                     .filter(e -> e instanceof AgentEvent.TextDelta)
+                     .map(e -> ((AgentEvent.TextDelta) e).text())
+                     .forEach(responseText::append);
 
         return parseContradictions(responseText.toString());
     }
@@ -209,29 +213,29 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
         if (json.startsWith("```")) {
             json = json.replaceFirst("```[a-z]*\\n?", "").replaceFirst("\\n?```$", "").strip();
         }
-        var results = new ArrayList<Contradiction>();
+        var results    = new ArrayList<Contradiction>();
         int searchFrom = 0;
         while (true) {
             int objStart = json.indexOf('{', searchFrom);
-            if (objStart < 0) break;
+            if (objStart < 0) {break;}
             int objEnd = json.indexOf('}', objStart);
-            if (objEnd < 0) break;
+            if (objEnd < 0) {break;}
             String obj = json.substring(objStart, objEnd + 1);
             searchFrom = objEnd + 1;
 
-            if (!obj.contains("beliefNodeId")) continue;
+            if (!obj.contains("beliefNodeId")) {continue;}
 
-            var nodeId = extractField(obj, "beliefNodeId");
-            var text = extractField(obj, "beliefText");
-            var evidence = extractField(obj, "contradictingEvidence");
+            var nodeId    = extractField(obj, "beliefNodeId");
+            var text      = extractField(obj, "beliefText");
+            var evidence  = extractField(obj, "contradictingEvidence");
             var reasoning = extractField(obj, "reasoning");
-            var strength = extractDoubleField(obj, "contradictionStrength");
-            var revised = extractField(obj, "revisedBelief");
+            var strength  = extractDoubleField(obj, "contradictionStrength");
+            var revised   = extractField(obj, "revisedBelief");
 
             if (nodeId != null && text != null && strength > 0) {
                 results.add(new Contradiction(nodeId, text, evidence,
-                    reasoning != null ? reasoning : "LLM-detected contradiction",
-                    strength, revised != null ? revised : text + " (revised)"));
+                                              reasoning != null ? reasoning : "LLM-detected contradiction",
+                                              strength, revised != null ? revised : text + " (revised)"));
             }
         }
         return results;
@@ -239,11 +243,11 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
 
     private static String extractField(String json, String field) {
         int start = json.indexOf("\"" + field + "\"");
-        if (start < 0) return null;
+        if (start < 0) {return null;}
         int colon = json.indexOf(':', start);
-        if (colon < 0) return null;
+        if (colon < 0) {return null;}
         int quote = json.indexOf('"', colon + 1);
-        if (quote < 0) return null;
+        if (quote < 0) {return null;}
         quote++;
         var sb = new StringBuilder();
         for (int i = quote; i < json.length(); i++) {
@@ -261,14 +265,14 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
 
     private static double extractDoubleField(String json, String field) {
         int start = json.indexOf("\"" + field + "\"");
-        if (start < 0) return 0.0;
+        if (start < 0) {return 0.0;}
         int colon = json.indexOf(':', start);
-        if (colon < 0) return 0.0;
+        if (colon < 0) {return 0.0;}
         var numStr = new StringBuilder();
         for (int i = colon + 1; i < json.length(); i++) {
             char c = json.charAt(i);
-            if (c == ',' || c == '}' || c == ']') break;
-            if (!Character.isWhitespace(c)) numStr.append(c);
+            if (c == ',' || c == '}' || c == ']') {break;}
+            if (!Character.isWhitespace(c)) {numStr.append(c);}
         }
         try {
             return Double.parseDouble(numStr.toString());
@@ -282,17 +286,17 @@ public class BeliefRevisionPhase implements ConsolidationPhase {
         String sgId = cursorSubgraphId != null ? cursorSubgraphId : defaultSubgraphId;
         if (cursorNodeId != null) {
             mindMapStore.updateNode(cursorNodeId,
-                NodeUpdate.empty().withPropertiesToSet(
-                    Map.of("last-processed-node-id", lastId)),
-                tenantId);
+                                    NodeUpdate.empty().withPropertiesToSet(
+                                            Map.of("last-processed-node-id", lastId)),
+                                    tenantId);
         } else {
             mindMapStore.addNode(
-                NodeInput.of(CURSOR_NODE_NAME, sgId)
-                    .withProvenance(REVISION_PROVENANCE)
-                    .withProperties(Map.of(
-                        "cognitiveKind", "cursor",
-                        "last-processed-node-id", lastId)),
-                tenantId);
+                    NodeInput.of(CURSOR_NODE_NAME, sgId)
+                             .withProvenance(REVISION_PROVENANCE)
+                             .withProperties(Map.of(
+                                     "cognitiveKind", "cursor",
+                                     "last-processed-node-id", lastId)),
+                    tenantId);
         }
     }
 }
