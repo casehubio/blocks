@@ -31,6 +31,7 @@ public sealed interface PatternSpec {
     @Nullable String task();
     List<AgentRefSpec> agents();
     @Nullable JudgmentSpec judgment();
+    @Nullable GovernanceSpec governance();
 
     record Supervisor(
             @Nullable RoutingSpec routing,
@@ -41,7 +42,8 @@ public sealed interface PatternSpec {
             @Nullable FailurePolicy failurePolicy,
             @Nullable String task,
             List<AgentRefSpec> agents,
-            @Nullable JudgmentSpec judgment
+            @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance
     ) implements PatternSpec {}
 
     record Debate(
@@ -54,6 +56,7 @@ public sealed interface PatternSpec {
             @Nullable String task,
             List<AgentRefSpec> agents,
             @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance,
             @Nullable AgentRefSpec judge,
             int maxRounds
     ) implements PatternSpec {}
@@ -68,6 +71,7 @@ public sealed interface PatternSpec {
             @Nullable String task,
             List<AgentRefSpec> agents,
             @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance,
             int maxIterations,
             @Nullable String exitCondition
     ) implements PatternSpec {}
@@ -81,7 +85,8 @@ public sealed interface PatternSpec {
             @Nullable FailurePolicy failurePolicy,
             @Nullable String task,
             List<AgentRefSpec> agents,
-            @Nullable JudgmentSpec judgment
+            @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance
     ) implements PatternSpec {}
 
     record Voting(
@@ -93,7 +98,8 @@ public sealed interface PatternSpec {
             @Nullable FailurePolicy failurePolicy,
             @Nullable String task,
             List<AgentRefSpec> agents,
-            @Nullable JudgmentSpec judgment
+            @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance
     ) implements PatternSpec {}
 
     record Conditional(
@@ -106,6 +112,7 @@ public sealed interface PatternSpec {
             @Nullable String task,
             List<AgentRefSpec> agents,
             @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance,
             List<BranchSpec> branches
     ) implements PatternSpec {}
 
@@ -118,7 +125,8 @@ public sealed interface PatternSpec {
             @Nullable FailurePolicy failurePolicy,
             @Nullable String task,
             List<AgentRefSpec> agents,
-            @Nullable JudgmentSpec judgment
+            @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance
     ) implements PatternSpec {}
 
     record Htn(
@@ -131,6 +139,7 @@ public sealed interface PatternSpec {
             @Nullable String task,
             List<AgentRefSpec> agents,
             @Nullable JudgmentSpec judgment,
+            @Nullable GovernanceSpec governance,
             TaskNodeSpec rootTask
     ) implements PatternSpec {}
 }

@@ -320,7 +320,7 @@ and their implementation status. Update as gaps close.
 |-----------|----------------|--------|
 | `@Supervisor`, `@Debate`, `@Loop`, `@Parallel`, `@Voting`, `@Conditional`, `@Sequence`, `@Htn` | PatternSpec topologies | Done (YAML side) |
 | `@Agent`, `@Debater`, `@Judge`, `@Voter` | AgentRefSpec roles | Done (YAML side) |
-| `@Attestation`, `@OversightGate`, `@TrustRouted`, `@CbrRouted` | Governance specs | Gap |
+| `@Attestation`, `@OversightGate`, `@TrustRouted`, `@CbrRouted` | Governance specs | Done | #292 — GovernanceSpec composable on PatternSpec |
 
 ---
 
@@ -348,8 +348,8 @@ and their implementation status. Update as gaps close.
 | speech-api | Speech (22) | 7 | **2** | — | 1 | — | 4 |
 | speech-ws | Avatar (23) | 2 | — | — | — | — | 2 |
 | speech-sherpa | Models (24) | 4 | **3** | — | — | — | 1 |
-| annotations | Governance (25) | 3 | **2** | 1 | — | — | — |
-| **Total** | | **164** | **143** | **1** | **4** | **4** | **11** |
+| annotations | Governance (25) | 3 | **3** | — | — | — | — |
+| **Total** | | **164** | **144** | **—** | **4** | **4** | **11** |
 
-**Coverage: 143/149 countable (96%).** Countable excludes N/A (runtime data, static utilities)
-and Code-only (functional interfaces). 1 remaining Gap, 4 Partials at their natural ceiling.
+**Coverage: 144/149 countable (97%).** Countable excludes N/A (runtime data, static utilities)
+and Code-only (functional interfaces). 0 remaining Gaps, 4 Partials at their natural ceiling.

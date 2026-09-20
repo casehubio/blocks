@@ -221,6 +221,9 @@
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
         },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
+        },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
         },
@@ -259,6 +262,9 @@
         },
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
+        },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
         },
         "judge" : {
           "$ref" : "#/$defs/AgentRefSpec"
@@ -421,6 +427,78 @@
       },
       "unevaluatedProperties" : false
     },
+    "GovernanceSpec" : {
+      "type" : "object",
+      "properties" : {
+        "attestation" : {
+          "type" : "object",
+          "properties" : {
+            "capabilityTag" : {
+              "type" : "string"
+            },
+            "observer" : {
+              "type" : "string"
+            }
+          },
+          "unevaluatedProperties" : false
+        },
+        "cbrRouting" : {
+          "type" : "object",
+          "properties" : {
+            "failureWeight" : {
+              "type" : "number"
+            },
+            "gateExpiredWeight" : {
+              "type" : "number"
+            },
+            "gateRejectedWeight" : {
+              "type" : "number"
+            },
+            "successWeight" : {
+              "type" : "number"
+            }
+          },
+          "unevaluatedProperties" : false
+        },
+        "oversight" : {
+          "type" : "object",
+          "properties" : {
+            "candidateGroups" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            },
+            "classifier" : {
+              "type" : "string"
+            },
+            "reversible" : {
+              "type" : "boolean"
+            }
+          },
+          "unevaluatedProperties" : false
+        },
+        "trustRouting" : {
+          "type" : "object",
+          "properties" : {
+            "blendFactor" : {
+              "type" : "number"
+            },
+            "borderlineMargin" : {
+              "type" : "number"
+            },
+            "minimumObservations" : {
+              "type" : "integer"
+            },
+            "threshold" : {
+              "type" : "number"
+            }
+          },
+          "unevaluatedProperties" : false
+        }
+      },
+      "unevaluatedProperties" : false
+    },
     "Htn" : {
       "type" : "object",
       "properties" : {
@@ -441,6 +519,9 @@
         },
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
+        },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
         },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
@@ -581,6 +662,9 @@
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
         },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
+        },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
         },
@@ -622,6 +706,9 @@
         },
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
+        },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
         },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
@@ -718,6 +805,9 @@
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
         },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
+        },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
         },
@@ -756,6 +846,9 @@
         },
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
+        },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
         },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
@@ -921,6 +1014,9 @@
         },
         "failurePolicy" : {
           "$ref" : "#/$defs/FailurePolicy"
+        },
+        "governance" : {
+          "$ref" : "#/$defs/GovernanceSpec"
         },
         "judgment" : {
           "$ref" : "#/$defs/JudgmentSpec"
