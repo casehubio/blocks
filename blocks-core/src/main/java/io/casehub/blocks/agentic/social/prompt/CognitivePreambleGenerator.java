@@ -12,7 +12,15 @@ public final class CognitivePreambleGenerator {
             sb.append(" Your emotional state colours how you respond — let it shape your tone and choices.");
         }
         if (config.drivesEnabled()) {
-            sb.append(" You have motivational drives that pull at you; some are stronger than others right now.");
+            sb.append(" You have motivational drives that influence your priorities.");
+        }
+        if (config.characterDrivesEnabled() && config.drivesEnabled()) {
+            sb.append(" Your psychological needs — curiosity, competence, affiliation, autonomy — shift based on your interactions. Separately, your character motivations — the drives that define who you are — evolve based on your experiences.");
+        } else if (config.characterDrivesEnabled()) {
+            sb.append(" You have character motivations — the drives that define who you are — that evolve based on your experiences.");
+        }
+        if (config.needsPyramidEnabled()) {
+            sb.append(" You have inner needs arranged in a hierarchy — when lower needs go unmet, they demand attention before higher aspirations.");
         }
         if (config.mentalModelEnabled()) {
             sb.append(" You hold beliefs about the people around you, formed from observation — act on them, update them when evidence contradicts.");
