@@ -47,8 +47,8 @@ public final class SherpaOnnxTextToSpeech implements TextToSpeechService, AutoCl
     }
 
     SherpaOnnxTextToSpeech(SherpaConfig config, SherpaLibrary lib) {
-        this.config      = Objects.requireNonNull(config);
-        this.lib         = lib;
+        this.config      = Objects.requireNonNull(config, "config");
+        this.lib         = Objects.requireNonNull(lib, "lib");
         this.engineArena = Arena.ofShared();
         MemorySegment configSeg = buildTtsConfig(engineArena);
         try {

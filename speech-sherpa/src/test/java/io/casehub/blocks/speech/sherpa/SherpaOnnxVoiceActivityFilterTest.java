@@ -7,8 +7,14 @@ import org.junit.jupiter.api.condition.EnabledIf;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@EnabledIf("io.casehub.blocks.speech.sherpa.SherpaLibrary#isAvailable")
+@EnabledIf("hasVadModel")
 class SherpaOnnxVoiceActivityFilterTest {
+
+    static boolean hasVadModel() {
+        if (!SherpaLibrary.isAvailable()) return false;
+        java.nio.file.Path vadDir = Provisioner.vadModelDir("silero_vad");
+        return java.nio.file.Files.exists(vadDir.resolve("silero_vad.onnx"));
+    }
 
     @Test
     void factoryCreatesFilterInstances() {

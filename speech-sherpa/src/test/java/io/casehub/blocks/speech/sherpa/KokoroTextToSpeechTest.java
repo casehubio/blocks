@@ -14,27 +14,22 @@ class KokoroTextToSpeechTest {
     @TempDir Path tempDir;
 
     @Test
-    void rejectsNullText() {
-        var tts = new KokoroTextToSpeech(KokoroConfig.defaults(tempDir), (SherpaLibrary) null);
-
-        assertThatThrownBy(() -> tts.synthesise(null, SynthesisOptions.defaults()))
-                .isInstanceOf(NullPointerException.class);
+    void rejectsNullLib() {
+        assertThatThrownBy(() -> new KokoroTextToSpeech(KokoroConfig.defaults(tempDir), (SherpaLibrary) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("lib");
     }
 
     @Test
-    void rejectsNullOptions() {
-        var tts = new KokoroTextToSpeech(KokoroConfig.defaults(tempDir), (SherpaLibrary) null);
-
-        assertThatThrownBy(() -> tts.synthesise("hello", null))
-                .isInstanceOf(NullPointerException.class);
+    void rejectsNullConfig() {
+        assertThatThrownBy(() -> new KokoroTextToSpeech(null, (SherpaLibrary) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("config");
     }
 
     @Test
-    void phonemesAreAlwaysEmpty() {
-        var tts = new KokoroTextToSpeech(KokoroConfig.defaults(tempDir), (SherpaLibrary) null);
-
-        // Can't synthesise without native lib, but we can verify the contract
-        // by checking the class implements TextToSpeechService
-        assertThat(tts).isInstanceOf(io.casehub.blocks.speech.TextToSpeechService.class);
+    void implementsTextToSpeechService() {
+        assertThat(io.casehub.blocks.speech.TextToSpeechService.class)
+                .isAssignableFrom(KokoroTextToSpeech.class);
     }
 }

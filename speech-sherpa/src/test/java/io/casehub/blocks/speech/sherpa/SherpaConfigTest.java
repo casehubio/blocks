@@ -14,7 +14,8 @@ class SherpaConfigTest {
         SherpaConfig config = SherpaConfig.defaults(Path.of("/models"));
 
         assertThat(config.modelDir()).isEqualTo(Path.of("/models"));
-        assertThat(config.numThreads()).isEqualTo(2);
+        int expectedThreads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        assertThat(config.numThreads()).isEqualTo(expectedThreads);
         assertThat(config.provider()).isEqualTo("cpu");
     }
 
@@ -55,7 +56,8 @@ class SherpaConfigTest {
     void defaultsNoArg_usesDefaultModelDir() {
         SherpaConfig config = SherpaConfig.defaults();
         assertThat(config.modelDir().toString()).endsWith("sherpa-onnx-whisper-tiny");
-        assertThat(config.numThreads()).isEqualTo(2);
+        int expectedThreads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        assertThat(config.numThreads()).isEqualTo(expectedThreads);
         assertThat(config.provider()).isEqualTo("cpu");
     }
 }

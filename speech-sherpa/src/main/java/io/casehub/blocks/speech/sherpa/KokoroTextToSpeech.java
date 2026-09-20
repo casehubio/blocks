@@ -42,8 +42,8 @@ public final class KokoroTextToSpeech implements TextToSpeechService, AutoClosea
     }
 
     KokoroTextToSpeech(KokoroConfig config, SherpaLibrary lib) {
-        this.config      = Objects.requireNonNull(config);
-        this.lib         = lib;
+        this.config      = Objects.requireNonNull(config, "config");
+        this.lib         = Objects.requireNonNull(lib, "lib");
         this.engineArena = Arena.ofShared();
         MemorySegment configSeg = buildTtsConfig(engineArena);
         try {

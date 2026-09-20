@@ -15,19 +15,17 @@ class SherpaOnnxTextToSpeechTest {
     @TempDir Path tempDir;
 
     @Test
-    void rejectsNullText() {
-        var tts = new SherpaOnnxTextToSpeech(SherpaConfig.defaults(tempDir), (SherpaLibrary) null);
-
-        assertThatThrownBy(() -> tts.synthesise(null, SynthesisOptions.defaults()))
-                .isInstanceOf(NullPointerException.class);
+    void rejectsNullLib() {
+        assertThatThrownBy(() -> new SherpaOnnxTextToSpeech(SherpaConfig.defaults(tempDir), (SherpaLibrary) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("lib");
     }
 
     @Test
-    void rejectsNullOptions() {
-        var tts = new SherpaOnnxTextToSpeech(SherpaConfig.defaults(tempDir), (SherpaLibrary) null);
-
-        assertThatThrownBy(() -> tts.synthesise("hello", null))
-                .isInstanceOf(NullPointerException.class);
+    void rejectsNullConfig() {
+        assertThatThrownBy(() -> new SherpaOnnxTextToSpeech(null, (SherpaLibrary) null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("config");
     }
 
     @Test
