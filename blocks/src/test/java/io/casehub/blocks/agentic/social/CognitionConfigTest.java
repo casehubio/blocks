@@ -19,6 +19,7 @@ class CognitionConfigTest {
         assertThat(config.goalsEnabled()).isTrue();
         assertThat(config.memoryHygieneEnabled()).isTrue();
         assertThat(config.innerLifeEnabled()).isTrue();
+        assertThat(config.characterDrivesEnabled()).isTrue();
         assertThat(config.needsPyramidEnabled()).isTrue();
     }
 
@@ -34,6 +35,7 @@ class CognitionConfigTest {
         assertThat(config.goalsEnabled()).isFalse();
         assertThat(config.memoryHygieneEnabled()).isFalse();
         assertThat(config.innerLifeEnabled()).isFalse();
+        assertThat(config.characterDrivesEnabled()).isFalse();
         assertThat(config.needsPyramidEnabled()).isFalse();
     }
 

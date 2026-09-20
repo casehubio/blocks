@@ -15,7 +15,7 @@ public record CognitionConfig(
         boolean needsPyramidEnabled
 ) {
     public static CognitionConfig all() {
-        return new CognitionConfig(true, true, true, true, true, true, true, true, true, false, false, true);
+        return new CognitionConfig(true, true, true, true, true, true, true, true, true, false, true, true);
     }
 
     public static CognitionConfig none() {
