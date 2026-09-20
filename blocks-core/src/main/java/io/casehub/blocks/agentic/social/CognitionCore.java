@@ -124,7 +124,7 @@ public class CognitionCore {
         this.agentProvider = agentProvider;
         this.config        = config;
         this.mindMapStore  = mindMapStore;
-        this.needTierMapping = needTierMappingProvider != null ? needTierMappingProvider.tierMapping() : java.util.Map.of();
+        this.needTierMapping = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
     }
 
 
