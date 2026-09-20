@@ -49,7 +49,7 @@ public class DriveAdaptationPhase implements ConsolidationPhase {
         this.mindMapStore = mindMapStore;
         this.reinforcementMap = reinforcementMap;
         this.config = config;
-        this.tierMapping = tierMappingProvider != null ? tierMappingProvider.tierMapping() : Map.of();
+        this.tierMapping = (tierMappingProvider != null ? tierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
         this.needConfig = needConfig;
     }
 

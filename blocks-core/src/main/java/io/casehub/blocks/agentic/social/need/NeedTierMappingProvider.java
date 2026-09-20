@@ -5,4 +5,8 @@ import java.util.Set;
 
 public interface NeedTierMappingProvider {
     Map<String, Set<NeedTier>> tierMapping();
+
+    static NeedTierMappingProvider empty() {
+        return Map::of;
+    }
 }
