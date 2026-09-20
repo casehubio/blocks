@@ -44,26 +44,27 @@ import io.casehub.engine.internal.context.InMemoryCaseContextStoreFactory;
 import io.casehub.persistence.memory.InMemoryCaseInstanceRepository;
 import io.casehub.persistence.memory.InMemoryCaseMetaModelRepository;
 import io.casehub.persistence.memory.InMemoryEventLogRepository;
-import io.quarkus.arc.DefaultBean;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Alternative;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+@Alternative
+@Priority(1)
 @ApplicationScoped
 public class IntegrationTestBeans {
 
   @Produces
-  @DefaultBean
   @Singleton
   InMemoryEventLogRepository eventLogRepository() {
     return new InMemoryEventLogRepository();
   }
 
   @Produces
-  @DefaultBean
   @Singleton
   @io.casehub.engine.common.qualifier.CrossTenant
   CrossTenantEventLogRepository crossTenantEventLogRepository(InMemoryEventLogRepository shared) {
@@ -71,14 +72,12 @@ public class IntegrationTestBeans {
   }
 
   @Produces
-  @DefaultBean
   @Singleton
   InMemoryCaseInstanceRepository caseInstanceRepository(InMemoryEventLogRepository eventLogRepository) {
     return new InMemoryCaseInstanceRepository(eventLogRepository);
   }
 
   @Produces
-  @DefaultBean
   @Singleton
   @io.casehub.engine.common.qualifier.CrossTenant
   CrossTenantCaseInstanceRepository crossTenantCaseInstanceRepository(InMemoryCaseInstanceRepository shared) {
@@ -86,51 +85,43 @@ public class IntegrationTestBeans {
   }
 
   @Produces
-  @DefaultBean
   @Singleton
   CaseMetaModelRepository caseMetaModelRepository() {
     return new InMemoryCaseMetaModelRepository();
   }
 
   @Produces
-  @DefaultBean
   @Singleton
   PlanItemStore planItemStore() {
     return new NoOpPlanItemStore();
   }
 
   @Produces
-  @DefaultBean
   CaseChannelProvider caseChannelProvider() {
     return new NoOpCaseChannelProvider();
   }
 
   @Produces
-  @DefaultBean
   DispatchBudget dispatchBudget() {
     return new NoOpDispatchBudget();
   }
 
   @Produces
-  @DefaultBean
   FailureClassifier failureClassifier() {
     return new DefaultFailureClassifier();
   }
 
   @Produces
-  @DefaultBean
   ErrorClassifier errorClassifier() {
     return new DefaultErrorClassifier();
   }
 
   @Produces
-  @DefaultBean
   WorkloadDataProvider workloadDataProvider() {
     return new NoOpWorkloadDataProvider();
   }
 
   @Produces
-  @DefaultBean
   WorkerContextProvider workerContextProvider(
       CaseChannelProvider caseChannelProvider,
       io.casehub.platform.api.identity.CurrentPrincipal currentPrincipal) {
@@ -138,7 +129,6 @@ public class IntegrationTestBeans {
   }
 
   @Produces
-  @DefaultBean
   WorkerProvisioner workerProvisioner() {
     return new WorkerProvisioner() {
       @Override
@@ -158,61 +148,51 @@ public class IntegrationTestBeans {
   }
 
   @Produces
-  @DefaultBean
   WorkerStatusListener workerStatusListener() {
     return new NoOpWorkerStatusListener();
   }
 
   @Produces
-  @DefaultBean
   AgentRegistry agentRegistry() {
     return new NoOpAgentRegistry();
   }
 
   @Produces
-  @DefaultBean
   CapabilityHealth capabilityHealth() {
     return new NoOpCapabilityHealth();
   }
 
   @Produces
-  @DefaultBean
   VocabularyRegistry vocabularyRegistry() {
     return new NoOpVocabularyRegistry();
   }
 
   @Produces
-  @DefaultBean
   GoalDecomposer goalDecomposer() {
     return new NoOpGoalDecomposer();
   }
 
   @Produces
-  @DefaultBean
   PlanAdaptationEvaluator planAdaptationEvaluator() {
     return new NoOpPlanAdaptationEvaluator();
   }
 
   @Produces
-  @DefaultBean
   ActorStateAggregator actorStateAggregator() {
     return new ActorStateAggregator(List.of(), java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor());
   }
 
   @Produces
-  @DefaultBean
   LoopControl loopControl() {
     return (context, eligible) -> eligible;
   }
 
   @Produces
-  @DefaultBean
   ActionRiskClassifier actionRiskClassifier() {
     return (action, context) -> new RiskDecision.Autonomous();
   }
 
   @Produces
-  @DefaultBean
   AgentRoutingStrategy agentRoutingStrategy() {
     return new AgentRoutingStrategy() {
       @Override
@@ -233,7 +213,6 @@ public class IntegrationTestBeans {
   }
 
   @Produces
-  @DefaultBean
   WorkerExecutionRoutingStrategy workerExecutionRoutingStrategy() {
     return new WorkerExecutionRoutingStrategy() {
       @Override
@@ -253,7 +232,6 @@ public class IntegrationTestBeans {
   }
 
   @Produces
-  @DefaultBean
   io.casehub.api.context.CaseContextStoreFactory caseContextStoreFactory() {
     return InMemoryCaseContextStoreFactory.INSTANCE;
   }
