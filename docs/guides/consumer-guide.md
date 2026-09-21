@@ -430,6 +430,14 @@ AI-powered `AgentRoutingStrategy` implementations for the engine's routing pipel
 | `DefaultCoordinationOutcomeWeights` | class (@DefaultBean) | Default coordination weights: COMPLETED=1.0, FAULTED=0.2, CANCELLED=0.0 |
 | `DispositionProfile` | record | Desired disposition for routing: `desired` (Map<DispositionAxis, String>), `weights` (Map<DispositionAxis, Double>). Method: `weight(axis)` defaults to 1.0. |
 
+### `io.casehub.blocks.rag`
+
+Reusable RAG retrieval worker factory -- produces engine `Worker` instances that extract queries via `QueryExtractionStrategy`, retrieve chunks from neocortex corpora via `CaseContextRetriever`, and return mapped results. Requires `casehub-neocortex-rag-api` on the consumer's classpath (provided scope in blocks).
+
+| Class | Type | What it does |
+|-------|------|-------------|
+| `RagRetrievalWorkerFactory` | final class (static factory) | `create(name, capabilityName, CaseContextRetriever, QueryExtractionStrategy, List<CorpusRef>, maxResults) → Worker`. Default overload with maxResults=10. Worker function calls `CaseContextRetriever.retrieve()`, maps chunks via `toMap()`, returns `WorkerResult` with `retrievedChunks` list + `summary` string. |
+
 ### `io.casehub.blocks.summarisation`
 
 Layered event summarisation framework -- temporal event accumulation with configurable window policies and pluggable summarisation strategies. Pure Java, zero CDI/Quarkus dependencies.
@@ -676,6 +684,6 @@ All three have `@DefaultBean` passthrough producers. Override by providing your 
 
 **Compile:** `casehub-qhorus-api`, `casehub-work-api`, `casehub-engine-api`, `casehub-eidos-api`, `casehub-worker-api`, `org.jspecify:jspecify`
 
-**Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `io.opentelemetry:opentelemetry-api`
+**Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `casehub-neocortex-rag-api`, `io.opentelemetry:opentelemetry-api`
 
 **Test:** `casehub-qhorus`, `casehub-qhorus-testing`, `casehub-engine`, `casehub-engine-testing`, `quarkus-junit`, `assertj`, `mockito`, `awaitility`, `io.opentelemetry:opentelemetry-sdk-testing`

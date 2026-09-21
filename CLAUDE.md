@@ -109,6 +109,8 @@ No Quarkus runtime — plain JUnit 5 tests with Mockito. No CDI container in tes
 | `src/test/java/io/casehub/blocks/routing/` | Tests for routing utilities |
 | `src/main/java/io/casehub/blocks/routing/agent/` | AI-powered AgentRoutingStrategy implementations — LLM-reasoned and CBR-evidence agent selection, composable prompt enrichment pipeline, feature extraction SPI, outcome recording |
 | `src/test/java/io/casehub/blocks/routing/agent/` | Tests for AI routing strategies |
+| `src/main/java/io/casehub/blocks/rag/` | RAG retrieval worker factory — `RagRetrievalWorkerFactory` (static: `create()` with `QueryExtractionStrategy` + `CaseContextRetriever` + `List<CorpusRef>` → `Worker`). Provided dependency on `casehub-neocortex-rag-api`. |
+| `src/test/java/io/casehub/blocks/rag/` | Tests for RAG retrieval worker factory |
 | `src/main/java/io/casehub/blocks/prompt/` | DSPy-inspired prompt optimisation — core model, SPIs (`PromptOptimiser`, `PromptQualityMetric`, `PromptVariantStore`, `SystemPromptCustomiser`, `DiversityStrategy`), batch orchestration, A/B variant selection |
 | `src/test/java/io/casehub/blocks/prompt/` | Tests for prompt optimisation framework |
 | `src/main/java/io/casehub/blocks/prompt/optimiser/` | `PromptOptimiser` implementations — `FewShotOptimiser` (data-driven, diversity-aware via `DiversityStrategy`), `InstructionOptimiser` (LLM meta-prompting), `TopNDiversityStrategy` (identity), `OutcomeAwareDiversityStrategy` (MMR + Jaccard) |
@@ -391,6 +393,14 @@ Shared trust routing utilities — eliminates duplicated preference-to-policy bo
 | `TrustRoutingRequirement` | Compliance evidence wrapper: requirementId, citation, mechanism, status, decisions. |
 | `RequirementStatus` | Enum: CLOSED, PARTIAL, BREACHED, GAP. |
 
+## Package: `io.casehub.blocks.rag`
+
+Reusable RAG retrieval worker factory — eliminates per-domain boilerplate for producing engine `Worker` instances that extract queries, retrieve chunks from neocortex corpora, and return mapped results. Provided dependency on `casehub-neocortex-rag-api`.
+
+| Class | What it does |
+|-------|-------------|
+| `RagRetrievalWorkerFactory` | Static factory: `create(name, capabilityName, CaseContextRetriever, QueryExtractionStrategy, List<CorpusRef>, maxResults) → Worker`. Default overload with maxResults=10. Worker function calls `CaseContextRetriever.retrieve()`, maps chunks via `toMap()`, returns `WorkerResult` with `retrievedChunks` + `summary`. |
+
 ## Package: `io.casehub.blocks.routing.agent`
 
 AI-powered `AgentRoutingStrategy` implementations for the engine's routing pipeline, plus composable prompt enrichment and outcome recording infrastructure. Strategies are selected by name via `StrategyResolver` (engine#634). Optional trust classification via `Instance<T>` — activates when engine-ledger is on the consumer's classpath.
@@ -593,7 +603,7 @@ sherpa-onnx speech implementation via Java FFM/Panama (JDK 22+). Provides `Speec
 ## Dependencies
 
 **Compile:** `casehub-qhorus-api`, `casehub-work-api`, `casehub-engine-api`, `casehub-eidos-api`, `casehub-worker-api`, `org.jspecify:jspecify`
-**Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `casehub-work-progress-api`, `io.opentelemetry:opentelemetry-api`
+**Provided:** `io.smallrye.reactive:mutiny`, `casehub-platform-agent-api`, `casehub-platform-api`, `casehub-engine-ledger`, `casehub-ledger-api`, `casehub-neocortex-memory-api`, `casehub-neocortex-rag-api`, `casehub-work-progress-api`, `io.opentelemetry:opentelemetry-api`
 **Test:** `casehub-qhorus`, `casehub-qhorus-testing`, `casehub-engine`, `casehub-engine-testing`, `assertj`, `mockito`, `awaitility`, `io.opentelemetry:opentelemetry-sdk-testing`
 
 **No Jandex index.** blocks does not include a Jandex index — its CDI beans are not auto-discovered by Quarkus. Consumers that need blocks' CDI beans (routing strategies, channel summarisers) must opt in:
