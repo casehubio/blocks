@@ -46,23 +46,7 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>io.casehub</groupId>
-                <artifactId>casehub-platform-spring-generator</artifactId>
-                <version>0.2-SNAPSHOT</version>
-                <executions>
-                    <execution>
-                        <id>verify-drift</id>
-                        <goals><goal>verify</goal></goals>
-                        <phase>verify</phase>
-                        <configuration>
-                            <quarkusModule>${project.basedir}/../engine-adapter</quarkusModule>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <!-- verify-drift: run manually until spring-generator is published to GitHub Packages:
+         mvn io.casehub:casehub-platform-spring-generator:0.2-SNAPSHOT:verify -DquarkusModule=../engine-adapter
+    -->
 </project>
