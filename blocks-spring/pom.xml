@@ -72,33 +72,7 @@
         </dependency>
     </dependencies>
 
-    <profiles>
-        <profile>
-            <id>verify-drift</id>
-            <activation>
-                <property>
-                    <name>verify.drift</name>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>io.casehub</groupId>
-                        <artifactId>casehub-platform-spring-generator</artifactId>
-                        <version>0.2-SNAPSHOT</version>
-                        <executions>
-                            <execution>
-                                <id>verify-drift</id>
-                                <goals><goal>verify</goal></goals>
-                                <phase>verify</phase>
-                                <configuration>
-                                    <quarkusModule>${project.basedir}/../blocks</quarkusModule>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
+    <!-- verify-drift: run manually until spring-generator is published to GitHub Packages:
+         mvn io.casehub:casehub-platform-spring-generator:0.2-SNAPSHOT:verify -DquarkusModule=../blocks
+    -->
 </project>
