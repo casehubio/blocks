@@ -119,6 +119,7 @@
           </excludes>
           <testExcludes>
             <exclude>**/llm/*.java</exclude>
+            <exclude>**/spec/SpeechSpecSerializationTest.java</exclude>
           </testExcludes>
         </configuration>
       </plugin>
@@ -146,6 +147,9 @@
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
               <excludes combine.self="override"/>
+              <testExcludes combine.self="override">
+                <exclude>**/llm/*.java</exclude>
+              </testExcludes>
             </configuration>
           </plugin>
         </plugins>
