@@ -76,9 +76,9 @@
         <profile>
             <id>verify-drift</id>
             <activation>
-                <file>
-                    <exists>${user.home}/.m2/repository/io/casehub/casehub-platform-spring-generator</exists>
-                </file>
+                <property>
+                    <name>verify.drift</name>
+                </property>
             </activation>
             <build>
                 <plugins>
