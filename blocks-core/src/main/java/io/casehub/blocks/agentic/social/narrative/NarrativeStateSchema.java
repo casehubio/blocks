@@ -1,9 +1,9 @@
 package io.casehub.blocks.agentic.social.narrative;
 
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -42,8 +42,8 @@ final class NarrativeStateSchema {
                 + ", themes=" + state.themes().size() + "]";
     }
 
-    static NarrativeState fromCase(ScoredCbrCase<CbrCase> scored, String scopeId, String tenantId) {
-        var features = scored.cbrCase().features();
+    static NarrativeState fromCase(CbrMatch<CbrRecord> scored, String scopeId, String tenantId) {
+        var features = scored.cbrRecord().features();
         return new NarrativeState(
                 scopeId,
                 tenantId,

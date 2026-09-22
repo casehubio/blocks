@@ -11,7 +11,7 @@ import io.casehub.eidos.api.DispositionProfileStore;
 import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.DispositionValue;
 import io.casehub.eidos.api.EvolutionType;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +32,7 @@ class PersonalityEvolutionOrchestratorTest {
     private DispositionHealth health;
     private DispositionEvolution evolution;
     private DispositionProfileStore profileStore;
-    private CbrCaseMemoryStore               cbrStore;
+    private CbrRecordStore               cbrStore;
     private PersonalityEvolutionOrchestrator orchestrator;
     private AgentDescriptor                  descriptor;
     private ProbeContext probeContext;
@@ -43,7 +43,7 @@ class PersonalityEvolutionOrchestratorTest {
         health = mock(DispositionHealth.class);
         evolution = mock(DispositionEvolution.class);
         profileStore = mock(DispositionProfileStore.class);
-        cbrStore = mock(CbrCaseMemoryStore.class);
+        cbrStore = mock(CbrRecordStore.class);
 
         orchestrator = new PersonalityEvolutionOrchestrator(
                 signalStore, health, evolution, profileStore, cbrStore, List.of(),

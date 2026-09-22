@@ -1,9 +1,9 @@
 package io.casehub.blocks.agentic.social.emergence;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -37,14 +37,14 @@ final class NormObservationSchema {
                 + ": " + observation.behavioralPattern();
     }
 
-    static CbrCase toCbrCase(NormObservation observation) {
-        return new FeatureVectorCbrCase(
+    static CbrRecord toCbrCase(NormObservation observation) {
+        return new CbrFeatureRecord(
                 toSummary(observation), "-", null, null,
                 toFeatures(observation), null, observation.observationId());
     }
 
-    static NormObservation fromCase(ScoredCbrCase<CbrCase> scored, String tenantId) {
-        var features = scored.cbrCase().features();
+    static NormObservation fromCase(CbrMatch<CbrRecord> scored, String tenantId) {
+        var features = scored.cbrRecord().features();
         var agents = stringVal(features, INVOLVED_AGENTS, "");
         Set<String> agentSet = new HashSet<>();
         if (!agents.isEmpty()) {
@@ -53,7 +53,7 @@ final class NormObservationSchema {
             }
         }
         return new NormObservation(
-                scored.cbrCase().producerAgentId() != null ? scored.cbrCase().producerAgentId() : scored.caseId(),
+                scored.cbrRecord().producerAgentId() != null ? scored.cbrRecord().producerAgentId() : scored.caseId(),
                 tenantId,
                 stringVal(features, BEHAVIORAL_PATTERN, ""),
                 agentSet,

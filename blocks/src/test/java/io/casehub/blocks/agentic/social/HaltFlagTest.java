@@ -11,7 +11,7 @@ import io.casehub.eidos.api.DispositionProfileStore;
 import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.DispositionValue;
 import io.casehub.eidos.api.SignalValence;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +59,7 @@ class HaltFlagTest {
             DispositionEvolution evolution, TraitPressureSource<?>... extraSources) {
         return new PersonalityEvolutionOrchestrator(
                 signalStore, health, evolution, mock(DispositionProfileStore.class),
-                mock(CbrCaseMemoryStore.class), List.of(extraSources), PersonalityEvolutionConfig.defaults());
+                mock(CbrRecordStore.class), List.of(extraSources), PersonalityEvolutionConfig.defaults());
     }
 
     private TraitPressureSource<String> stringSource() {

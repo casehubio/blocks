@@ -2,13 +2,13 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.blocks.summarisation.ContentSummariser;
 import io.casehub.qhorus.api.spi.SummaryResult;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureField;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.cbr.TrendAnalyzer;
 import io.casehub.neocortex.memory.cbr.TrendProfile;
 import io.casehub.neocortex.memory.cbr.TrendSpec;
@@ -68,7 +68,7 @@ public class StrategyLearningOrchestrator {
 
 
     private final StrategyStore strategyStore;
-    private final CbrCaseMemoryStore cbrStore;
+    private final CbrRecordStore cbrStore;
     private final ReflectionOrchestrator reflectionOrchestrator;
     private final AgentProvider agentProvider;
     private final @Nullable ContentSummariser<EngagementSignal, SummaryResult> summariser;
@@ -79,7 +79,7 @@ public class StrategyLearningOrchestrator {
     private final KeyedLock tickLocks = new KeyedLock();
 
     public StrategyLearningOrchestrator(StrategyStore strategyStore,
-                                         CbrCaseMemoryStore cbrStore,
+                                         CbrRecordStore cbrStore,
                                          ReflectionOrchestrator reflectionOrchestrator,
                                          AgentProvider agentProvider,
                                          StrategyLearningConfig config) {
@@ -88,7 +88,7 @@ public class StrategyLearningOrchestrator {
     }
 
     StrategyLearningOrchestrator(StrategyStore strategyStore,
-                                  CbrCaseMemoryStore cbrStore,
+                                  CbrRecordStore cbrStore,
                                   ReflectionOrchestrator reflectionOrchestrator,
                                   AgentProvider agentProvider,
                                   @Nullable ContentSummariser<EngagementSignal, SummaryResult> summariser,
@@ -213,7 +213,7 @@ public class StrategyLearningOrchestrator {
             var summary = conv.conversationSummary() != null
                     ? conv.conversationSummary()
                     : "Conversation with " + convEntry.subjectId + " (" + conv.turnCount() + " turns)";
-            var cbrCase = new FeatureVectorCbrCase(
+            var cbrCase = new CbrFeatureRecord(
                     summary, "-", null, null, features, null, state.agentId);
             cbrStore.store(cbrCase, config.engagementCaseType(), state.agentId,
                     config.memoryDomain(), state.tenantId, null, Path.root());
@@ -231,7 +231,7 @@ public class StrategyLearningOrchestrator {
                     var features = extractFeatures(group.getValue(), group.getKey(), state.agentId);
                     var summary = "Interaction with " + group.getKey()
                             + " (" + group.getValue().size() + " turns)";
-                    var cbrCase = new FeatureVectorCbrCase(
+                    var cbrCase = new CbrFeatureRecord(
                             summary, "-", null, null, features, null, state.agentId);
                     cbrStore.store(cbrCase, config.engagementCaseType(), state.agentId,
                             config.memoryDomain(), state.tenantId, null, Path.root());
@@ -267,25 +267,25 @@ public class StrategyLearningOrchestrator {
         var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
                         config.engagementCaseType(), Map.of(), config.maxReflectionSources())
                 .withMinSimilarity(0.0);
-        return (int) cbrStore.retrieveSimilar(query, CbrCase.class).stream()
-                .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+        return (int) cbrStore.retrieveSimilar(query, CbrRecord.class).stream()
+                .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
                 .count();
     }
 
     private void doReflectAsync(String agentId, String tenantId) {
         try {
             StrategyProfile profile;
-            List<? extends ScoredCbrCase<CbrCase>> cases;
+            List<? extends CbrMatch<CbrRecord>> cases;
 
-            record Snapshot(StrategyProfile profile, List<? extends ScoredCbrCase<CbrCase>> cases) {}
+            record Snapshot(StrategyProfile profile, List<? extends CbrMatch<CbrRecord>> cases) {}
             var snapshot = tickLocks.withLock(stateKey(agentId, tenantId), () -> {
                 var p = currentStrategy(agentId, tenantId)
                         .orElseGet(() -> defaultProfile(agentId, tenantId));
                 var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
                                 config.engagementCaseType(), Map.of(), config.maxReflectionSources())
                         .withMinSimilarity(0.0);
-                var c = cbrStore.retrieveSimilar(query, CbrCase.class).stream()
-                        .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+                var c = cbrStore.retrieveSimilar(query, CbrRecord.class).stream()
+                        .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
                         .toList();
                 return new Snapshot(p, c);
             });
@@ -380,9 +380,9 @@ public class StrategyLearningOrchestrator {
         var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
                         config.engagementCaseType(), Map.of(), config.maxReflectionSources())
                 .withMinSimilarity(0.0);
-        var allCases = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var allCases = cbrStore.retrieveSimilar(query, CbrRecord.class);
         var cases = allCases.stream()
-                .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+                .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
                 .toList();
 
         if (cases.size() < config.minCasesForReflection()) {
@@ -424,18 +424,18 @@ public class StrategyLearningOrchestrator {
                 agentId, tenantId, state);
     }
 
-    private TrendProfile analyzeTrends(List<? extends ScoredCbrCase<CbrCase>> cases) {
+    private TrendProfile analyzeTrends(List<? extends CbrMatch<CbrRecord>> cases) {
         var sorted = cases.stream()
                           .sorted((a, b) -> {
-                              double tA = numericFeature(a.cbrCase().features(), "conversationTimestamp", 0);
-                              double tB = numericFeature(b.cbrCase().features(), "conversationTimestamp", 0);
+                              double tA = numericFeature(a.cbrRecord().features(), "conversationTimestamp", 0);
+                              double tB = numericFeature(b.cbrRecord().features(), "conversationTimestamp", 0);
                               return Double.compare(tA, tB);
                           })
                           .toList();
 
         var observations = new ArrayList<Map<String, FeatureValue>>();
         for (var scored : sorted) {
-            observations.add(scored.cbrCase().features());
+            observations.add(scored.cbrRecord().features());
         }
 
         if (observations.size() < 2) {
@@ -462,10 +462,10 @@ public class StrategyLearningOrchestrator {
             return new TrendProfile(Map.of());
         }}
 
-    private String summarizePerSubject(List<? extends ScoredCbrCase<CbrCase>> cases) {
+    private String summarizePerSubject(List<? extends CbrMatch<CbrRecord>> cases) {
         var bySubject = new LinkedHashMap<String, List<Map<String, FeatureValue>>>();
         for (var scored : cases) {
-            var features = scored.cbrCase().features();
+            var features = scored.cbrRecord().features();
             var sv = features.get("subjectId");
             if (sv instanceof FeatureValue.StringVal s) {
                 bySubject.computeIfAbsent(s.value(), k -> new ArrayList<>()).add(features);

@@ -1,7 +1,7 @@
 package io.casehub.blocks.memory;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 
 import java.time.Instant;
@@ -18,7 +18,7 @@ public class MemoryHygieneScheduler {
     private final ReflectionOrchestrator reflectionOrchestrator;
     private final ReflectionStore reflectionStore;
     private final IntegrityChecker integrityChecker;
-    private final CbrCaseMemoryStore store;
+    private final CbrRecordStore store;
     private final MemoryDomain domain;
     private final List<String> caseTypes;
     private final int maxReflectionSources;
@@ -30,7 +30,7 @@ public class MemoryHygieneScheduler {
             ReflectionOrchestrator reflectionOrchestrator,
             ReflectionStore reflectionStore,
             IntegrityChecker integrityChecker,
-            CbrCaseMemoryStore store,
+            CbrRecordStore store,
             MemoryDomain domain,
             List<String> caseTypes,
             int maxReflectionSources,

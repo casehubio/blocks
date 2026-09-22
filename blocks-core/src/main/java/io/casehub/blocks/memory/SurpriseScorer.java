@@ -1,8 +1,8 @@
 package io.casehub.blocks.memory;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.experience.ContentScorer;
 import io.casehub.neocortex.memory.experience.ScoreableContent;
 
@@ -24,12 +24,12 @@ public final class SurpriseScorer implements ContentScorer, ConfidenceScorer {
     }
 
     @Override
-    public double score(ScoredCbrCase<? extends CbrCase> memory, Instant now) {
+    public double score(CbrMatch<? extends CbrRecord> memory, Instant now) {
         return score(toScoreableContent(memory, now));
     }
 
-    static ScoreableContent toScoreableContent(ScoredCbrCase<? extends CbrCase> memory, Instant now) {
-        CbrCase c    = memory.cbrCase();
+    static ScoreableContent toScoreableContent(CbrMatch<? extends CbrRecord> memory, Instant now) {
+        CbrRecord c    = memory.cbrRecord();
         String  text = c.problem();
         if (c.solution() != null) {
             text = text + " " + c.solution();

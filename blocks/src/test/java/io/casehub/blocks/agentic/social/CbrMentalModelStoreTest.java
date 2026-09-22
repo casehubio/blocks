@@ -2,12 +2,12 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 class CbrMentalModelStoreTest {
 
-    @Mock CbrCaseMemoryStore cbrStore;
+    @Mock CbrRecordStore cbrStore;
     CbrMentalModelStore store;
 
     @BeforeEach
@@ -45,7 +45,7 @@ class CbrMentalModelStoreTest {
 
         store.store(snapshot);
 
-        var captor = ArgumentCaptor.forClass(CbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrRecord.class);
         verify(cbrStore).store(captor.capture(), eq("mental-model"), eq("agent1"),
                 any(MemoryDomain.class), eq("tenant1"), isNull(), any());
         var stored = captor.getValue();
@@ -56,7 +56,7 @@ class CbrMentalModelStoreTest {
 
     @Test
     void lookupReturnsEmptyWhenNoMatch() {
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of());
         var result = store.lookup("agent1", "user1", "tenant1");
         assertThat(result).isEmpty();
@@ -71,12 +71,12 @@ class CbrMentalModelStoreTest {
                 List.of(belief), List.of(desire), List.of(), now, now, now);
 
         var features = MentalModelSchema.toFeatures(snapshot);
-        CbrCase cbrCase = new FeatureVectorCbrCase(
+        CbrRecord cbrCase = new CbrFeatureRecord(
                 MentalModelSchema.toSummary(snapshot), "-", null, null,
                 features, null, "agent1");
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", 1.0);
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of(scored));
 
         var result = store.lookup("agent1", "user1", "tenant1");
@@ -97,11 +97,11 @@ class CbrMentalModelStoreTest {
     void eraseSubjectCallsEraseOnStore() {
         var features = Map.<String, FeatureValue>of(
                 MentalModelSchema.SUBJECT_ID, FeatureValue.string("user1"));
-        CbrCase cbrCase = new FeatureVectorCbrCase(
+        CbrRecord cbrCase = new CbrFeatureRecord(
                 "Mental model", "-", null, null, features, null, "agent1");
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", 1.0);
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of(scored));
 
         store.eraseSubject("user1", "tenant1");
@@ -110,7 +110,7 @@ class CbrMentalModelStoreTest {
 
     @Test
     void findByAgentReturnsEmptyWhenNoMatch() {
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of());
         var result = store.findByAgent("agent1", "tenant1");
         assertThat(result).isEmpty();

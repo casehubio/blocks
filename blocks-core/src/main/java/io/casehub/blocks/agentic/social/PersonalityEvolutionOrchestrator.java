@@ -10,9 +10,9 @@ import io.casehub.eidos.api.DispositionProfileStore;
 import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.DispositionValue;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
 import io.casehub.neocortex.memory.cbr.PersonalityTransitionSchema;
 
 import java.util.Comparator;
@@ -28,7 +28,7 @@ public class PersonalityEvolutionOrchestrator {
     private final DispositionHealth health;
     private final DispositionEvolution evolution;
     private final DispositionProfileStore profileStore;
-    private final CbrCaseMemoryStore           cbrStore;
+    private final CbrRecordStore           cbrStore;
     private final List<TraitPressureSource<?>> pressureSources;
     private final PersonalityEvolutionConfig   config;
 
@@ -40,7 +40,7 @@ public class PersonalityEvolutionOrchestrator {
             final DispositionHealth health,
             final DispositionEvolution evolution,
             final DispositionProfileStore profileStore,
-            final CbrCaseMemoryStore cbrStore,
+            final CbrRecordStore cbrStore,
             final List<TraitPressureSource<?>> pressureSources,
             final PersonalityEvolutionConfig config) {
         this.signalStore = signalStore;
@@ -145,7 +145,7 @@ public class PersonalityEvolutionOrchestrator {
                 "old_auxiliary", FeatureValue.string(oldSorted.size() < 2 ? "unknown" : oldSorted.get(1).term()),
                 "new_auxiliary", FeatureValue.string(newSorted.size() < 2 ? "unknown" : newSorted.get(1).term()),
                 "trigger_type", FeatureValue.string(triggerType));
-        var transitionCase = new FeatureVectorCbrCase(
+        var transitionCase = new CbrFeatureRecord(
                 "personality-transition: " + evolved.previousTypeLabel() + " -> " + evolved.newTypeLabel(),
                 triggerType, null, null, features, null, descriptor.agentId());
         cbrStore.store(transitionCase, PersonalityTransitionSchema.CASE_TYPE,

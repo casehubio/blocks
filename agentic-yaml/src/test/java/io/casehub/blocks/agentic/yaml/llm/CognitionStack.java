@@ -51,7 +51,7 @@ import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
 import io.casehub.blocks.speech.PromptSection;
 import java.util.stream.Collectors;
 import io.casehub.eidos.api.AgentDescriptor;
-import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrRecordStore;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
@@ -76,7 +76,7 @@ public class CognitionStack {
     private final Stage stage;
     private final NarrativeStore narrativeStore;
     private final @Nullable AgentProvider agentProvider;
-    private final @Nullable io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore cbrStore;
+    private final @Nullable io.casehub.neocortex.memory.cbr.CbrRecordStore cbrStore;
     private final @Nullable io.casehub.blocks.agentic.social.StrategyLearningConfig strategyConfig;
     private final ConcurrentHashMap<String, Boolean> primedAgents = new ConcurrentHashMap<>();
 
@@ -87,7 +87,7 @@ public class CognitionStack {
     CognitionStack(CognitionCore core, Stage stage,
                    NarrativeStore narrativeStore,
                    @Nullable AgentProvider agentProvider,
-                   @Nullable io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore cbrStore,
+                   @Nullable io.casehub.neocortex.memory.cbr.CbrRecordStore cbrStore,
                    @Nullable io.casehub.blocks.agentic.social.StrategyLearningConfig strategyConfig) {
         this.core = core;
         this.stage = stage;
@@ -108,7 +108,7 @@ public class CognitionStack {
         UserModelOrchestrator userModel = null;
         MentalModelOrchestrator mentalModel = null;
         StrategyLearningOrchestrator strategy = null;
-        io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore cbrStore = null;
+        io.casehub.neocortex.memory.cbr.CbrRecordStore cbrStore = null;
 
         if (agentProvider != null && stage.ordinal() >= Stage.SIGNALS.ordinal()) {
             userModel = new UserModelOrchestrator(
@@ -121,7 +121,7 @@ public class CognitionStack {
         GoalProposalOrchestrator goals = null;
         MemoryHygieneOrchestrator memoryHygiene = null;
         if (agentProvider != null && stage.ordinal() >= Stage.REAL_DRIVES.ordinal()) {
-            cbrStore = new InMemoryCbrCaseMemoryStore();
+            cbrStore = new InMemoryCbrRecordStore();
             strategy = new StrategyLearningOrchestrator(
                     new InMemoryStrategyStore(),
                     cbrStore,
@@ -221,7 +221,7 @@ public class CognitionStack {
             var features = buildSyntheticFeatures(descriptor, i, strategyConfig.minCasesForReflection());
             var summary = "Synthetic interaction " + (i + 1) + " derived from "
                     + constraints.getFirst().text();
-            var cbrCase = new io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase(
+            var cbrCase = new io.casehub.neocortex.memory.cbr.CbrFeatureRecord(
                     summary, "-", null, null, features, null, agentId);
             cbrStore.store(cbrCase, strategyConfig.engagementCaseType(),
                     agentId, strategyConfig.memoryDomain(), tenantId, null,

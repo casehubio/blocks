@@ -81,7 +81,7 @@ import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.blocks.prompt.SystemPromptCustomiser;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.qhorus.api.message.Message;
@@ -144,28 +144,28 @@ public class BlocksAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public CbrUserProfileStore cbrUserProfileStore(
-            CbrCaseMemoryStore cbrStore, UserModelConfig config) {
+            CbrRecordStore cbrStore, UserModelConfig config) {
         return new CbrUserProfileStore(cbrStore, config);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public CbrMentalModelStore cbrMentalModelStore(
-            CbrCaseMemoryStore cbrStore, MentalModelConfig config) {
+            CbrRecordStore cbrStore, MentalModelConfig config) {
         return new CbrMentalModelStore(cbrStore, config);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public CbrStrategyStore cbrStrategyStore(
-            CbrCaseMemoryStore cbrStore, StrategyLearningConfig config) {
+            CbrRecordStore cbrStore, StrategyLearningConfig config) {
         return new CbrStrategyStore(cbrStore, config);
     }
 
     @Bean
     @ConditionalOnMissingBean
     public CbrNarrativeStore cbrNarrativeStore(
-            CbrCaseMemoryStore cbrStore, NarrativeConfig config) {
+            CbrRecordStore cbrStore, NarrativeConfig config) {
         return new CbrNarrativeStore(cbrStore, config);
     }
 
@@ -240,7 +240,7 @@ public class BlocksAutoConfiguration {
 
     @Bean
     public StrategyLearningOrchestrator strategyLearningOrchestrator(
-            StrategyStore strategyStore, CbrCaseMemoryStore cbrStore,
+            StrategyStore strategyStore, CbrRecordStore cbrStore,
             ReflectionOrchestrator reflectionOrchestrator,
             AgentProvider agentProvider, StrategyLearningConfig config) {
         return new StrategyLearningOrchestrator(
@@ -266,7 +266,7 @@ public class BlocksAutoConfiguration {
     public PersonalityEvolutionOrchestrator personalityEvolutionOrchestrator(
             DispositionSignalStore signalStore, DispositionHealth health,
             DispositionEvolution evolution, DispositionProfileStore profileStore,
-            CbrCaseMemoryStore cbrStore,
+            CbrRecordStore cbrStore,
             List<TraitPressureSource<?>> traitPressureSources,
             PersonalityEvolutionConfig config) {
         return new PersonalityEvolutionOrchestrator(
@@ -288,7 +288,7 @@ public class BlocksAutoConfiguration {
 
     @Bean
     public SocialNormDetector socialNormDetector(
-            CbrCaseMemoryStore cbrStore, NormDetectionConfig config) {
+            CbrRecordStore cbrStore, NormDetectionConfig config) {
         return new SocialNormDetector(cbrStore, config);
     }
 

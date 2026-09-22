@@ -1,8 +1,8 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -51,8 +51,8 @@ final class UserProfileSchema {
                 + ", interactions=" + profile.totalInteractions() + "]";
     }
 
-    static UserProfile fromCase(ScoredCbrCase<CbrCase> scored, String agentId, String tenantId) {
-        var features = scored.cbrCase().features();
+    static UserProfile fromCase(CbrMatch<CbrRecord> scored, String agentId, String tenantId) {
+        var features = scored.cbrRecord().features();
         var storedAt = scored.storedAt() != null ? scored.storedAt() : Instant.now();
 
         return new UserProfile(

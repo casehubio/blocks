@@ -1,8 +1,8 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,9 +45,9 @@ final class StrategyProfileSchema {
         return GUIDELINES_PREFIX + String.join(GUIDELINES_SEPARATOR, profile.guidelines());
     }
 
-    static StrategyProfile fromCase(ScoredCbrCase<CbrCase> scored,
+    static StrategyProfile fromCase(CbrMatch<CbrRecord> scored,
                                      String agentId, String tenantId) {
-        var features = scored.cbrCase().features();
+        var features = scored.cbrRecord().features();
         var storedAt = scored.storedAt() != null ? scored.storedAt() : Instant.now();
 
         var dimensions = new LinkedHashMap<String, Double>();
@@ -63,7 +63,7 @@ final class StrategyProfileSchema {
         }
 
         var guidelines = new ArrayList<String>();
-        String problem = scored.cbrCase().problem();
+        String problem = scored.cbrRecord().problem();
         if (problem != null && problem.startsWith(GUIDELINES_PREFIX)) {
             String raw = problem.substring(GUIDELINES_PREFIX.length());
             for (String line : raw.split(GUIDELINES_SEPARATOR)) {

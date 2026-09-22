@@ -1,7 +1,7 @@
 package io.casehub.blocks.memory;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.SupersessionStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,14 +16,14 @@ import static org.mockito.Mockito.when;
 
 class DefaultIntegrityCheckerTest {
 
-    private CbrCaseMemoryStore store;
+    private CbrRecordStore store;
     private SemanticIntegrityChecker semanticChecker;
     private DefaultIntegrityChecker checker;
     private static final MemoryDomain DOMAIN = new MemoryDomain("agent");
 
     @BeforeEach
     void setUp() {
-        store = mock(CbrCaseMemoryStore.class);
+        store = mock(CbrRecordStore.class);
         semanticChecker = mock(SemanticIntegrityChecker.class);
         when(semanticChecker.checkSemantic(any(), any(), any())).thenReturn(List.of());
         checker = new DefaultIntegrityChecker(store, semanticChecker, List.of("test-case"));

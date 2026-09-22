@@ -1,8 +1,8 @@
 package io.casehub.blocks.agentic.social.emergence;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.platform.api.path.Path;
 
@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SocialNormDetector {
 
-    private final CbrCaseMemoryStore cbrStore;
+    private final CbrRecordStore cbrStore;
     private final MemoryDomain domain;
     private final String caseType;
     private final NormDetectionConfig config;
@@ -29,11 +29,11 @@ public class SocialNormDetector {
     private final ConcurrentHashMap<String, DetectedNorms> cache = new ConcurrentHashMap<>();
     private final KeyedLock tickLocks = new KeyedLock();
 
-    public SocialNormDetector(CbrCaseMemoryStore cbrStore, NormDetectionConfig config) {
+    public SocialNormDetector(CbrRecordStore cbrStore, NormDetectionConfig config) {
         this(cbrStore, config, Clock.systemUTC());
     }
 
-    SocialNormDetector(CbrCaseMemoryStore cbrStore, NormDetectionConfig config, Clock clock) {
+    SocialNormDetector(CbrRecordStore cbrStore, NormDetectionConfig config, Clock clock) {
         this.cbrStore = cbrStore;
         this.domain = new MemoryDomain(config.memoryDomain());
         this.caseType = config.caseType();
@@ -128,7 +128,7 @@ public class SocialNormDetector {
         var query = CbrQuery.of(tenantId, domain, Path.root(), caseType,
                         Map.of(), 1000)
                 .withMinSimilarity(0.0);
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         var observations = new ArrayList<NormObservation>();
         for (var scored : results) {
             observations.add(NormObservationSchema.fromCase(scored, tenantId));

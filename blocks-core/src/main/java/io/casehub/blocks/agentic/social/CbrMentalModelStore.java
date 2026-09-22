@@ -2,11 +2,11 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
 import io.casehub.platform.api.path.Path;
 
 import java.util.ArrayList;
@@ -16,11 +16,11 @@ import java.util.Optional;
 
 public class CbrMentalModelStore implements MentalModelStore {
 
-    private final CbrCaseMemoryStore cbrStore;
+    private final CbrRecordStore cbrStore;
     private final MemoryDomain domain;
     private final String caseType;
 
-    public CbrMentalModelStore(CbrCaseMemoryStore cbrStore, MentalModelConfig config) {
+    public CbrMentalModelStore(CbrRecordStore cbrStore, MentalModelConfig config) {
         this.cbrStore = cbrStore;
         this.domain = new MemoryDomain(config.memoryDomain());
         this.caseType = config.caseType();
@@ -30,7 +30,7 @@ public class CbrMentalModelStore implements MentalModelStore {
     public void store(MentalModelSnapshot snapshot) {
         var features = MentalModelSchema.toFeatures(snapshot);
         var summary = MentalModelSchema.toSummary(snapshot);
-        var cbrCase = new FeatureVectorCbrCase(
+        var cbrCase = new CbrFeatureRecord(
                 summary, "-", null, null, features, null, snapshot.agentId());
         cbrStore.store(cbrCase, caseType, snapshot.agentId(), domain,
                 snapshot.tenantId(), null, Path.root());
@@ -43,9 +43,9 @@ public class CbrMentalModelStore implements MentalModelStore {
                                 FeatureValue.string(subjectId)), 10)
                 .withMinSimilarity(0.0);
 
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         return results.stream()
-                .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+                .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
                 .findFirst()
                 .map(s -> MentalModelSchema.fromCase(s, agentId, tenantId));
     }
@@ -56,10 +56,10 @@ public class CbrMentalModelStore implements MentalModelStore {
                         Map.of(), 100)
                 .withMinSimilarity(0.0);
 
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         var snapshots = new ArrayList<MentalModelSnapshot>();
         for (var scored : results) {
-            if (agentId.equals(scored.cbrCase().producerAgentId())) {
+            if (agentId.equals(scored.cbrRecord().producerAgentId())) {
                 snapshots.add(MentalModelSchema.fromCase(scored, agentId, tenantId));
             }
         }
@@ -73,14 +73,14 @@ public class CbrMentalModelStore implements MentalModelStore {
                                 FeatureValue.string(subjectId)), 100)
                 .withMinSimilarity(0.0);
 
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         for (var scored : results) {
-            var subjectFeature = scored.cbrCase().features().get(MentalModelSchema.SUBJECT_ID);
+            var subjectFeature = scored.cbrRecord().features().get(MentalModelSchema.SUBJECT_ID);
             if (subjectFeature instanceof FeatureValue.StringVal sv
                     && subjectId.equals(sv.value())) {
                 cbrStore.erase(new EraseRequest(
-                        scored.cbrCase().producerAgentId() != null
-                                ? scored.cbrCase().producerAgentId() : "unknown",
+                        scored.cbrRecord().producerAgentId() != null
+                                ? scored.cbrRecord().producerAgentId() : "unknown",
                         domain, tenantId, scored.caseId()));
             }
         }

@@ -1,10 +1,10 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentEvent;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.*;
 class StrategyLearningOrchestratorTest {
 
     private StrategyStore strategyStore;
-    private CbrCaseMemoryStore cbrStore;
+    private CbrRecordStore cbrStore;
     private ReflectionOrchestrator reflectionOrchestrator;
     private AgentProvider agentProvider;
     private StrategyLearningOrchestrator orchestrator;
@@ -39,7 +39,7 @@ class StrategyLearningOrchestratorTest {
     @BeforeEach
     void setUp() {
         strategyStore = mock(StrategyStore.class);
-        cbrStore = mock(CbrCaseMemoryStore.class);
+        cbrStore = mock(CbrRecordStore.class);
         reflectionOrchestrator = mock(ReflectionOrchestrator.class);
         agentProvider = mock(AgentProvider.class);
         clock = Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneId.of("UTC"));
@@ -103,7 +103,7 @@ class StrategyLearningOrchestratorTest {
         assertThat(learned.signalsProcessed()).isEqualTo(3);
         assertThat(learned.casesStored()).isEqualTo(1);
         assertThat(learned.conversationsStored()).contains("case-1");
-        verify(cbrStore).store(any(FeatureVectorCbrCase.class), eq("engagement-evidence"),
+        verify(cbrStore).store(any(CbrFeatureRecord.class), eq("engagement-evidence"),
                 eq("agent-1"), any(), eq("tenant-1"), isNull(), any());
     }
 
@@ -120,7 +120,7 @@ class StrategyLearningOrchestratorTest {
         assertThat(result).isInstanceOf(StrategyLearningTick.Learned.class);
         assertThat(((StrategyLearningTick.Learned) result).casesStored()).isEqualTo(1);
 
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), anyString(), anyString(),
                 any(), anyString(), any(), any());
         var storedFeatures = captor.getValue().features();
@@ -137,7 +137,7 @@ class StrategyLearningOrchestratorTest {
 
         orchestrator.tick("agent-1", "tenant-1");
 
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), anyString(), anyString(),
                 any(), anyString(), any(), any());
         var features = captor.getValue().features();
@@ -162,7 +162,7 @@ class StrategyLearningOrchestratorTest {
 
         orchestrator.tick("agent-1", "tenant-1");
 
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), anyString(), anyString(),
                 any(), anyString(), any(), any());
         var features = captor.getValue().features();
@@ -206,7 +206,7 @@ class StrategyLearningOrchestratorTest {
         assertThat(learned.casesStored()).isEqualTo(1);
         assertThat(learned.conversationsStored()).contains("conv-1");
 
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), anyString(), anyString(),
                 any(), anyString(), any(), any());
         var features = captor.getValue().features();
@@ -229,7 +229,7 @@ class StrategyLearningOrchestratorTest {
         var result = orchestrator.tick("agent-1", "tenant-1");
 
         assertThat(result).isInstanceOf(StrategyLearningTick.Learned.class);
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), anyString(), anyString(),
                 any(), anyString(), any(), any());
         assertThat(((FeatureValue.NumberVal) captor.getValue().features().get("turnCount")).value())
@@ -255,19 +255,19 @@ class StrategyLearningOrchestratorTest {
 
     @SuppressWarnings("unchecked")
     @Test void tick_autoTriggersReflect_whenEnoughCasesStored() throws Exception {
-        var storedCases = new CopyOnWriteArrayList<ScoredCbrCase<CbrCase>>();
-        var testCbrStore = mock(CbrCaseMemoryStore.class);
+        var storedCases = new CopyOnWriteArrayList<CbrMatch<CbrRecord>>();
+        var testCbrStore = mock(CbrRecordStore.class);
         doAnswer(inv -> {
-            var c = mock(CbrCase.class);
+            var c = mock(CbrRecord.class);
             when(c.producerAgentId()).thenReturn((String) inv.getArgument(2));
             when(c.features()).thenReturn(Map.of(
                     "conversationTimestamp", FeatureValue.number((double) System.currentTimeMillis()),
                     "continuationRate", FeatureValue.number(0.7),
                     "meanAffectShift", FeatureValue.number(0.1),
                     "avgResponseLength", FeatureValue.number(100.0)));
-            storedCases.add(new ScoredCbrCase<>(c, "case-" + storedCases.size(), 1.0));
+            storedCases.add(new CbrMatch<>(c, "case-" + storedCases.size(), 1.0));
             return null;
-        }).when(testCbrStore).store(any(FeatureVectorCbrCase.class), anyString(), anyString(),
+        }).when(testCbrStore).store(any(CbrFeatureRecord.class), anyString(), anyString(),
                 any(), anyString(), any(), any());
         when(testCbrStore.retrieveSimilar(any(), any()))
                 .thenAnswer(inv -> new ArrayList<>(storedCases));
@@ -295,7 +295,7 @@ class StrategyLearningOrchestratorTest {
                     "agentId", FeatureValue.string("agent-1"),
                     "conversationTimestamp", FeatureValue.number(1000.0 + i * 100),
                     "turnCount", FeatureValue.number(3.0));
-            var cbrCase = new FeatureVectorCbrCase(
+            var cbrCase = new CbrFeatureRecord(
                     "case-" + i, "-", null, null, features, null, "agent-1");
             testCbrStore.store(cbrCase, "engagement-evidence", "agent-1",
                     new io.casehub.neocortex.memory.MemoryDomain("test"),
@@ -501,10 +501,10 @@ class StrategyLearningOrchestratorTest {
     }
 
     @SuppressWarnings("unchecked")
-    private List<ScoredCbrCase<CbrCase>> buildEngagementCases(int count, String agentId) {
-        var cases = new ArrayList<ScoredCbrCase<CbrCase>>();
+    private List<CbrMatch<CbrRecord>> buildEngagementCases(int count, String agentId) {
+        var cases = new ArrayList<CbrMatch<CbrRecord>>();
         for (int i = 0; i < count; i++) {
-            var cbrCase = mock(CbrCase.class);
+            var cbrCase = mock(CbrRecord.class);
             when(cbrCase.producerAgentId()).thenReturn(agentId);
             when(cbrCase.features()).thenReturn(Map.of(
                     "agentId", FeatureValue.string(agentId),
@@ -515,7 +515,7 @@ class StrategyLearningOrchestratorTest {
                     "meanSentimentShift", FeatureValue.number(0.1 + i * 0.05),
                     "avgSnapshot_verbosity", FeatureValue.number(0.5),
                     "avgSnapshot_formality", FeatureValue.number(0.5)));
-            cases.add(new ScoredCbrCase<>(cbrCase, "case-" + i, 1.0));
+            cases.add(new CbrMatch<>(cbrCase, "case-" + i, 1.0));
         }
         return cases;
     }

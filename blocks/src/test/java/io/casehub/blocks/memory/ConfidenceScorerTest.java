@@ -1,9 +1,9 @@
 package io.casehub.blocks.memory;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.experience.ScoreableContent;
 import org.junit.jupiter.api.Test;
 
@@ -16,10 +16,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfidenceScorerTest {
 
-    private static ScoredCbrCase<CbrCase> scored(String problem, String solution,
+    private static CbrMatch<CbrRecord> scored(String problem, String solution,
                                                   Map<String, FeatureValue> features) {
-        var c = new FeatureVectorCbrCase(problem, solution, null, null, features, null, null);
-        return new ScoredCbrCase<>(c, "case-1", 0.5);
+        var c = new CbrFeatureRecord(problem, solution, null, null, features, null, null);
+        return new CbrMatch<>(c, "case-1", 0.5);
     }
 
     @Test
@@ -39,8 +39,8 @@ class ConfidenceScorerTest {
 
     @Test
     void arousalScorerHandlesNullSolution() {
-        var c = new FeatureVectorCbrCase("test problem", "n/a", null, null, Map.of(), null, null);
-        var memory = new ScoredCbrCase<CbrCase>(c, "case-1", 0.5);
+        var c = new CbrFeatureRecord("test problem", "n/a", null, null, Map.of(), null, null);
+        var memory = new CbrMatch<CbrRecord>(c, "case-1", 0.5);
         var scorer = new ArousalScorer();
         assertThat(scorer.score(memory, Instant.now())).isBetween(0.0, 1.0);
     }
@@ -139,8 +139,8 @@ class ConfidenceScorerTest {
     void dualInterface_surpriseScorer_consistency() {
         var    scorer       = new SurpriseScorer();
         Map<String, FeatureValue> features = Map.of("key", FeatureValue.string("value"));
-        var    cbrCase      = new FeatureVectorCbrCase("problem", "solution", null, null, features, null, null);
-        var    scored       = new ScoredCbrCase<CbrCase>(cbrCase, "case-1", 0.5);
+        var    cbrCase      = new CbrFeatureRecord("problem", "solution", null, null, features, null, null);
+        var    scored       = new CbrMatch<CbrRecord>(cbrCase, "case-1", 0.5);
         var    now          = Instant.now();
         double cbrScore     = scorer.score(scored, now);
         var    content      = new ScoreableContent("text", Map.of("key", "value"), Instant.EPOCH);
@@ -152,8 +152,8 @@ class ConfidenceScorerTest {
     @Test
     void dualInterface_arousalScorer_consistency() {
         var    scorer       = new ArousalScorer();
-        var    cbrCase      = new FeatureVectorCbrCase("critical error", "urgent fix", null, null, Map.of(), null, null);
-        var    scored       = new ScoredCbrCase<CbrCase>(cbrCase, "case-1", 0.5);
+        var    cbrCase      = new CbrFeatureRecord("critical error", "urgent fix", null, null, Map.of(), null, null);
+        var    scored       = new CbrMatch<CbrRecord>(cbrCase, "case-1", 0.5);
         double cbrScore     = scorer.score(scored, Instant.now());
         var    content      = new ScoreableContent("critical error urgent fix", Map.of(), Instant.EPOCH);
         double contentScore = scorer.score(content);

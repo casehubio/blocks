@@ -8,7 +8,7 @@ import io.casehub.eidos.api.DispositionProfileStore;
 import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.DispositionValue;
 import io.casehub.eidos.api.SignalValence;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ class EventTypeDispatchTest {
         var signalStore = mock(DispositionSignalStore.class);
         var orch = new PersonalityEvolutionOrchestrator(
                 signalStore, mock(DispositionHealth.class), mock(DispositionEvolution.class),
-                mock(DispositionProfileStore.class), mock(CbrCaseMemoryStore.class),
+                mock(DispositionProfileStore.class), mock(CbrRecordStore.class),
                 List.of(stringSrc, intSrc), PersonalityEvolutionConfig.defaults());
 
         var descriptor = mock(AgentDescriptor.class);

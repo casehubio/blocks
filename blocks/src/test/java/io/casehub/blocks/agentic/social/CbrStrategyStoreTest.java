@@ -2,12 +2,12 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.platform.api.path.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,12 +23,12 @@ import static org.mockito.Mockito.*;
 
 class CbrStrategyStoreTest {
 
-    private CbrCaseMemoryStore cbrStore;
+    private CbrRecordStore cbrStore;
     private CbrStrategyStore store;
 
     @BeforeEach
     void setUp() {
-        cbrStore = mock(CbrCaseMemoryStore.class);
+        cbrStore = mock(CbrRecordStore.class);
         store = new CbrStrategyStore(cbrStore, StrategyLearningConfig.defaults());
     }
 
@@ -39,7 +39,7 @@ class CbrStrategyStoreTest {
 
         store.store(profile);
 
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), eq("strategy-profile"),
                 eq("agent-1"), any(MemoryDomain.class), eq("tenant-1"),
                 isNull(), eq(Path.root()));
@@ -59,7 +59,7 @@ class CbrStrategyStoreTest {
 
         store.store(profile);
 
-        var captor = ArgumentCaptor.forClass(FeatureVectorCbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
         verify(cbrStore).store(captor.capture(), anyString(), anyString(),
                 any(), anyString(), any(), any());
         assertThat(captor.getValue().problem()).contains("no guidelines");
@@ -79,11 +79,11 @@ class CbrStrategyStoreTest {
                 "directness", FeatureValue.number(0.5),
                 "questionRate", FeatureValue.number(0.5),
                 "evidence_count", FeatureValue.number(5));
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.features()).thenReturn(features);
         when(cbrCase.producerAgentId()).thenReturn("agent-1");
         when(cbrCase.problem()).thenReturn("guidelines: Be concise\nAsk questions");
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0, false,
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0, false,
                 Map.of(), Instant.parse("2026-08-21T00:00:00Z"), Path.root(), null);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
@@ -99,10 +99,10 @@ class CbrStrategyStoreTest {
     }
 
     @Test void lookup_filtersbyProducerAgentId() {
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.producerAgentId()).thenReturn("other-agent");
         when(cbrCase.features()).thenReturn(Map.of());
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
 
@@ -110,15 +110,15 @@ class CbrStrategyStoreTest {
     }
 
     @Test void eraseAgent_deletesProfileAndEngagementCases() {
-        var profileCase = mock(CbrCase.class);
+        var profileCase = mock(CbrRecord.class);
         when(profileCase.producerAgentId()).thenReturn("agent-1");
         when(profileCase.features()).thenReturn(Map.of());
-        var profileScored = new ScoredCbrCase<>(profileCase, "profile-1", "strategy", 1.0);
+        var profileScored = new CbrMatch<>(profileCase, "profile-1", "strategy", 1.0);
 
-        var engCase = mock(CbrCase.class);
+        var engCase = mock(CbrRecord.class);
         when(engCase.producerAgentId()).thenReturn("agent-1");
         when(engCase.features()).thenReturn(Map.of());
-        var engScored = new ScoredCbrCase<>(engCase, "eng-1", "strategy", 1.0);
+        var engScored = new CbrMatch<>(engCase, "eng-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any()))
                 .thenReturn(List.of(profileScored))
@@ -130,10 +130,10 @@ class CbrStrategyStoreTest {
     }
 
     @Test void eraseAgent_skipsOtherAgentsCases() {
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.producerAgentId()).thenReturn("other-agent");
         when(cbrCase.features()).thenReturn(Map.of());
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
 
@@ -145,10 +145,10 @@ class CbrStrategyStoreTest {
     @Test void eraseSubject_deletesEngagementCasesForSubject() {
         var features = Map.<String, FeatureValue>of(
                 "subjectId", FeatureValue.string("user-X"));
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.producerAgentId()).thenReturn("agent-1");
         when(cbrCase.features()).thenReturn(features);
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
 
@@ -162,10 +162,10 @@ class CbrStrategyStoreTest {
     @Test void eraseSubject_skipsNonMatchingSubjects() {
         var features = Map.<String, FeatureValue>of(
                 "subjectId", FeatureValue.string("other-user"));
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.producerAgentId()).thenReturn("agent-1");
         when(cbrCase.features()).thenReturn(features);
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
 
@@ -180,10 +180,10 @@ class CbrStrategyStoreTest {
                 "continuationRate", FeatureValue.number(0.8),
                 "avgResponseLength", FeatureValue.number(245.0),
                 "meanSentimentShift", FeatureValue.number(0.15));
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.producerAgentId()).thenReturn("agent-1");
         when(cbrCase.features()).thenReturn(features);
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
 
@@ -198,10 +198,10 @@ class CbrStrategyStoreTest {
         var features = Map.<String, FeatureValue>of(
                 "subjectId", FeatureValue.string("user-X"),
                 "continuationRate", FeatureValue.number(0.5));
-        var cbrCase = mock(CbrCase.class);
+        var cbrCase = mock(CbrRecord.class);
         when(cbrCase.producerAgentId()).thenReturn("other-agent");
         when(cbrCase.features()).thenReturn(features);
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", "strategy", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", "strategy", 1.0);
 
         when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of(scored));
 

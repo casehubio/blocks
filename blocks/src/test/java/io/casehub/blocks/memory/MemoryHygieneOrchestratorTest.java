@@ -1,11 +1,11 @@
 package io.casehub.blocks.memory;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.cbr.TemporalDecay;
 import io.casehub.neocortex.memory.cbr.ScopeDecay;
 import io.casehub.blocks.summarisation.ContentSummariser;
@@ -25,12 +25,12 @@ import static org.mockito.Mockito.*;
 
 class MemoryHygieneOrchestratorTest {
 
-    private CbrCaseMemoryStore store;
+    private CbrRecordStore store;
     private ConfidenceScorer   scorer;
     private TemporalDecay      decay;
     private ScopeDecay scopeDecay;
     @SuppressWarnings("unchecked")
-    private ContentSummariser<ScoredCbrCase<? extends CbrCase>, SummaryResult> summariser =
+    private ContentSummariser<CbrMatch<? extends CbrRecord>, SummaryResult> summariser =
             mock(ContentSummariser.class);
     @SuppressWarnings("unchecked")
     private Consumer<HygieneEvent> eventSink = mock(Consumer.class);
@@ -41,7 +41,7 @@ class MemoryHygieneOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        store = mock(CbrCaseMemoryStore.class);
+        store = mock(CbrRecordStore.class);
         scorer = mock(ConfidenceScorer.class);
         decay = new TemporalDecay.HalfLife(Duration.ofDays(30));
         scopeDecay = new ScopeDecay.Step(0.5);
@@ -50,15 +50,15 @@ class MemoryHygieneOrchestratorTest {
                 DOMAIN, List.of("test-case"), RETENTION, 100, 0.7, eventSink);
     }
 
-    private ScoredCbrCase<CbrCase> makeMemory(String caseId, String entityId, String agentId) {
+    private CbrMatch<CbrRecord> makeMemory(String caseId, String entityId, String agentId) {
         return makeMemory(caseId, entityId, agentId, Instant.now());
     }
 
-    private ScoredCbrCase<CbrCase> makeMemory(String caseId, String entityId,
+    private CbrMatch<CbrRecord> makeMemory(String caseId, String entityId,
                                                String agentId, Instant storedAt) {
-        var cbrCase = new FeatureVectorCbrCase("problem text", "solution text", null, null,
+        var cbrCase = new CbrFeatureRecord("problem text", "solution text", null, null,
                 Map.of("k", FeatureValue.string("v")), null, agentId);
-        return new ScoredCbrCase<>(cbrCase, caseId, "memory", 0.5, false,
+        return new CbrMatch<>(cbrCase, caseId, "memory", 0.5, false,
                 Map.of(), storedAt, io.casehub.platform.api.path.Path.root(), null);
     }
 

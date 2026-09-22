@@ -1,9 +1,9 @@
 package io.casehub.blocks.agentic.social.emergence;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -26,7 +26,7 @@ class SocialNormDetectorTest {
     private static final Instant NOW = Instant.parse("2026-08-25T12:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
-    @Mock CbrCaseMemoryStore cbrStore;
+    @Mock CbrRecordStore cbrStore;
     SocialNormDetector detector;
 
     @BeforeEach
@@ -37,7 +37,7 @@ class SocialNormDetectorTest {
 
     @Test
     void tick_noObservations_returnsNoChange() {
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of());
         var tick = detector.tick("tenant-1");
         assertThat(tick).isInstanceOf(NormDetectionTick.NoChange.class);
@@ -181,7 +181,7 @@ class SocialNormDetectorTest {
         stubObservations(obs1);
         detector.tick("tenant-1");
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of());
         detector.tick("tenant-2");
 
@@ -225,10 +225,10 @@ class SocialNormDetectorTest {
         var scored = observations.stream()
                 .map(obs -> {
                     var cbrCase = NormObservationSchema.toCbrCase(obs);
-                    return new ScoredCbrCase<>(cbrCase, obs.observationId(), 1.0);
+                    return new CbrMatch<>(cbrCase, obs.observationId(), 1.0);
                 })
                 .toList();
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(scored);
     }
 }

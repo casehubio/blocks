@@ -1,8 +1,8 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -42,9 +42,9 @@ final class MentalModelSchema {
                 + ", intentions=" + snapshot.intentions().size() + "]";
     }
 
-    static MentalModelSnapshot fromCase(ScoredCbrCase<CbrCase> scored,
+    static MentalModelSnapshot fromCase(CbrMatch<CbrRecord> scored,
                                         String agentId, String tenantId) {
-        var features = scored.cbrCase().features();
+        var features = scored.cbrRecord().features();
         var storedAt = scored.storedAt() != null ? scored.storedAt() : Instant.now();
 
         return new MentalModelSnapshot(

@@ -4,13 +4,13 @@ import io.casehub.blocks.summarisation.ContentSummariser;
 import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
 import io.casehub.neocortex.memory.cbr.ScopeDecay;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.cbr.TemporalDecay;
 import io.casehub.platform.api.path.Path;
 
@@ -31,11 +31,11 @@ public class MemoryHygieneOrchestrator {
     static final         double LOW_RETENTION_THRESHOLD = 0.3;
 
 
-    private final CbrCaseMemoryStore store;
+    private final CbrRecordStore store;
     private final ConfidenceScorer   confidenceScorer;
     private final TemporalDecay      temporalDecay;
     private final ScopeDecay scopeDecay;
-    private final ContentSummariser<ScoredCbrCase<? extends CbrCase>, SummaryResult> summariser;
+    private final ContentSummariser<CbrMatch<? extends CbrRecord>, SummaryResult> summariser;
     private final MemoryDomain domain;
     private final List<String>    caseTypes;
     private final RetentionConfig RetentionConfig;
@@ -48,11 +48,11 @@ public class MemoryHygieneOrchestrator {
 
 
     public MemoryHygieneOrchestrator(
-            CbrCaseMemoryStore store,
+            CbrRecordStore store,
             ConfidenceScorer confidenceScorer,
             TemporalDecay temporalDecay,
             ScopeDecay scopeDecay,
-            ContentSummariser<ScoredCbrCase<? extends CbrCase>, SummaryResult> summariser,
+            ContentSummariser<CbrMatch<? extends CbrRecord>, SummaryResult> summariser,
             MemoryDomain domain,
             List<String> caseTypes,
             RetentionConfig RetentionConfig,
@@ -99,10 +99,10 @@ public class MemoryHygieneOrchestrator {
             var query = CbrQuery.of(tenantId, domain, Path.root(), caseType,
                             Map.of(), consolidationBatchSize)
                     .withMinSimilarity(0.0);
-            List<ScoredCbrCase<CbrCase>> memories = store.retrieveSimilar(query, CbrCase.class);
+            List<CbrMatch<CbrRecord>> memories = store.retrieveSimilar(query, CbrRecord.class);
 
             var agentMemories = memories.stream()
-                    .filter(m -> agentId.equals(m.cbrCase().producerAgentId()))
+                    .filter(m -> agentId.equals(m.cbrRecord().producerAgentId()))
                     .toList();
 
             if (agentMemories.isEmpty()) {continue;}
@@ -114,7 +114,7 @@ public class MemoryHygieneOrchestrator {
                             confidenceScorer.score(m, now),
                             temporalDecay.factor(m.storedAt(), now),
                             scopeDecay.factor(0),
-                            m.cbrCase().trustScore() != null ? m.cbrCase().trustScore() : 1.0,
+                            m.cbrRecord().trustScore() != null ? m.cbrRecord().trustScore() : 1.0,
                             RetentionConfig))
                     .toList();
 
@@ -150,7 +150,7 @@ public class MemoryHygieneOrchestrator {
         return new HygieneTick.Completed(totalConsolidated, totalEvicted, allScores.size(), allScores);
     }
 
-    private int consolidate(List<ScoredCbrCase<CbrCase>> survivors, String tenantId, String caseType) {
+    private int consolidate(List<CbrMatch<CbrRecord>> survivors, String tenantId, String caseType) {
         if (survivors.size() < 2) {return 0;}
 
         var groups = findSimilarGroups(survivors);
@@ -160,26 +160,26 @@ public class MemoryHygieneOrchestrator {
             if (group.size() < 2) {continue;}
             try {
                 @SuppressWarnings("unchecked")
-                var castGroup = (List<ScoredCbrCase<? extends CbrCase>>) (List<?>) group;
+                var castGroup = (List<CbrMatch<? extends CbrRecord>>) (List<?>) group;
                 var summaryResult = summariser.summarise(castGroup, null).toCompletableFuture().join();
 
                 var mergedFeatures = new HashMap<String, FeatureValue>();
                 var sourceCaseIds = new ArrayList<String>();
                 for (var m : group) {
-                    mergedFeatures.putAll(m.cbrCase().features());
+                    mergedFeatures.putAll(m.cbrRecord().features());
                     sourceCaseIds.add(m.caseId());
                 }
                 mergedFeatures.put("source_cases", FeatureValue.stringList(sourceCaseIds));
 
-                var mergedCase = new FeatureVectorCbrCase(
+                var mergedCase = new CbrFeatureRecord(
                         summaryResult.text() != null && !summaryResult.text().isBlank()
                                 ? summaryResult.text() : "consolidated memory",
                         "consolidated from " + sourceCaseIds.size() + " memories",
                         null, null, mergedFeatures, null,
-                        group.getFirst().cbrCase().producerAgentId());
+                        group.getFirst().cbrRecord().producerAgentId());
 
                 var mergedId = store.store(mergedCase, caseType,
-                        group.getFirst().cbrCase().producerAgentId(),
+                        group.getFirst().cbrRecord().producerAgentId(),
                         domain, tenantId, null, Path.root());
 
                 for (var sourceId : sourceCaseIds) {
@@ -196,14 +196,14 @@ public class MemoryHygieneOrchestrator {
         return consolidated;
     }
 
-    private List<List<ScoredCbrCase<CbrCase>>> findSimilarGroups(
-            List<ScoredCbrCase<CbrCase>> memories) {
-        var groups = new ArrayList<List<ScoredCbrCase<CbrCase>>>();
+    private List<List<CbrMatch<CbrRecord>>> findSimilarGroups(
+            List<CbrMatch<CbrRecord>> memories) {
+        var groups = new ArrayList<List<CbrMatch<CbrRecord>>>();
         var used = new boolean[memories.size()];
 
         for (int i = 0; i < memories.size(); i++) {
             if (used[i]) {continue;}
-            var group = new ArrayList<ScoredCbrCase<CbrCase>>();
+            var group = new ArrayList<CbrMatch<CbrRecord>>();
             group.add(memories.get(i));
             used[i] = true;
 
@@ -220,8 +220,8 @@ public class MemoryHygieneOrchestrator {
         return groups;
     }
 
-    private static String entityId(ScoredCbrCase<CbrCase> m) {
-        var features = m.cbrCase().features();
+    private static String entityId(CbrMatch<CbrRecord> m) {
+        var features = m.cbrRecord().features();
         if (features != null && features.containsKey("entity_id")) {
             var fv = features.get("entity_id");
             if (fv instanceof FeatureValue.StringVal sv) {return sv.value();}

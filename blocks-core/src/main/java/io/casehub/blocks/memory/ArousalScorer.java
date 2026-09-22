@@ -1,7 +1,7 @@
 package io.casehub.blocks.memory;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.experience.ContentScorer;
 import io.casehub.neocortex.memory.experience.ScoreableContent;
 
@@ -29,7 +29,7 @@ public final class ArousalScorer implements ContentScorer, ConfidenceScorer {
     }
 
     @Override
-    public double score(ScoredCbrCase<? extends CbrCase> memory, Instant now) {
+    public double score(CbrMatch<? extends CbrRecord> memory, Instant now) {
         return score(SurpriseScorer.toScoreableContent(memory, now));
     }
 }

@@ -1,7 +1,7 @@
 package io.casehub.blocks.memory;
 
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,7 +20,7 @@ public final class CompositeConfidenceScorer implements ConfidenceScorer {
     }
 
     @Override
-    public double score(ScoredCbrCase<? extends CbrCase> memory, Instant now) {
+    public double score(CbrMatch<? extends CbrRecord> memory, Instant now) {
         double weightedSum = 0.0;
         double totalWeight = 0.0;
         for (var ws : scorers) {

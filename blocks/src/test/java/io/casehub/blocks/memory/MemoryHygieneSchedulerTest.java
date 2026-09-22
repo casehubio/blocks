@@ -1,7 +1,7 @@
 package io.casehub.blocks.memory;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ class MemoryHygieneSchedulerTest {
     private ReflectionOrchestrator reflectionOrchestrator;
     private ReflectionStore reflectionStore;
     private IntegrityChecker integrityChecker;
-    private CbrCaseMemoryStore store;
+    private CbrRecordStore store;
     @SuppressWarnings("unchecked")
     private Consumer<HygieneEvent> eventSink = mock(Consumer.class);
     private MemoryHygieneScheduler scheduler;
@@ -35,7 +35,7 @@ class MemoryHygieneSchedulerTest {
         reflectionOrchestrator = mock(ReflectionOrchestrator.class);
         reflectionStore = mock(ReflectionStore.class);
         integrityChecker = mock(IntegrityChecker.class);
-        store = mock(CbrCaseMemoryStore.class);
+        store = mock(CbrRecordStore.class);
         scheduler = new MemoryHygieneScheduler(
                 orchestrator, reflectionOrchestrator, reflectionStore,
                 integrityChecker, store, DOMAIN, List.of("test-case"),

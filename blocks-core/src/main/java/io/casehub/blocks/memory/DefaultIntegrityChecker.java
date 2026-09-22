@@ -1,7 +1,7 @@
 package io.casehub.blocks.memory;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.SupersessionStatus;
 
 import java.util.ArrayList;
@@ -13,11 +13,11 @@ public class DefaultIntegrityChecker implements IntegrityChecker {
 
     private static final Logger LOG = Logger.getLogger(DefaultIntegrityChecker.class.getName());
 
-    private final CbrCaseMemoryStore store;
+    private final CbrRecordStore store;
     private final SemanticIntegrityChecker semanticChecker;
     private final List<String> caseTypes;
 
-    public DefaultIntegrityChecker(CbrCaseMemoryStore store,
+    public DefaultIntegrityChecker(CbrRecordStore store,
                                     SemanticIntegrityChecker semanticChecker,
                                     List<String> caseTypes) {
         this.store = store;

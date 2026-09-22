@@ -2,11 +2,11 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
 import io.casehub.platform.api.path.Path;
 
 import java.util.ArrayList;
@@ -16,12 +16,12 @@ import java.util.Optional;
 
 public class CbrStrategyStore implements StrategyStore {
 
-    private final CbrCaseMemoryStore cbrStore;
+    private final CbrRecordStore cbrStore;
     private final MemoryDomain domain;
     private final String profileCaseType;
     private final String engagementCaseType;
 
-    public CbrStrategyStore(CbrCaseMemoryStore cbrStore, StrategyLearningConfig config) {
+    public CbrStrategyStore(CbrRecordStore cbrStore, StrategyLearningConfig config) {
         this.cbrStore = cbrStore;
         this.domain = config.memoryDomain();
         this.profileCaseType = config.profileCaseType();
@@ -32,7 +32,7 @@ public class CbrStrategyStore implements StrategyStore {
     public void store(StrategyProfile profile) {
         var features = StrategyProfileSchema.toFeatures(profile);
         var summary = StrategyProfileSchema.toSummary(profile);
-        var cbrCase = new FeatureVectorCbrCase(
+        var cbrCase = new CbrFeatureRecord(
                 summary, "-", null, null, features, null, profile.agentId());
         cbrStore.store(cbrCase, profileCaseType, profile.agentId(), domain,
                 profile.tenantId(), null, Path.root());
@@ -44,9 +44,9 @@ public class CbrStrategyStore implements StrategyStore {
                         Map.of(StrategyProfileSchema.AGENT_ID,
                                 FeatureValue.string(agentId)), 10)
                 .withMinSimilarity(0.0);
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         return results.stream()
-                .filter(s -> agentId.equals(s.cbrCase().producerAgentId()))
+                .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
                 .findFirst()
                 .map(s -> StrategyProfileSchema.fromCase(s, agentId, tenantId));
     }
@@ -57,11 +57,11 @@ public class CbrStrategyStore implements StrategyStore {
         var query = CbrQuery.of(tenantId, domain, Path.root(), engagementCaseType,
                         Map.of("subjectId", FeatureValue.string(subjectId)), 50)
                 .withMinSimilarity(0.0);
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         var insights = new ArrayList<String>();
         for (var scored : results) {
-            if (!agentId.equals(scored.cbrCase().producerAgentId())) continue;
-            var features = scored.cbrCase().features();
+            if (!agentId.equals(scored.cbrRecord().producerAgentId())) continue;
+            var features = scored.cbrRecord().features();
             var sv = features.get("subjectId");
             if (!(sv instanceof FeatureValue.StringVal s) || !subjectId.equals(s.value()))
                 continue;
@@ -90,13 +90,13 @@ public class CbrStrategyStore implements StrategyStore {
         var query = CbrQuery.of(tenantId, domain, Path.root(), engagementCaseType,
                         Map.of("subjectId", FeatureValue.string(subjectId)), 100)
                 .withMinSimilarity(0.0);
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         for (var scored : results) {
-            var sv = scored.cbrCase().features().get("subjectId");
+            var sv = scored.cbrRecord().features().get("subjectId");
             if (sv instanceof FeatureValue.StringVal s && subjectId.equals(s.value())) {
                 cbrStore.erase(new EraseRequest(
-                        scored.cbrCase().producerAgentId() != null
-                                ? scored.cbrCase().producerAgentId() : "unknown",
+                        scored.cbrRecord().producerAgentId() != null
+                                ? scored.cbrRecord().producerAgentId() : "unknown",
                         domain, tenantId, scored.caseId()));
             }
         }
@@ -106,9 +106,9 @@ public class CbrStrategyStore implements StrategyStore {
         var query = CbrQuery.of(tenantId, domain, Path.root(), caseType,
                         Map.of(), 100)
                 .withMinSimilarity(0.0);
-        var results = cbrStore.retrieveSimilar(query, CbrCase.class);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
         for (var scored : results) {
-            if (agentId.equals(scored.cbrCase().producerAgentId())) {
+            if (agentId.equals(scored.cbrRecord().producerAgentId())) {
                 cbrStore.erase(new EraseRequest(agentId, domain, tenantId,
                         scored.caseId()));
             }

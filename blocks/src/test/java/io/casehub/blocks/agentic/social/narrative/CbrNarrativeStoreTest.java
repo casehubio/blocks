@@ -2,12 +2,12 @@ package io.casehub.blocks.agentic.social.narrative;
 
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 class CbrNarrativeStoreTest {
 
-    @Mock CbrCaseMemoryStore cbrStore;
+    @Mock CbrRecordStore cbrStore;
     CbrNarrativeStore store;
 
     @BeforeEach
@@ -46,7 +46,7 @@ class CbrNarrativeStoreTest {
 
         store.store(state);
 
-        var captor = ArgumentCaptor.forClass(CbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrRecord.class);
         verify(cbrStore).store(captor.capture(), eq("narrative"), eq("agent1"),
                 any(MemoryDomain.class), eq("tenant1"), isNull(), any());
         var stored = captor.getValue();
@@ -59,7 +59,7 @@ class CbrNarrativeStoreTest {
 
     @Test
     void loadReturnsNullWhenNoMatch() {
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of());
         var result = store.load("agent1", "tenant1");
         assertThat(result).isNull();
@@ -77,12 +77,12 @@ class CbrNarrativeStoreTest {
                 NarrativeScope.INDIVIDUAL, List.of(episode, theme), now, 5);
 
         var features = NarrativeStateSchema.toFeatures(state);
-        CbrCase cbrCase = new FeatureVectorCbrCase(
+        CbrRecord cbrCase = new CbrFeatureRecord(
                 NarrativeStateSchema.toSummary(state), "-", null, null,
                 features, null, "agent1");
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", 1.0);
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of(scored));
 
         var loaded = store.load("agent1", "tenant1");
@@ -108,11 +108,11 @@ class CbrNarrativeStoreTest {
                 new NarrativeState("other-agent", "tenant1",
                         NarrativeScope.INDIVIDUAL, List.of(),
                         Instant.now(), 0));
-        CbrCase cbrCase = new FeatureVectorCbrCase(
+        CbrRecord cbrCase = new CbrFeatureRecord(
                 "summary", "-", null, null, features, null, "other-agent");
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", 1.0);
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of(scored));
 
         var result = store.load("agent1", "tenant1");
@@ -127,7 +127,7 @@ class CbrNarrativeStoreTest {
 
         store.store(state);
 
-        var captor = ArgumentCaptor.forClass(CbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrRecord.class);
         verify(cbrStore).store(captor.capture(), eq("narrative"), eq("group1"),
                 any(MemoryDomain.class), eq("tenant1"), isNull(), any());
         var stored = captor.getValue();

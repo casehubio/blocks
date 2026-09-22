@@ -1,13 +1,13 @@
 package io.casehub.blocks.agentic.social;
 
 import io.casehub.neocortex.memory.MemoryDomain;
-import io.casehub.neocortex.memory.cbr.CbrCase;
-import io.casehub.neocortex.memory.cbr.CbrCaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecord;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.FeatureVectorCbrCase;
-import io.casehub.neocortex.memory.cbr.ScoredCbrCase;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrMatch;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 class CbrUserProfileStoreTest {
 
     @Mock
-    CbrCaseMemoryStore cbrStore;
+    CbrRecordStore cbrStore;
     CbrUserProfileStore store;
 
     @BeforeEach
@@ -46,7 +46,7 @@ class CbrUserProfileStoreTest {
 
         store.store(profile);
 
-        var captor = ArgumentCaptor.forClass(CbrCase.class);
+        var captor = ArgumentCaptor.forClass(CbrRecord.class);
         verify(cbrStore).store(captor.capture(), eq("user-profile"), eq("agent-1"),
                 any(MemoryDomain.class), eq("t1"), isNull(), any());
         var stored = captor.getValue();
@@ -62,7 +62,7 @@ class CbrUserProfileStoreTest {
 
     @Test
     void lookupReturnsEmptyWhenNoProfile() {
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of());
 
         var result = store.lookup("agent-1", "user-1", "t1");
@@ -81,12 +81,12 @@ class CbrUserProfileStoreTest {
                 "negative_signals", FeatureValue.number(5),
                 "neutral_signals", FeatureValue.number(10));
 
-        CbrCase cbrCase = new FeatureVectorCbrCase(
+        CbrRecord cbrCase = new CbrFeatureRecord(
                 "Profile for user-1", "-", null, null, features, null, "agent-1");
 
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", 1.0);
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of(scored));
 
         var result = store.lookup("agent-1", "user-1", "t1");
@@ -110,12 +110,12 @@ class CbrUserProfileStoreTest {
                 "negative_signals", FeatureValue.number(0),
                 "neutral_signals", FeatureValue.number(0));
 
-        CbrCase cbrCase = new FeatureVectorCbrCase(
+        CbrRecord cbrCase = new CbrFeatureRecord(
                 "Profile for user-1", "-", null, null, features, null, "agent-1");
 
-        var scored = new ScoredCbrCase<>(cbrCase, "case-1", 1.0);
+        var scored = new CbrMatch<>(cbrCase, "case-1", 1.0);
 
-        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrCase.class)))
+        when(cbrStore.retrieveSimilar(any(CbrQuery.class), eq(CbrRecord.class)))
                 .thenReturn(List.of(scored));
 
         store.eraseSubject("user-1", "t1");
