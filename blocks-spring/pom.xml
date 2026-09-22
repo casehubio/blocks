@@ -72,23 +72,33 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>io.casehub</groupId>
-                <artifactId>casehub-platform-spring-generator</artifactId>
-                <version>0.2-SNAPSHOT</version>
-                <executions>
-                    <execution>
-                        <id>verify-drift</id>
-                        <goals><goal>verify</goal></goals>
-                        <phase>verify</phase>
-                        <configuration>
-                            <quarkusModule>${project.basedir}/../blocks</quarkusModule>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <profiles>
+        <profile>
+            <id>verify-drift</id>
+            <activation>
+                <file>
+                    <exists>${user.home}/.m2/repository/io/casehub/casehub-platform-spring-generator</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.casehub</groupId>
+                        <artifactId>casehub-platform-spring-generator</artifactId>
+                        <version>0.2-SNAPSHOT</version>
+                        <executions>
+                            <execution>
+                                <id>verify-drift</id>
+                                <goals><goal>verify</goal></goals>
+                                <phase>verify</phase>
+                                <configuration>
+                                    <quarkusModule>${project.basedir}/../blocks</quarkusModule>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
