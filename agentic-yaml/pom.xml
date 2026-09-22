@@ -64,12 +64,7 @@
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>io.casehub</groupId>
-      <artifactId>casehub-blocks-speech-sherpa</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
-    </dependency>
+    <!-- casehub-blocks-speech-sherpa: JDK 22+ only — see jdk22+ profile below -->
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-api</artifactId>
@@ -117,6 +112,11 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
+          <excludes>
+            <exclude>**/registry/KokoroConfigRegistry.java</exclude>
+            <exclude>**/registry/Audio8ConfigRegistry.java</exclude>
+            <exclude>**/registry/SherpaConfigRegistry.java</exclude>
+          </excludes>
           <testExcludes>
             <exclude>**/llm/*.java</exclude>
           </testExcludes>
@@ -126,6 +126,31 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>jdk22+</id>
+      <activation>
+        <jdk>[22,)</jdk>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>io.casehub</groupId>
+          <artifactId>casehub-blocks-speech-sherpa</artifactId>
+          <version>${project.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <excludes combine.self="override"/>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>llm</id>
       <dependencies>
