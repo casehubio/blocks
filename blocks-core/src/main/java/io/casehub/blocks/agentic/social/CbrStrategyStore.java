@@ -2,11 +2,11 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.neocortex.memory.EraseRequest;
 import io.casehub.neocortex.memory.MemoryDomain;
+import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
+import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.CbrRecord;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
-import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
 import io.casehub.platform.api.path.Path;
 
 import java.util.ArrayList;
@@ -78,6 +78,70 @@ public class CbrStrategyStore implements StrategyStore {
         }
         return List.copyOf(insights);
     }
+
+    @Override
+    public void storeEvidence(EngagementEvidence evidence) {
+        var features = new java.util.LinkedHashMap<String, FeatureValue>();
+        features.put("subjectId", FeatureValue.string(evidence.subjectId()));
+        features.put("agentId", FeatureValue.string(evidence.agentId()));
+        features.put("conversationTimestamp", FeatureValue.number((double) evidence.recordedAt().toEpochMilli()));
+        features.put("turnCount", FeatureValue.number(evidence.turnCount()));
+        features.put("avgResponseLength", FeatureValue.number(evidence.avgResponseLength()));
+        features.put("continuationRate", FeatureValue.number(evidence.continuationRate()));
+        features.put("meanAffectShift", FeatureValue.number(evidence.meanAffectShift()));
+        for (var dim : evidence.dimensionSnapshots().entrySet()) {
+            features.put("avgSnapshot_" + dim.getKey(), FeatureValue.number(dim.getValue()));
+        }
+        var summary = evidence.conversationSummary() != null
+                      ? evidence.conversationSummary()
+                      : "Interaction with " + evidence.subjectId() + " (" + evidence.turnCount() + " turns)";
+        var cbrCase = new CbrFeatureRecord(summary, "-", null, null, Map.copyOf(features), null, evidence.agentId());
+        cbrStore.store(cbrCase, engagementCaseType, evidence.agentId(), domain,
+                       evidence.tenantId(), null, Path.root());
+    }
+
+    @Override
+    public int evidenceCount(String agentId, String tenantId) {
+        var query = CbrQuery.of(tenantId, domain, Path.root(), engagementCaseType,
+                                Map.of(), 1000)
+                            .withMinSimilarity(0.0);
+        return (int) cbrStore.retrieveSimilar(query, CbrRecord.class).stream()
+                             .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
+                             .count();
+    }
+
+    @Override
+    public List<EngagementEvidence> recentEvidence(String agentId, String tenantId, int limit) {
+        var query = CbrQuery.of(tenantId, domain, Path.root(), engagementCaseType,
+                                Map.of(), limit)
+                            .withMinSimilarity(0.0);
+        var results = cbrStore.retrieveSimilar(query, CbrRecord.class);
+        return results.stream()
+                      .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
+                      .map(s -> toEvidence(s.cbrRecord(), agentId, tenantId))
+                      .toList();
+    }
+
+    private EngagementEvidence toEvidence(CbrRecord record, String agentId, String tenantId) {
+        var features     = record.features();
+        var subjectId    = features.get("subjectId") instanceof FeatureValue.StringVal sv ? sv.value() : "unknown";
+        var dimSnapshots = new java.util.LinkedHashMap<String, Double>();
+        for (var entry : features.entrySet()) {
+            if (entry.getKey().startsWith("avgSnapshot_") && entry.getValue() instanceof FeatureValue.NumberVal nv) {
+                dimSnapshots.put(entry.getKey().substring("avgSnapshot_".length()), nv.value());
+            }
+        }
+        return new EngagementEvidence(
+                agentId, subjectId, tenantId,
+                null, record.problem().equals("-") ? null : record.problem(),
+                (int) numberVal(features, "turnCount", 0),
+                numberVal(features, "continuationRate", 0),
+                numberVal(features, "avgResponseLength", 0),
+                numberVal(features, "meanAffectShift", 0),
+                Map.copyOf(dimSnapshots),
+                java.time.Instant.ofEpochMilli((long) numberVal(features, "conversationTimestamp", 0)));
+    }
+
 
     @Override
     public void eraseAgent(String agentId, String tenantId) {

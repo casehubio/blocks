@@ -16,30 +16,18 @@ import io.casehub.blocks.agentic.social.drive.AffiliationDrive;
 import io.casehub.blocks.agentic.social.drive.AutonomyDrive;
 import io.casehub.blocks.agentic.social.drive.CompetenceDrive;
 import io.casehub.blocks.agentic.social.drive.CuriosityDrive;
-import io.casehub.blocks.agentic.social.goal.CuriosityGoalMapper;
-import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
-import io.casehub.blocks.memory.ArousalScorer;
-import io.casehub.blocks.memory.CompositeConfidenceScorer;
-import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
-import io.casehub.blocks.memory.RetentionConfig;
-import io.casehub.blocks.memory.SurpriseScorer;
-import io.casehub.blocks.memory.WeightedScorer;
-import io.casehub.neocortex.memory.cbr.ScopeDecay;
-import io.casehub.neocortex.memory.cbr.TemporalDecay;
-import io.casehub.blocks.agentic.social.goal.AffiliationGoalMapper;
-import io.casehub.blocks.agentic.social.goal.AutonomyGoalMapper;
-import io.casehub.blocks.agentic.social.goal.CompetenceGoalMapper;
-import io.casehub.blocks.agentic.social.goal.DriveGoalMapper;
-import io.casehub.blocks.agentic.social.goal.CrossAxisGoalEnricher;
-import io.casehub.blocks.agentic.social.goal.GoalEscalationPolicy;
-import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
-import io.casehub.blocks.agentic.social.goal.DriveGoalFormationStrategy;
-import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
 import io.casehub.blocks.agentic.social.drive.DriveComposer;
 import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveSource;
+import io.casehub.blocks.agentic.social.goal.AffiliationGoalMapper;
+import io.casehub.blocks.agentic.social.goal.AutonomyGoalMapper;
+import io.casehub.blocks.agentic.social.goal.CompetenceGoalMapper;
+import io.casehub.blocks.agentic.social.goal.CuriosityGoalMapper;
+import io.casehub.blocks.agentic.social.goal.DriveGoalMapper;
+import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
+import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.DerivedTheme;
 import io.casehub.blocks.agentic.social.narrative.IndividualEpisode;
 import io.casehub.blocks.agentic.social.narrative.NarrativeFragment;
@@ -48,9 +36,16 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeScope;
 import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
+import io.casehub.blocks.memory.ArousalScorer;
+import io.casehub.blocks.memory.CompositeConfidenceScorer;
+import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
+import io.casehub.blocks.memory.RetentionConfig;
+import io.casehub.blocks.memory.SurpriseScorer;
+import io.casehub.blocks.memory.WeightedScorer;
 import io.casehub.blocks.speech.PromptSection;
-import java.util.stream.Collectors;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.neocortex.memory.cbr.ScopeDecay;
+import io.casehub.neocortex.memory.cbr.TemporalDecay;
 import io.casehub.neocortex.memory.cbr.inmem.InMemoryCbrRecordStore;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
@@ -66,6 +61,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class CognitionStack {
 
@@ -584,6 +580,30 @@ public class CognitionStack {
         }
 
         @Override public void eraseSubject(String subjectId, String tenantId) {}
+
+        private final java.util.List<EngagementEvidence> evidence = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        @Override
+        public void storeEvidence(EngagementEvidence e) {
+            evidence.add(e);
+        }
+
+        @Override
+        public int evidenceCount(String agentId, String tenantId) {
+            return (int) evidence.stream()
+                                 .filter(ev -> ev.agentId().equals(agentId) && ev.tenantId().equals(tenantId))
+                                 .count();
+        }
+
+        @Override
+        public java.util.List<EngagementEvidence> recentEvidence(String agentId, String tenantId, int limit) {
+            return evidence.stream()
+                           .filter(ev -> ev.agentId().equals(agentId) && ev.tenantId().equals(tenantId))
+                           .sorted(java.util.Comparator.comparing(EngagementEvidence::recordedAt).reversed())
+                           .limit(limit)
+                           .toList();
+        }
+
     }
 
     static final class InMemoryMentalModelStore implements MentalModelStore {
