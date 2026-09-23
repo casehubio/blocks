@@ -37,6 +37,7 @@
     <module>speech-api</module>
     <module>speech-ws</module>
     <module>annotations</module>
+    <module>social-jpa-common</module>
   </modules>
 
   <profiles>
