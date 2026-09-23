@@ -1,10 +1,5 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.memory.cbr.CbrRecord;
-import io.casehub.neocortex.memory.cbr.CbrRecordStore;
-import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
-import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentEvent;
@@ -23,14 +18,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class StrategyLearningOrchestratorTest {
 
     private StrategyStore strategyStore;
-    private CbrRecordStore cbrStore;
     private ReflectionOrchestrator reflectionOrchestrator;
     private AgentProvider agentProvider;
     private StrategyLearningOrchestrator orchestrator;
@@ -38,13 +38,12 @@ class StrategyLearningOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        strategyStore = mock(StrategyStore.class);
-        cbrStore = mock(CbrRecordStore.class);
+        strategyStore          = mock(StrategyStore.class);
         reflectionOrchestrator = mock(ReflectionOrchestrator.class);
-        agentProvider = mock(AgentProvider.class);
-        clock = Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneId.of("UTC"));
-        orchestrator = new StrategyLearningOrchestrator(
-                strategyStore, cbrStore, reflectionOrchestrator, agentProvider,
+        agentProvider          = mock(AgentProvider.class);
+        clock                  = Clock.fixed(Instant.parse("2026-08-21T00:00:00Z"), ZoneId.of("UTC"));
+        orchestrator           = new StrategyLearningOrchestrator(
+                strategyStore, reflectionOrchestrator, agentProvider,
                 null, StrategyLearningConfig.defaults(), clock);
     }
 
@@ -103,8 +102,7 @@ class StrategyLearningOrchestratorTest {
         assertThat(learned.signalsProcessed()).isEqualTo(3);
         assertThat(learned.casesStored()).isEqualTo(1);
         assertThat(learned.conversationsStored()).contains("case-1");
-        verify(cbrStore).store(any(CbrFeatureRecord.class), eq("engagement-evidence"),
-                eq("agent-1"), any(), eq("tenant-1"), isNull(), any());
+        verify(strategyStore).storeEvidence(any(EngagementEvidence.class));
     }
 
     @Test void tick_conversationCorrelation_matchesByCaseId() {
@@ -120,12 +118,9 @@ class StrategyLearningOrchestratorTest {
         assertThat(result).isInstanceOf(StrategyLearningTick.Learned.class);
         assertThat(((StrategyLearningTick.Learned) result).casesStored()).isEqualTo(1);
 
-        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
-        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
-                any(), anyString(), any(), any());
-        var storedFeatures = captor.getValue().features();
-        assertThat(((FeatureValue.NumberVal) storedFeatures.get("turnCount")).value())
-                .isEqualTo(2.0);
+        var captor = ArgumentCaptor.forClass(EngagementEvidence.class);
+        verify(strategyStore).storeEvidence(captor.capture());
+        assertThat(captor.getValue().turnCount()).isEqualTo(2);
     }
 
     @Test void tick_featureExtraction_avgResponseLength() {
@@ -137,13 +132,11 @@ class StrategyLearningOrchestratorTest {
 
         orchestrator.tick("agent-1", "tenant-1");
 
-        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
-        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
-                any(), anyString(), any(), any());
-        var features = captor.getValue().features();
-        assertThat(((FeatureValue.NumberVal) features.get("avgResponseLength")).value())
+        var captor = ArgumentCaptor.forClass(EngagementEvidence.class);
+        verify(strategyStore).storeEvidence(captor.capture());
+        assertThat(captor.getValue().avgResponseLength())
                 .isCloseTo(200.0, within(0.01));
-        assertThat(((FeatureValue.NumberVal) features.get("continuationRate")).value())
+        assertThat(captor.getValue().continuationRate())
                 .isEqualTo(1.0);
     }
 
@@ -162,13 +155,11 @@ class StrategyLearningOrchestratorTest {
 
         orchestrator.tick("agent-1", "tenant-1");
 
-        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
-        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
-                any(), anyString(), any(), any());
-        var features = captor.getValue().features();
-        assertThat(((FeatureValue.NumberVal) features.get("avgSnapshot_verbosity")).value())
+        var captor = ArgumentCaptor.forClass(EngagementEvidence.class);
+        verify(strategyStore).storeEvidence(captor.capture());
+        assertThat(captor.getValue().dimensionSnapshots().get("verbosity"))
                 .isCloseTo(0.4, within(0.01));
-        assertThat(((FeatureValue.NumberVal) features.get("avgSnapshot_formality")).value())
+        assertThat(captor.getValue().dimensionSnapshots().get("formality"))
                 .isCloseTo(0.8, within(0.01));
     }
 
@@ -206,12 +197,9 @@ class StrategyLearningOrchestratorTest {
         assertThat(learned.casesStored()).isEqualTo(1);
         assertThat(learned.conversationsStored()).contains("conv-1");
 
-        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
-        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
-                any(), anyString(), any(), any());
-        var features = captor.getValue().features();
-        assertThat(((FeatureValue.NumberVal) features.get("turnCount")).value())
-                .isEqualTo(4.0);
+        var captor = ArgumentCaptor.forClass(EngagementEvidence.class);
+        verify(strategyStore).storeEvidence(captor.capture());
+        assertThat(captor.getValue().turnCount()).isEqualTo(4);
     }
 
     @Test void tick_turnsWithDifferentCaseIds_accumulateSeparately() {
@@ -229,11 +217,9 @@ class StrategyLearningOrchestratorTest {
         var result = orchestrator.tick("agent-1", "tenant-1");
 
         assertThat(result).isInstanceOf(StrategyLearningTick.Learned.class);
-        var captor = ArgumentCaptor.forClass(CbrFeatureRecord.class);
-        verify(cbrStore).store(captor.capture(), anyString(), anyString(),
-                any(), anyString(), any(), any());
-        assertThat(((FeatureValue.NumberVal) captor.getValue().features().get("turnCount")).value())
-                .isEqualTo(2.0);
+        var captor = ArgumentCaptor.forClass(EngagementEvidence.class);
+        verify(strategyStore).storeEvidence(captor.capture());
+        assertThat(captor.getValue().turnCount()).isEqualTo(2);
     }
 
     @Test void tick_turnsWithNullCaseId_notAccumulated() {
@@ -254,58 +240,50 @@ class StrategyLearningOrchestratorTest {
     // --- auto-reflect ---
 
     @SuppressWarnings("unchecked")
-    @Test void tick_autoTriggersReflect_whenEnoughCasesStored() throws Exception {
-        var storedCases = new CopyOnWriteArrayList<CbrMatch<CbrRecord>>();
-        var testCbrStore = mock(CbrRecordStore.class);
-        doAnswer(inv -> {
-            var c = mock(CbrRecord.class);
-            when(c.producerAgentId()).thenReturn((String) inv.getArgument(2));
-            when(c.features()).thenReturn(Map.of(
-                    "conversationTimestamp", FeatureValue.number((double) System.currentTimeMillis()),
-                    "continuationRate", FeatureValue.number(0.7),
-                    "meanAffectShift", FeatureValue.number(0.1),
-                    "avgResponseLength", FeatureValue.number(100.0)));
-            storedCases.add(new CbrMatch<>(c, "case-" + storedCases.size(), 1.0));
-            return null;
-        }).when(testCbrStore).store(any(CbrFeatureRecord.class), anyString(), anyString(),
-                any(), anyString(), any(), any());
-        when(testCbrStore.retrieveSimilar(any(), any()))
-                .thenAnswer(inv -> new ArrayList<>(storedCases));
-
+    @Test
+    void tick_autoTriggersReflect_whenEnoughCasesStored() throws Exception {
+        var storedEvidence = new CopyOnWriteArrayList<EngagementEvidence>();
         var config = new StrategyLearningConfig(
                 1, 2, 50, 10, 0.5, 100, Duration.ofSeconds(1),
                 new io.casehub.neocortex.memory.MemoryDomain("test"),
                 "engagement-evidence", "strategy-profile");
         var storedProfile = new java.util.concurrent.atomic.AtomicReference<StrategyProfile>();
         var testStrategyStore = mock(StrategyStore.class);
-        doAnswer(inv -> { storedProfile.set(inv.getArgument(0)); return null; })
+        doAnswer(inv -> {
+            storedProfile.set(inv.getArgument(0));
+            return null;
+        })
                 .when(testStrategyStore).store(any(StrategyProfile.class));
+        doAnswer(inv -> {
+            storedEvidence.add(inv.getArgument(0));
+            return null;
+        })
+                .when(testStrategyStore).storeEvidence(any(EngagementEvidence.class));
         when(testStrategyStore.lookup("agent-1", "tenant-1"))
                 .thenAnswer(inv -> java.util.Optional.ofNullable(storedProfile.get()));
+        when(testStrategyStore.evidenceCount("agent-1", "tenant-1"))
+                .thenAnswer(inv -> storedEvidence.size());
+        when(testStrategyStore.recentEvidence(any(), any(), anyInt()))
+                .thenAnswer(inv -> new ArrayList<>(storedEvidence));
         mockLlmResponse("{\"guidelines\":[\"use specific examples\"],\"dimensionDeltas\":{}}");
 
         var testOrchestrator = new StrategyLearningOrchestrator(
-                testStrategyStore, testCbrStore,
+                testStrategyStore,
                 (a, t, s, m) -> List.of(), agentProvider, null, config, clock);
 
-        // Pre-store 2 cases to cross minCasesForReflection(2)
+        // Pre-store 2 evidence records to cross minCasesForReflection(2)
         for (int i = 0; i < 2; i++) {
-            var features = Map.<String, FeatureValue>of(
-                    "subjectId", FeatureValue.string("user"),
-                    "agentId", FeatureValue.string("agent-1"),
-                    "conversationTimestamp", FeatureValue.number(1000.0 + i * 100),
-                    "turnCount", FeatureValue.number(3.0));
-            var cbrCase = new CbrFeatureRecord(
-                    "case-" + i, "-", null, null, features, null, "agent-1");
-            testCbrStore.store(cbrCase, "engagement-evidence", "agent-1",
-                    new io.casehub.neocortex.memory.MemoryDomain("test"),
-                    "tenant-1", null, io.casehub.platform.api.path.Path.root());
+            storedEvidence.add(new EngagementEvidence(
+                    "agent-1", "user", "tenant-1",
+                    null, "case-" + i,
+                    3, 0.7, 100.0, 0.1,
+                    Map.of("verbosity", 0.5), Instant.ofEpochMilli(1000 + i * 100)));
         }
 
         // Record turns + ConversationOutcome to trigger case storage + auto-reflect
         for (int j = 0; j < 3; j++) {
             testOrchestrator.record(turnOutcome("conv-x", true, 0.1, 100),
-                    "agent-1", "user-1", "tenant-1");
+                                    "agent-1", "user-1", "tenant-1");
         }
         testOrchestrator.record(
                 new EngagementSignal.ConversationOutcome("conv-x", "summary", 3),
@@ -341,7 +319,7 @@ class StrategyLearningOrchestratorTest {
     // --- reflect ---
 
     @Test void reflect_insufficientCases_returnsNoChange() {
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(List.of());
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(List.of());
         var result = orchestrator.reflect("agent-1", "tenant-1");
         assertThat(result).isInstanceOf(StrategyReflection.NoChange.class);
         assertThat(((StrategyReflection.NoChange) result).reason()).contains("insufficient");
@@ -349,7 +327,7 @@ class StrategyLearningOrchestratorTest {
 
     @Test void reflect_withSufficientCases_producesReflected() {
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of("Agent tends to be verbose"));
 
@@ -368,7 +346,7 @@ class StrategyLearningOrchestratorTest {
 
     @Test void reflect_malformedLlmOutput_returnsNoChange() {
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
 
@@ -388,7 +366,7 @@ class StrategyLearningOrchestratorTest {
                 .thenReturn(java.util.Optional.of(profile));
 
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
 
@@ -404,7 +382,7 @@ class StrategyLearningOrchestratorTest {
 
     @Test void reflect_ignoresUnknownDimensionKeys() {
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
 
@@ -427,7 +405,7 @@ class StrategyLearningOrchestratorTest {
                 .thenReturn(java.util.Optional.of(profile));
 
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
 
@@ -439,12 +417,10 @@ class StrategyLearningOrchestratorTest {
         assertThat(reflected.newGuidelines()).containsExactly("Existing guideline");
     }
 
-    @Test void reflect_filtersOtherAgentsCases() {
+    @Test
+    void reflect_filtersOtherAgentsCases() {
         var ownCases = buildEngagementCases(3, "agent-1");
-        var otherCases = buildEngagementCases(3, "other-agent");
-        var allCases = new ArrayList<>(ownCases);
-        allCases.addAll(otherCases);
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(allCases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(ownCases);
 
         var result = orchestrator.reflect("agent-1", "tenant-1");
         assertThat(result).isInstanceOf(StrategyReflection.NoChange.class);
@@ -453,7 +429,7 @@ class StrategyLearningOrchestratorTest {
 
     @Test void reflect_llmWithCodeFences_stripsAndParses() {
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
 
@@ -467,7 +443,7 @@ class StrategyLearningOrchestratorTest {
 
     @Test void reflect_storesUpdatedProfile() {
         var cases = buildEngagementCases(5, "agent-1");
-        when(cbrStore.retrieveSimilar(any(), any())).thenReturn(cases);
+        when(strategyStore.recentEvidence(any(), any(), anyInt())).thenReturn(cases);
         when(reflectionOrchestrator.reflect(any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
 
@@ -500,22 +476,15 @@ class StrategyLearningOrchestratorTest {
                                    responded, null, responseLength, sentiment, null, responded);
     }
 
-    @SuppressWarnings("unchecked")
-    private List<CbrMatch<CbrRecord>> buildEngagementCases(int count, String agentId) {
-        var cases = new ArrayList<CbrMatch<CbrRecord>>();
+    private List<EngagementEvidence> buildEngagementCases(int count, String agentId) {
+        var cases = new ArrayList<EngagementEvidence>();
         for (int i = 0; i < count; i++) {
-            var cbrCase = mock(CbrRecord.class);
-            when(cbrCase.producerAgentId()).thenReturn(agentId);
-            when(cbrCase.features()).thenReturn(Map.of(
-                    "agentId", FeatureValue.string(agentId),
-                    "subjectId", FeatureValue.string("user-" + (i % 2)),
-                    "conversationTimestamp", FeatureValue.number((double) (1000 + i * 100)),
-                    "continuationRate", FeatureValue.number(0.7 + i * 0.02),
-                    "avgResponseLength", FeatureValue.number(200.0 + i * 10),
-                    "meanSentimentShift", FeatureValue.number(0.1 + i * 0.05),
-                    "avgSnapshot_verbosity", FeatureValue.number(0.5),
-                    "avgSnapshot_formality", FeatureValue.number(0.5)));
-            cases.add(new CbrMatch<>(cbrCase, "case-" + i, 1.0));
+            cases.add(new EngagementEvidence(
+                    agentId, "user-" + (i % 2), "tenant-1",
+                    null, null,
+                    3, 0.7 + i * 0.02, 200.0 + i * 10, 0.1 + i * 0.05,
+                    Map.of("verbosity", 0.5, "formality", 0.5),
+                    Instant.ofEpochMilli(1000 + i * 100)));
         }
         return cases;
     }

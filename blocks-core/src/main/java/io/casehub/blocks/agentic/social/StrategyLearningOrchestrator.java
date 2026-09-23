@@ -1,25 +1,19 @@
 package io.casehub.blocks.agentic.social;
 
+import io.casehub.blocks.agent.KeyedLock;
+import io.casehub.blocks.agent.StructuredAgentInvoker;
+import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.blocks.summarisation.ContentSummariser;
-import io.casehub.qhorus.api.spi.SummaryResult;
-import io.casehub.neocortex.memory.cbr.CbrRecord;
-import io.casehub.neocortex.memory.cbr.CbrRecordStore;
-import io.casehub.neocortex.memory.cbr.CbrQuery;
 import io.casehub.neocortex.memory.cbr.FeatureField;
 import io.casehub.neocortex.memory.cbr.FeatureValue;
-import io.casehub.neocortex.memory.cbr.CbrFeatureRecord;
-import io.casehub.neocortex.memory.cbr.CbrMatch;
 import io.casehub.neocortex.memory.cbr.TrendAnalyzer;
 import io.casehub.neocortex.memory.cbr.TrendProfile;
 import io.casehub.neocortex.memory.cbr.TrendSpec;
 import io.casehub.neocortex.memory.cbr.TrendType;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
-import io.casehub.blocks.agent.KeyedLock;
-import io.casehub.blocks.agent.StructuredAgentInvoker;
-import io.casehub.blocks.agent.StructuredAgentInvoker.InvocationResult;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
-import io.casehub.platform.api.path.Path;
+import io.casehub.qhorus.api.spi.SummaryResult;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Clock;
@@ -68,7 +62,6 @@ public class StrategyLearningOrchestrator {
 
 
     private final StrategyStore strategyStore;
-    private final CbrRecordStore cbrStore;
     private final ReflectionOrchestrator reflectionOrchestrator;
     private final AgentProvider agentProvider;
     private final @Nullable ContentSummariser<EngagementSignal, SummaryResult> summariser;
@@ -79,28 +72,25 @@ public class StrategyLearningOrchestrator {
     private final KeyedLock tickLocks = new KeyedLock();
 
     public StrategyLearningOrchestrator(StrategyStore strategyStore,
-                                         CbrRecordStore cbrStore,
-                                         ReflectionOrchestrator reflectionOrchestrator,
-                                         AgentProvider agentProvider,
-                                         StrategyLearningConfig config) {
-        this(strategyStore, cbrStore, reflectionOrchestrator, agentProvider,
-                null, config, Clock.systemUTC());
+                                        ReflectionOrchestrator reflectionOrchestrator,
+                                        AgentProvider agentProvider,
+                                        StrategyLearningConfig config) {
+        this(strategyStore, reflectionOrchestrator, agentProvider,
+             null, config, Clock.systemUTC());
     }
 
     StrategyLearningOrchestrator(StrategyStore strategyStore,
-                                  CbrRecordStore cbrStore,
-                                  ReflectionOrchestrator reflectionOrchestrator,
-                                  AgentProvider agentProvider,
-                                  @Nullable ContentSummariser<EngagementSignal, SummaryResult> summariser,
-                                  StrategyLearningConfig config,
-                                  Clock clock) {
-        this.strategyStore = strategyStore;
-        this.cbrStore = cbrStore;
+                                 ReflectionOrchestrator reflectionOrchestrator,
+                                 AgentProvider agentProvider,
+                                 @Nullable ContentSummariser<EngagementSignal, SummaryResult> summariser,
+                                 StrategyLearningConfig config,
+                                 Clock clock) {
+        this.strategyStore          = strategyStore;
         this.reflectionOrchestrator = reflectionOrchestrator;
-        this.agentProvider = agentProvider;
-        this.summariser = summariser;
-        this.config = config;
-        this.clock = clock;
+        this.agentProvider          = agentProvider;
+        this.summariser             = summariser;
+        this.config                 = config;
+        this.clock                  = clock;
     }
 
     public void record(EngagementSignal signal, String agentId,
@@ -185,19 +175,19 @@ public class StrategyLearningOrchestrator {
         }
 
         double engagementRate = state.totalSignals > 0
-                ? (double) state.totalResponded / state.totalSignals : 0.0;
+                                ? (double) state.totalResponded / state.totalSignals : 0.0;
         double meanSentiment = state.totalSignals > 0
-                ? state.affectSum / state.totalSignals : 0.0;
+                               ? state.affectSum / state.totalSignals : 0.0;
         state.lastTickTimestamp = clock.instant();
 
         if (state.pendingConversations.isEmpty()
-                && drainedTurns.size() < config.minSignalsForConversationCase()) {
+            && drainedTurns.size() < config.minSignalsForConversationCase()) {
             return new StrategyLearningTick.Observed(
                     drainedTurns.size(), engagementRate, meanSentiment);
         }
 
         var storedConversations = new ArrayList<String>();
-        int casesStored = 0;
+        int casesStored         = 0;
 
         var drainedConversations = new ArrayList<ConversationEntry>();
         while (!state.pendingConversations.isEmpty()) {
@@ -205,18 +195,13 @@ public class StrategyLearningOrchestrator {
         }
 
         for (var convEntry : drainedConversations) {
-            var conv = convEntry.signal;
+            var conv        = convEntry.signal;
             var accumulated = state.conversationTurns.remove(conv.conversationId());
-            if (accumulated == null || accumulated.isEmpty()) continue;
+            if (accumulated == null || accumulated.isEmpty()) {continue;}
 
-            var features = extractFeatures(accumulated, convEntry.subjectId, state.agentId);
-            var summary = conv.conversationSummary() != null
-                    ? conv.conversationSummary()
-                    : "Conversation with " + convEntry.subjectId + " (" + conv.turnCount() + " turns)";
-            var cbrCase = new CbrFeatureRecord(
-                    summary, "-", null, null, features, null, state.agentId);
-            cbrStore.store(cbrCase, config.engagementCaseType(), state.agentId,
-                    config.memoryDomain(), state.tenantId, null, Path.root());
+            var evidence = buildEvidence(accumulated, convEntry.subjectId, state.agentId,
+                                         state.tenantId, conv.conversationId(), conv.conversationSummary());
+            strategyStore.storeEvidence(evidence);
             storedConversations.add(conv.conversationId());
             casesStored++;
         }
@@ -228,13 +213,9 @@ public class StrategyLearningOrchestrator {
             }
             for (var group : grouped.entrySet()) {
                 if (group.getValue().size() >= config.minSignalsForConversationCase()) {
-                    var features = extractFeatures(group.getValue(), group.getKey(), state.agentId);
-                    var summary = "Interaction with " + group.getKey()
-                            + " (" + group.getValue().size() + " turns)";
-                    var cbrCase = new CbrFeatureRecord(
-                            summary, "-", null, null, features, null, state.agentId);
-                    cbrStore.store(cbrCase, config.engagementCaseType(), state.agentId,
-                            config.memoryDomain(), state.tenantId, null, Path.root());
+                    var evidence = buildEvidence(group.getValue(), group.getKey(), state.agentId,
+                                                 state.tenantId, null, null);
+                    strategyStore.storeEvidence(evidence);
                     storedConversations.add(group.getKey());
                     casesStored++;
                 }
@@ -264,44 +245,34 @@ public class StrategyLearningOrchestrator {
     }
 
     private int countAgentCases(String agentId, String tenantId) {
-        var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
-                        config.engagementCaseType(), Map.of(), config.maxReflectionSources())
-                .withMinSimilarity(0.0);
-        return (int) cbrStore.retrieveSimilar(query, CbrRecord.class).stream()
-                .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
-                .count();
+        return strategyStore.evidenceCount(agentId, tenantId);
     }
 
     private void doReflectAsync(String agentId, String tenantId) {
         try {
-            StrategyProfile profile;
-            List<? extends CbrMatch<CbrRecord>> cases;
+            StrategyProfile          profile;
+            List<EngagementEvidence> cases;
 
-            record Snapshot(StrategyProfile profile, List<? extends CbrMatch<CbrRecord>> cases) {}
+            record Snapshot(StrategyProfile profile, List<EngagementEvidence> cases) {}
             var snapshot = tickLocks.withLock(stateKey(agentId, tenantId), () -> {
                 var p = currentStrategy(agentId, tenantId)
-                        .orElseGet(() -> defaultProfile(agentId, tenantId));
-                var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
-                                config.engagementCaseType(), Map.of(), config.maxReflectionSources())
-                        .withMinSimilarity(0.0);
-                var c = cbrStore.retrieveSimilar(query, CbrRecord.class).stream()
-                        .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
-                        .toList();
+                                .orElseGet(() -> defaultProfile(agentId, tenantId));
+                var c = strategyStore.recentEvidence(agentId, tenantId, config.maxReflectionSources());
                 return new Snapshot(p, c);
             });
             profile = snapshot.profile();
-            cases = snapshot.cases();
+            cases   = snapshot.cases();
 
-            if (cases.size() < config.minCasesForReflection()) return;
+            if (cases.size() < config.minCasesForReflection()) {return;}
 
-            TrendProfile trends = analyzeTrends(cases);
-            var perSubjectSummary = summarizePerSubject(cases);
-            var userPrompt = buildReflectionPrompt(profile, trends, List.of(), perSubjectSummary);
+            TrendProfile trends            = analyzeTrends(cases);
+            var          perSubjectSummary = summarizePerSubject(cases);
+            var          userPrompt        = buildReflectionPrompt(profile, trends, List.of(), perSubjectSummary);
 
             String llmResponse;
             try {
                 var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-                var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+                var textResult    = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
                 if (textResult instanceof InvocationResult.AgentError<String> err) {
                     throw new RuntimeException(err.reason());
                 }
@@ -314,7 +285,7 @@ public class StrategyLearningOrchestrator {
             var state = states.get(stateKey(agentId, tenantId));
             tickLocks.withLock(stateKey(agentId, tenantId), () -> {
                 applyReflectionResult(profile, llmResponse, trends, cases.size(),
-                        agentId, tenantId, state);
+                                      agentId, tenantId, state);
                 if (state != null) {
                     state.lastReflectTimestamp = clock.instant();
                 }
@@ -373,28 +344,88 @@ public class StrategyLearningOrchestrator {
         return Map.copyOf(features);
     }
 
+    private EngagementEvidence buildEvidence(List<TurnEntry> turns, String subjectId,
+                                             String agentId, String tenantId,
+                                             @Nullable String conversationId,
+                                             @Nullable String conversationSummary) {
+        var features = extractFeatures(turns, subjectId, agentId);
+
+        double lenSum    = 0;
+        int    lenCount  = 0;
+        double sentSum   = 0;
+        int    sentCount = 0;
+        int    continued = 0;
+        int    contTotal = 0;
+
+        for (var entry : turns) {
+            var event = entry.signal.event();
+            if (event.responseLength() != null) {
+                lenSum += event.responseLength();
+                lenCount++;
+            }
+            if (event.affectShift() != null) {
+                sentSum += event.affectShift();
+                sentCount++;
+            }
+            if (event.continued() != null) {
+                contTotal++;
+                if (event.continued()) {continued++;}
+            }
+        }
+
+        var dimSnapshots = new LinkedHashMap<String, Double>();
+        for (String dim : DEFAULT_DIMENSIONS) {
+            var val = features.get("avgSnapshot_" + dim);
+            if (val instanceof FeatureValue.NumberVal nv) {
+                dimSnapshots.put(dim, nv.value());
+            }
+        }
+
+        if (conversationSummary == null) {
+            conversationSummary = "Interaction with " + subjectId + " (" + turns.size() + " turns)";
+        }
+
+        return new EngagementEvidence(
+                agentId, subjectId, tenantId,
+                conversationId, conversationSummary,
+                turns.size(),
+                contTotal > 0 ? (double) continued / contTotal : 0,
+                lenCount > 0 ? lenSum / lenCount : 0,
+                sentCount > 0 ? sentSum / sentCount : 0,
+                Map.copyOf(dimSnapshots),
+                clock.instant());
+    }
+
+    private static Map<String, FeatureValue> evidenceToFeatures(EngagementEvidence e) {
+        var features = new LinkedHashMap<String, FeatureValue>();
+        features.put("conversationTimestamp", FeatureValue.number((double) e.recordedAt().toEpochMilli()));
+        features.put("continuationRate", FeatureValue.number(e.continuationRate()));
+        features.put("avgResponseLength", FeatureValue.number(e.avgResponseLength()));
+        features.put("meanAffectShift", FeatureValue.number(e.meanAffectShift()));
+        features.put("subjectId", FeatureValue.string(e.subjectId()));
+        for (var dim : e.dimensionSnapshots().entrySet()) {
+            features.put("avgSnapshot_" + dim.getKey(), FeatureValue.number(dim.getValue()));
+        }
+        return Map.copyOf(features);
+    }
+
+
     private StrategyReflection doReflect(String agentId, String tenantId) {
         var profile = currentStrategy(agentId, tenantId).orElseGet(
                 () -> defaultProfile(agentId, tenantId));
 
-        var query = CbrQuery.of(tenantId, config.memoryDomain(), Path.root(),
-                        config.engagementCaseType(), Map.of(), config.maxReflectionSources())
-                .withMinSimilarity(0.0);
-        var allCases = cbrStore.retrieveSimilar(query, CbrRecord.class);
-        var cases = allCases.stream()
-                .filter(s -> agentId.equals(s.cbrRecord().producerAgentId()))
-                .toList();
+        var cases = strategyStore.recentEvidence(agentId, tenantId, config.maxReflectionSources());
 
         if (cases.size() < config.minCasesForReflection()) {
             return new StrategyReflection.NoChange("insufficient evidence ("
-                    + cases.size() + "/" + config.minCasesForReflection() + ")");
+                                                   + cases.size() + "/" + config.minCasesForReflection() + ")");
         }
 
         TrendProfile trends = analyzeTrends(cases);
 
         var state = states.get(stateKey(agentId, tenantId));
         Instant since = state != null && state.lastReflectTimestamp != null
-                ? state.lastReflectTimestamp : Instant.EPOCH;
+                        ? state.lastReflectTimestamp : Instant.EPOCH;
         List<String> reflections;
         try {
             reflections = reflectionOrchestrator.reflect(
@@ -405,12 +436,12 @@ public class StrategyLearningOrchestrator {
         }
 
         var perSubjectSummary = summarizePerSubject(cases);
-        var userPrompt = buildReflectionPrompt(profile, trends, reflections, perSubjectSummary);
+        var userPrompt        = buildReflectionPrompt(profile, trends, reflections, perSubjectSummary);
 
         String llmResponse;
         try {
             var sessionConfig = AgentSessionConfig.of(SYSTEM_PROMPT, userPrompt);
-            var textResult = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
+            var textResult    = StructuredAgentInvoker.invokeText(agentProvider, sessionConfig);
             if (textResult instanceof InvocationResult.AgentError<String> err) {
                 throw new RuntimeException(err.reason());
             }
@@ -421,21 +452,17 @@ public class StrategyLearningOrchestrator {
         }
 
         return applyReflectionResult(profile, llmResponse, trends, cases.size(),
-                agentId, tenantId, state);
+                                     agentId, tenantId, state);
     }
 
-    private TrendProfile analyzeTrends(List<? extends CbrMatch<CbrRecord>> cases) {
+    private TrendProfile analyzeTrends(List<EngagementEvidence> cases) {
         var sorted = cases.stream()
-                          .sorted((a, b) -> {
-                              double tA = numericFeature(a.cbrRecord().features(), "conversationTimestamp", 0);
-                              double tB = numericFeature(b.cbrRecord().features(), "conversationTimestamp", 0);
-                              return Double.compare(tA, tB);
-                          })
+                          .sorted(java.util.Comparator.comparing(EngagementEvidence::recordedAt))
                           .toList();
 
         var observations = new ArrayList<Map<String, FeatureValue>>();
-        for (var scored : sorted) {
-            observations.add(scored.cbrRecord().features());
+        for (var evidence : sorted) {
+            observations.add(evidenceToFeatures(evidence));
         }
 
         if (observations.size() < 2) {
@@ -460,28 +487,25 @@ public class StrategyLearningOrchestrator {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "TrendAnalyzer failed", e);
             return new TrendProfile(Map.of());
-        }}
+        }
+    }
 
-    private String summarizePerSubject(List<? extends CbrMatch<CbrRecord>> cases) {
-        var bySubject = new LinkedHashMap<String, List<Map<String, FeatureValue>>>();
-        for (var scored : cases) {
-            var features = scored.cbrRecord().features();
-            var sv = features.get("subjectId");
-            if (sv instanceof FeatureValue.StringVal s) {
-                bySubject.computeIfAbsent(s.value(), k -> new ArrayList<>()).add(features);
-            }
+    private String summarizePerSubject(List<EngagementEvidence> cases) {
+        var bySubject = new LinkedHashMap<String, List<EngagementEvidence>>();
+        for (var evidence : cases) {
+            bySubject.computeIfAbsent(evidence.subjectId(), k -> new ArrayList<>()).add(evidence);
         }
 
         var sb = new StringBuilder();
         for (var entry : bySubject.entrySet()) {
             double avgCont = entry.getValue().stream()
-                    .mapToDouble(f -> numericFeature(f, "continuationRate", 0))
-                    .average().orElse(0);
+                                  .mapToDouble(EngagementEvidence::continuationRate)
+                                  .average().orElse(0);
             double avgSent = entry.getValue().stream()
-                    .mapToDouble(f -> numericFeature(f, "meanAffectShift", 0))
-                    .average().orElse(0);
+                                  .mapToDouble(EngagementEvidence::meanAffectShift)
+                                  .average().orElse(0);
             sb.append(String.format("  %s: engagement %.0f%%, sentiment %+.2f (%d conversations)\n",
-                    entry.getKey(), avgCont * 100, avgSent, entry.getValue().size()));
+                                    entry.getKey(), avgCont * 100, avgSent, entry.getValue().size()));
         }
         return sb.toString();
     }

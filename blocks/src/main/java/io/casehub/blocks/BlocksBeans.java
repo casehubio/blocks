@@ -1,5 +1,8 @@
 package io.casehub.blocks;
 
+import io.casehub.api.spi.routing.RoutingPromptAssembler;
+import io.casehub.api.spi.routing.RoutingSignalAssembler;
+import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.blocks.agentic.social.CbrMentalModelStore;
 import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
@@ -47,10 +50,12 @@ import io.casehub.blocks.channel.summary.ChannelSummariser;
 import io.casehub.blocks.channel.summary.HeuristicMessageSummariser;
 import io.casehub.blocks.channel.summary.NoOpThreadSummaryStore;
 import io.casehub.blocks.channel.summary.ThreadSummaryObserver;
+import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.blocks.memory.NoOpReflectionQueryStore;
 import io.casehub.blocks.memory.NoOpReflectionStore;
 import io.casehub.blocks.memory.NoOpSemanticIntegrityChecker;
 import io.casehub.blocks.memory.ReflectionQueryStore;
+import io.casehub.blocks.prompt.SystemPromptCustomiser;
 import io.casehub.blocks.routing.agent.CbrAgentRoutingStrategy;
 import io.casehub.blocks.routing.agent.CbrCaseOutcomeWeights;
 import io.casehub.blocks.routing.agent.CbrOutcomeWeights;
@@ -67,38 +72,34 @@ import io.casehub.blocks.routing.agent.PredecessorAnalyser;
 import io.casehub.blocks.summarisation.ContentSummariser;
 import io.casehub.blocks.summarisation.narrative.DecisionNarrativePipeline;
 import io.casehub.blocks.summarisation.narrative.DecisionNarrativeSummariser;
-import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
-import io.casehub.eidos.api.AgentRegistry;
 import io.casehub.eidos.api.AgentGraphQuery;
+import io.casehub.eidos.api.AgentRegistry;
 import io.casehub.eidos.api.DispositionEvolution;
 import io.casehub.eidos.api.DispositionHealth;
 import io.casehub.eidos.api.DispositionProfileStore;
 import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
-import io.casehub.api.spi.routing.RoutingPromptAssembler;
-import io.casehub.api.spi.routing.RoutingSignalAssembler;
-import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
-import io.casehub.blocks.prompt.SystemPromptCustomiser;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
+import io.casehub.qhorus.api.channel.ThreadSummaryUpdatedEvent;
 import io.casehub.qhorus.api.message.Message;
+import io.casehub.qhorus.api.spi.SummaryResult;
 import io.casehub.qhorus.api.store.CrossTenantMessageStore;
 import io.casehub.qhorus.api.store.ThreadSummaryStore;
-import io.casehub.qhorus.api.channel.ThreadSummaryUpdatedEvent;
-import io.casehub.qhorus.api.spi.SummaryResult;
 import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.inject.Instance;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.context.ManagedExecutor;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
-import org.eclipse.microprofile.context.ManagedExecutor;
 
 @ApplicationScoped
 public class BlocksBeans {
@@ -248,13 +249,14 @@ public class BlocksBeans {
         return new UserModelOrchestrator(profileStore, agentProvider, config);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public StrategyLearningOrchestrator strategyLearningOrchestrator(
-            StrategyStore strategyStore, CbrRecordStore cbrStore,
+            StrategyStore strategyStore,
             ReflectionOrchestrator reflectionOrchestrator,
             AgentProvider agentProvider, StrategyLearningConfig config) {
         return new StrategyLearningOrchestrator(
-                strategyStore, cbrStore, reflectionOrchestrator,
+                strategyStore, reflectionOrchestrator,
                 agentProvider, config);
     }
 

@@ -121,7 +121,6 @@ public class CognitionStack {
             cbrStore = new InMemoryCbrRecordStore();
             strategy = new StrategyLearningOrchestrator(
                     new InMemoryStrategyStore(),
-                    cbrStore,
                     (agentId, tenantId, since, maxEntries) -> List.of(),
                     agentProvider, config.strategyLearning());
             memoryHygiene = new MemoryHygieneOrchestrator(
