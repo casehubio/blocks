@@ -1,6 +1,7 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
 import io.casehub.blocks.agentic.social.CognitionCore;
+import io.casehub.blocks.agentic.social.EngagementEvidence;
 import io.casehub.blocks.agentic.social.CognitionSnapshot;
 import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelSnapshot;
