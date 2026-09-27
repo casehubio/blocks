@@ -236,7 +236,7 @@ Each reads cached state from its orchestrator. All are plain classes (not CDI be
 | `UserModelPromptSection` | `UserModelOrchestrator.currentProfile()` | "User profile: familiarity=[level], relationship stage=[stage], preferences=[prefs], topics of interest=[topics]." |
 | `StrategyPromptSection` | `StrategyLearningOrchestrator.currentStrategy()` | "Interaction approach: [effective strategies]. Avoid: [ineffective strategies]." |
 | `NarrativePromptSection` | `NarrativeOrchestrator.currentNarrative()` | Calls `CognitiveObservationSections.narrativeSection()` → renders `ObservationSection` via `AffordanceRenderer.renderObservation()` |
-| `GoalPromptSection` | `GoalProposalOrchestrator.currentProposals()` | Renders directly from `DriveGoalProposal`: "Your current goals: \n- [PRIORITY] description (drive: axis, intensity)" |
+| `EmergentGoalPromptSection` | `GoalProposalOrchestrator.currentProposals()` | Renders directly from `DriveGoalProposal`: "Your current goals: \n- [PRIORITY] description (drive: axis, intensity)" |
 
 The `PersonalityPromptSection` is unique — it reads from `AgentDescriptor` directly (resolved from `AgentRegistry` during `buildSections()` and passed at construction), not from an orchestrator query method. Personality is session-static by design: `PersonalityEvolutionOrchestrator` evolves personality across sessions (via `DispositionProfileStore.update()`), not within a single conversation. The next session open picks up the evolved descriptor from `AgentRegistry`.
 
@@ -244,7 +244,7 @@ The `UserModelPromptSection` needs a `subjectId` (the user being spoken to), obt
 
 `DrivePromptSection` and `NarrativePromptSection` both delegate to `CognitiveObservationSections` methods that return `ObservationSection` (a sealed interface — `EntityGroup`, `TextBlock`, `ItemList`). These sections render the result to `String` via `new AffordanceRenderer().renderObservation(List.of(section))`, reusing the existing rendering pipeline rather than inventing a separate text-formatting path.
 
-`GoalPromptSection` does NOT delegate to `CognitiveObservationSections.goalsSection()` — that method takes `List<AgentGoal>` (eidos-api), while `GoalProposalOrchestrator.currentProposals()` returns `Optional<List<DriveGoalProposal>>` (blocks). These are different types: `AgentGoal` represents adopted goals in the agent's profile, while `DriveGoalProposal` represents drive-generated goal proposals. GoalPromptSection renders `DriveGoalProposal` directly, formatting each proposal with its priority, description, and driving axis.
+`EmergentGoalPromptSection` does NOT delegate to `CognitiveObservationSections.goalsSection()` — that method takes `List<AgentGoal>` (eidos-api), while `GoalProposalOrchestrator.currentProposals()` returns `Optional<List<DriveGoalProposal>>` (blocks). These are different types: `AgentGoal` represents adopted goals in the agent's profile, while `DriveGoalProposal` represents drive-generated goal proposals. GoalPromptSection renders `DriveGoalProposal` directly, formatting each proposal with its priority, description, and driving axis.
 
 #### ProactiveSpeechSupport
 

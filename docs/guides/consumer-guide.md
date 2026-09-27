@@ -589,7 +589,7 @@ Social cognition speech integration — wires all social cognition orchestrators
 | `UserModelPromptSection` | PromptSection | Per-subject user profile — familiarity, relationship stage, preferences. Subject-scoped. |
 | `StrategyPromptSection` | PromptSection | Learned interaction strategies via `StrategyProfile.toPromptSection()`. |
 | `NarrativePromptSection` | PromptSection | Self-narrative via `CognitiveObservationSections`. Optional (requires NarrativeOrchestrator). |
-| `GoalPromptSection` | PromptSection | Autonomous drive-generated goal proposals. Optional (requires GoalProposalOrchestrator). |
+| `EmergentGoalPromptSection` | PromptSection | Autonomous drive-generated goal proposals. Optional (requires GoalProposalOrchestrator). |
 | `AttentionPromptSection` | PromptSection | Renders neocortex attention signals (URGENCY_SPIKE, DECAY_DETECTED, GOAL_RECOGNIZED, etc.) when `CognitiveAttentionMediator` drains a briefing during `CognitionCore.tick()`. Automatic — appears when attention signals are present, absent when queue is empty. |
 
 **Quick start — avatar cognition:**
@@ -667,7 +667,7 @@ All three have `@DefaultBean` passthrough producers. Override by providing your 
 
 **Attention signals:** `CognitiveAttentionMediator` (`@ApplicationScoped`) observes `CognitiveAttentionRequired` CDI events from neocortex and queues `AttentionBriefing`s per-principal. During `CognitionCore.tick()`, the queue is drained and the briefing is rendered as an `AttentionPromptSection`. When attention signals are present, disabled sections that are relevant to the signals are force-included (e.g., an URGENCY_SPIKE signal forces the goals section even when `goalsEnabled=false`). The mediator is optional — when absent, no attention processing occurs. Disable attention processing via `CognitionConfig.with("attention", false)` (the queue is still drained to prevent growth, but the briefing is discarded).
 
-**External goal registration:** `GoalProposalOrchestrator.registerGoals(agentId, tenantId, goals)` lets consumers inject character-specific goals alongside drive-derived proposals. Registered goals appear in `currentProposals()` and render via `GoalPromptSection`.
+**External goal registration:** `GoalProposalOrchestrator.registerGoals(agentId, tenantId, goals)` lets consumers inject character-specific goals alongside drive-derived proposals. Registered goals appear in `currentProposals()` and render via `EmergentGoalPromptSection`.
 
 **Payload normalization:** `CloudEventIngestionAdapter` accepts an optional `Function<E, E>` normalizer (5th constructor parameter) applied after deserialization before publishing. Use when mixed CloudEvent types have different map shapes to ensure all expected keys are present.
 

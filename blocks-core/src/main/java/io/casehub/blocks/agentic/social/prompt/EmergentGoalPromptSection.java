@@ -15,19 +15,19 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-public class GoalPromptSection implements PromptSection {
+public class EmergentGoalPromptSection implements PromptSection {
 
     private final GoalProposalOrchestrator  driveGoals;
     private final CognitiveGoalOrchestrator cognitiveGoals;
     private final CognitiveGoalConfig       config;
 
-    public GoalPromptSection(GoalProposalOrchestrator driveGoals) {
+    public EmergentGoalPromptSection(GoalProposalOrchestrator driveGoals) {
         this(driveGoals, null, CognitiveGoalConfig.defaults());
     }
 
-    public GoalPromptSection(GoalProposalOrchestrator driveGoals,
-                             CognitiveGoalOrchestrator cognitiveGoals,
-                             CognitiveGoalConfig config) {
+    public EmergentGoalPromptSection(GoalProposalOrchestrator driveGoals,
+                                     CognitiveGoalOrchestrator cognitiveGoals,
+                                     CognitiveGoalConfig config) {
         this.driveGoals     = driveGoals;
         this.cognitiveGoals = cognitiveGoals;
         this.config         = config;

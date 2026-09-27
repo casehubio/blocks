@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class GoalPromptSectionTest {
+class EmergentGoalPromptSectionTest {
 
     private static final PromptContext CTX = new PromptContext("agent1", "tenant1", null);
 
@@ -27,7 +27,7 @@ class GoalPromptSectionTest {
                         GoalPriority.PRIMARY, null),
                 new DriveGoalProposal(DriveAxis.AFFILIATION, "reconnect",
                         "Re-engage with user", "neglected relationship", 0.5))));
-        var section = new GoalPromptSection(goals);
+        var section = new EmergentGoalPromptSection(goals);
         var result = section.contribute(CTX);
         assertThat(result).isNotNull();
         assertThat(result).contains("Learn about the user's interests");
@@ -39,7 +39,7 @@ class GoalPromptSectionTest {
     void returnsNullWhenNoProposals() {
         var goals = mock(GoalProposalOrchestrator.class);
         when(goals.currentProposals("agent1", "tenant1")).thenReturn(Optional.empty());
-        var section = new GoalPromptSection(goals);
+        var section = new EmergentGoalPromptSection(goals);
         assertThat(section.contribute(CTX)).isNull();
     }
 
@@ -47,7 +47,7 @@ class GoalPromptSectionTest {
     void returnsNullForEmptyProposalList() {
         var goals = mock(GoalProposalOrchestrator.class);
         when(goals.currentProposals("agent1", "tenant1")).thenReturn(Optional.of(List.of()));
-        var section = new GoalPromptSection(goals);
+        var section = new EmergentGoalPromptSection(goals);
         assertThat(section.contribute(CTX)).isNull();
     }
 }

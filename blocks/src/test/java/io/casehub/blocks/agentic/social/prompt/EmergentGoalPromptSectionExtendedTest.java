@@ -11,7 +11,6 @@ import io.casehub.neocortex.cognitive.AlmaPadTable;
 import io.casehub.neocortex.cognitive.CognitiveEmotion;
 import io.casehub.neocortex.cognitive.EmotionSource;
 import io.casehub.neocortex.cognitive.EmotionType;
-import io.casehub.neocortex.cognitive.PadProjection;
 import io.casehub.neocortex.mindmap.MindMapNode;
 import io.casehub.neocortex.mindmap.NodeInput;
 import io.casehub.neocortex.mindmap.SubgraphInput;
@@ -29,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class GoalPromptSectionExtendedTest {
+class EmergentGoalPromptSectionExtendedTest {
 
     private InMemoryMindMapStore mindMapStore;
     private String goalSubgraphId;
@@ -51,7 +50,7 @@ class GoalPromptSectionExtendedTest {
                         "Explore quantum computing", "curiosity drive",
                         0.7, null, null))));
 
-        var section = new GoalPromptSection(driveOrch, null, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, null, CognitiveGoalConfig.defaults());
         var result = section.contribute(promptContext());
 
         assertThat(result).isNotNull();
@@ -74,7 +73,7 @@ class GoalPromptSectionExtendedTest {
                         List.of(new CognitiveGoalState.GoalEmotion(goalNode, emotions)),
                         List.of())));
 
-        var section = new GoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
         var result = section.contribute(promptContext());
 
         assertThat(result).isNotNull();
@@ -100,7 +99,7 @@ class GoalPromptSectionExtendedTest {
                         List.of(new CognitiveGoalState.GoalEmotion(goalNode, emotions)),
                         List.of())));
 
-        var section = new GoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
         var result = section.contribute(promptContext());
 
         assertThat(result).isNotNull();
@@ -123,7 +122,7 @@ class GoalPromptSectionExtendedTest {
                         List.of(new CognitiveGoalState.GoalEmotion(goalNode, emotions)),
                         List.of())));
 
-        var section = new GoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
         var result = section.contribute(promptContext());
 
         assertThat(result).isNotNull();
@@ -145,7 +144,7 @@ class GoalPromptSectionExtendedTest {
                         List.of(new CognitiveGoalState.GoalEmotion(goalNode, emotions)),
                         List.of())));
 
-        var section = new GoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
         var result = section.contribute(promptContext());
 
         assertThat(result).isNotNull();
@@ -160,7 +159,7 @@ class GoalPromptSectionExtendedTest {
         var cogOrch = mock(CognitiveGoalOrchestrator.class);
         when(cogOrch.currentState(AGENT, TENANT)).thenReturn(Optional.empty());
 
-        var section = new GoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
         assertThat(section.contribute(promptContext())).isNull();
     }
 
@@ -179,7 +178,7 @@ class GoalPromptSectionExtendedTest {
                         List.of(new CognitiveGoalState.GoalEmotion(goalNode, emotions)),
                         List.of())));
 
-        var section = new GoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
+        var section = new EmergentGoalPromptSection(driveOrch, cogOrch, CognitiveGoalConfig.defaults());
         var result = section.contribute(promptContext());
 
         assertThat(result).contains("reminded 5 times");

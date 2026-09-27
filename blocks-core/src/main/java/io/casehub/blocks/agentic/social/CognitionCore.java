@@ -12,12 +12,11 @@ import io.casehub.blocks.agentic.social.prompt.CharacterDrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
 import io.casehub.blocks.agentic.social.prompt.DrivePromptSection;
-import io.casehub.blocks.agentic.social.prompt.GoalPromptSection;
+import io.casehub.blocks.agentic.social.prompt.EmergentGoalPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MentalModelPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MoodPromptSection;
 import io.casehub.blocks.agentic.social.prompt.NarrativePromptSection;
 import io.casehub.blocks.agentic.social.prompt.NeedsPyramidPromptSection;
-import io.casehub.blocks.agentic.social.prompt.PersonalityPromptSection;
 import io.casehub.blocks.agentic.social.prompt.StrategyPromptSection;
 import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
@@ -388,9 +387,6 @@ public class CognitionCore {
     public List<PromptSection> promptSections() {
         var sections = new ArrayList<PromptSection>();
         var desc     = lastDescriptor;
-        if (desc != null && desc.disposition() != null) {
-            sections.add(new PersonalityPromptSection(desc.disposition().dispositionProfile()));
-        }
         if (desc != null && desc.constraints() != null && !desc.constraints().isEmpty()) {
             var softConstraints = desc.constraints().stream()
                                       .filter(c -> c.severity() != ConstraintSeverity.HARD)
@@ -412,7 +408,7 @@ public class CognitionCore {
         }
         if (config.strategyEnabled() && strategy != null) {sections.add(new StrategyPromptSection(strategy));}
         if (isEnabled(config.goalsEnabled(), AttentionRelevance.GOALS) && goals != null) {
-            sections.add(new GoalPromptSection(goals));
+            sections.add(new EmergentGoalPromptSection(goals));
         }
         if (config.characterDrivesEnabled() && mindMapStore != null) {
             sections.add(new CharacterDrivePromptSection(mindMapStore));

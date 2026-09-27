@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.social.goal;
 
 import io.casehub.blocks.agentic.social.CognitionTickContext;
-import io.casehub.blocks.agentic.social.prompt.GoalPromptSection;
+import io.casehub.blocks.agentic.social.prompt.EmergentGoalPromptSection;
 import io.casehub.blocks.speech.PromptContext;
 import io.casehub.neocortex.cognitive.EmotionType;
 import io.casehub.neocortex.cognitive.PadProjection;
@@ -43,8 +43,8 @@ class GoalCognitionIntegrationTest {
     private InMemoryMemoryStore memoryStore;
     private CognitiveGoalOrchestrator orchestrator;
     private SurfacingAggregationPhase surfacingPhase;
-    private GoalPromptSection promptSection;
-    private String goalSubgraphId;
+    private EmergentGoalPromptSection promptSection;
+    private String                    goalSubgraphId;
     private String birthdayGoalId;
 
     private static final String TENANT = "integration-test";
@@ -73,7 +73,7 @@ class GoalCognitionIntegrationTest {
                 CLOCK);
 
         surfacingPhase = new SurfacingAggregationPhase(mindMapStore, memoryStore);
-        promptSection = new GoalPromptSection(null, orchestrator, config);
+        promptSection = new EmergentGoalPromptSection(null, orchestrator, config);
 
         goalSubgraphId = mindMapStore.createSubgraph(
                 new SubgraphInput("Goals", SubgraphTypes.GOAL, null), TENANT);
