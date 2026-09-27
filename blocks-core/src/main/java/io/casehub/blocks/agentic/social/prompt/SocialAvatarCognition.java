@@ -1,5 +1,6 @@
 package io.casehub.blocks.agentic.social.prompt;
 
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.CognitionConfig;
 import io.casehub.blocks.agentic.social.CognitionCore;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
@@ -45,7 +46,8 @@ public class SocialAvatarCognition implements AvatarCognition {
                                   Optional<NarrativeOrchestrator> narrative,
                                   Optional<GoalProposalOrchestrator> goals,
                                   Optional<InnerLifeOrchestrator> innerLife,
-                                  Optional<AgentRegistry> agentRegistry) {
+                                  Optional<AgentRegistry> agentRegistry,
+                                  Optional<CognitiveAttentionMediator> attentionMediator) {
         this.mood = mood;
         this.drives = drives;
         this.mentalModel = mentalModel;
@@ -56,7 +58,9 @@ public class SocialAvatarCognition implements AvatarCognition {
         this.agentRegistry = agentRegistry;
         this.core = new CognitionCore(mood, drives, userModel, mentalModel, strategy,
                 narrative.orElse(null), goals.orElse(null), null,
-                innerLife.orElse(null), null, CognitionConfig.all());
+                innerLife.orElse(null), null, CognitionConfig.all(),
+                null, null,
+                attentionMediator.orElse(null));
     }
 
     @Override

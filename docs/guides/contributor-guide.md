@@ -31,7 +31,7 @@ Single module -- `casehub-blocks` is a flat library, not a multi-module reactor.
 | `src/main/java/io/casehub/blocks/summarisation/llm/` | LLM-backed `ContentSummariser<T>` -- generic synthesis via `AgentProvider` |
 | `src/main/java/io/casehub/blocks/summarisation/observation/` | Observation accumulator -- tiered, demand-driven rendering for LLM agent prompts (4 files) |
 | `src/main/java/io/casehub/blocks/summarisation/observation/affordance/` | Affordance grounding -- per-entity observation rendering for LLM agents (5 files) |
-| `src/main/java/io/casehub/blocks/agentic/social/prompt/` | Social cognition speech integration -- SocialAvatarCognition, SocialPromptAssembler, ProactiveSpeechSupport, 8 PromptSection implementations (12 files) |
+| `src/main/java/io/casehub/blocks/agentic/social/prompt/` | Social cognition speech integration -- SocialAvatarCognition, SocialPromptAssembler, ProactiveSpeechSupport, AttentionPromptSection, 10 PromptSection implementations |
 
 Tests mirror source layout under `src/test/java/`. Integration test examples exist in:
 - `summarisation/examples/clinical/` -- L1-L4 clinical pipeline (vital readings -> care phases -> narratives)
@@ -291,9 +291,19 @@ The prompt sub-package (`agentic.social.prompt`) wires all social cognition orch
 
 **AvatarCognition SPI** (speech-api): composition root with five methods -- `wrapAssembler()` decorates a base `SpeechPromptAssembler` with social context, `initialize()` hydrates orchestrator state at session open, `tick()` processes accumulated signals across all orchestrators, `evaluateProactive()` checks for proactive initiation, `recordInteraction()` dispatches per-turn signals.
 
-**SocialAvatarCognition** (`@ApplicationScoped`): the blocks-side implementation. Injects direct orchestrators (Mood, Drives, MentalModel, UserModel, Strategy) and optional orchestrators via `Instance<>` (Narrative, Goals, InnerLife, AgentRegistry). `buildSections()` constructs all 8 `PromptSection` implementations -- each reads cached orchestrator state and returns formatted text (or null). Exception isolation: a failing section is logged and skipped, not propagated.
+**SocialAvatarCognition** (`@ApplicationScoped`): the blocks-side implementation. Injects direct orchestrators (Mood, Drives, MentalModel, UserModel, Strategy) and optional orchestrators via `Instance<>` (Narrative, Goals, InnerLife, AgentRegistry, CognitiveAttentionMediator). Constructs `CognitionCore` with all dependencies. `buildSections()` delegates to `CognitionCore.promptSections()`. Exception isolation: a failing section is logged and skipped, not propagated.
 
-**PromptSection lifecycle:** Sections are plain classes (not CDI beans) constructed by `buildSections()`. Each implements `@Nullable contribute(PromptContext)` -- the context carries `agentId`, `tenantId`, and `@Nullable subjectId` (resolved per-turn by `SpeechSession` via speaker identification). Subject-scoped sections (`MentalModelPromptSection`, `UserModelPromptSection`) return null when `subjectId` is null (no identified speaker).
+**PromptSection lifecycle:** Sections are plain classes (not CDI beans) constructed by `CognitionCore.promptSections()`. Each implements `@Nullable contribute(PromptContext)` -- the context carries `agentId`, `tenantId`, and `@Nullable subjectId` (resolved per-turn by `SpeechSession` via speaker identification). Subject-scoped sections (`MentalModelPromptSection`, `UserModelPromptSection`) return null when `subjectId` is null (no identified speaker).
+
+**Attention-aware section gating:** `CognitionCore.promptSections()` uses `isEnabled(configFlag, relevanceSet)` instead of raw config flags for section inclusion. When an `AttentionBriefing` is present and contains signals relevant to a domain, that domain's section is force-included even when its config flag is `false`. The mapping from signal categories to cognitive domains lives in `AttentionRelevance` (package-private, `io.casehub.blocks.agentic.social`):
+
+- `GOALS` ← URGENCY_SPIKE, GOAL_RECOGNIZED, DECAY_DETECTED, BLOCKER_RESOLVED, PRIORITY_SHIFT
+- `DRIVES` ← DRIVE_SHIFT
+- `MOOD` ← AFFECT_CHANGE
+- `MENTAL_MODEL` ← RELATIONSHIP_STAGE, BELIEF_REVISED
+- `USER_MODEL` ← RELATIONSHIP_STAGE
+
+When adding a new `SignalCategory` in neocortex, add it to the appropriate `AttentionRelevance` constant. When adding a new attention-gated `PromptSection`, add an `isEnabled()` call in `CognitionCore.promptSections()` with the relevant constant. MERGE_CANDIDATE and EXPERIENCE_GRADUATED have no corresponding prompt section — they are informational only.
 
 **Signal recording:** `recordInteraction()` dispatches to four orchestrators with per-call exception isolation. Subject-scoped signals (UserModel, MentalModel, Strategy) require an identified speaker. MoodOrchestrator is intentionally excluded -- computing meaningful PAD deltas from conversation turns requires sentiment analysis not available in the speech pipeline. InnerLifeOrchestrator receives `observeResponse()` to reset proactive initiation counters.
 

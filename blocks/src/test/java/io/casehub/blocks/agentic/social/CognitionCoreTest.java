@@ -344,6 +344,123 @@ class CognitionCoreTest {
         assertThat(executed.get()).isTrue();
     }
 
+    @Test
+    void tickDrainsAttentionAtFoundation() {
+        var mediator = new CognitiveAttentionMediator();
+        var briefing = new io.casehub.neocortex.mindmap.AttentionBriefing("agent1", "tenant1",
+                                                                          java.util.List.of(new io.casehub.neocortex.mindmap.AttentionSignal("agent1", "tenant1",
+                                                                                                                                             io.casehub.neocortex.mindmap.SignalCategory.URGENCY_SPIKE,
+                                                                                                                                             "n1", "Goal", 0.9, "deadline")),
+                                                                          0.9, java.time.Instant.now());
+        mediator.onAttentionRequired(new io.casehub.neocortex.mindmap.CognitiveAttentionRequired(briefing, java.time.Instant.now()));
+
+        var core = coreWithMediator(mediator);
+        core.tick("agent1", "tenant1", null, (a, t) -> Set.of());
+
+        assertThat(core.lastBriefing()).isNotNull();
+        assertThat(core.lastBriefing().signals()).hasSize(1);
+    }
+
+    @Test
+    void tickClearsBriefingWhenNoSignals() {
+        var mediator = new CognitiveAttentionMediator();
+        var briefing = new io.casehub.neocortex.mindmap.AttentionBriefing("agent1", "tenant1",
+                                                                          java.util.List.of(new io.casehub.neocortex.mindmap.AttentionSignal("agent1", "tenant1",
+                                                                                                                                             io.casehub.neocortex.mindmap.SignalCategory.URGENCY_SPIKE,
+                                                                                                                                             "n1", "Goal", 0.9, "deadline")),
+                                                                          0.9, java.time.Instant.now());
+        mediator.onAttentionRequired(new io.casehub.neocortex.mindmap.CognitiveAttentionRequired(briefing, java.time.Instant.now()));
+
+        var core = coreWithMediator(mediator);
+        core.tick("agent1", "tenant1", null, (a, t) -> Set.of());
+        assertThat(core.lastBriefing()).isNotNull();
+
+        core.tick("agent1", "tenant1", null, (a, t) -> Set.of());
+        assertThat(core.lastBriefing()).isNull();
+    }
+
+    @Test
+    void tickDrainsButDiscardsWhenAttentionDisabled() {
+        var mediator = new CognitiveAttentionMediator();
+        var briefing = new io.casehub.neocortex.mindmap.AttentionBriefing("agent1", "tenant1",
+                                                                          java.util.List.of(new io.casehub.neocortex.mindmap.AttentionSignal("agent1", "tenant1",
+                                                                                                                                             io.casehub.neocortex.mindmap.SignalCategory.URGENCY_SPIKE,
+                                                                                                                                             "n1", "Goal", 0.9, "deadline")),
+                                                                          0.9, java.time.Instant.now());
+        mediator.onAttentionRequired(new io.casehub.neocortex.mindmap.CognitiveAttentionRequired(briefing, java.time.Instant.now()));
+
+        var core = coreWithMediator(mediator, CognitionConfig.all().with("attention", false));
+        core.tick("agent1", "tenant1", null, (a, t) -> Set.of());
+
+        assertThat(core.lastBriefing()).isNull();
+        assertThat(mediator.drainAttention("agent1")).isEmpty();
+    }
+
+    @Test
+    void promptSectionsIncludesAttentionWhenBriefingPresent() {
+        var mediator = new CognitiveAttentionMediator();
+        mediator.onAttentionRequired(new io.casehub.neocortex.mindmap.CognitiveAttentionRequired(
+                new io.casehub.neocortex.mindmap.AttentionBriefing("agent1", "tenant1",
+                                                                   java.util.List.of(new io.casehub.neocortex.mindmap.AttentionSignal("agent1", "tenant1",
+                                                                                                                                      io.casehub.neocortex.mindmap.SignalCategory.URGENCY_SPIKE,
+                                                                                                                                      "n1", "Goal", 0.9, "deadline")),
+                                                                   0.9, java.time.Instant.now()), java.time.Instant.now()));
+
+        var core = coreWithMediator(mediator);
+        core.tick("agent1", "tenant1", null, (a, t) -> Set.of());
+
+        var sections = core.promptSections();
+        var attentionOutput = sections.stream()
+                                      .map(s -> s.contribute(new io.casehub.blocks.speech.PromptContext("agent1", "tenant1", null)))
+                                      .filter(s -> s != null && s.contains("Attention required"))
+                                      .findFirst();
+        assertThat(attentionOutput).isPresent();
+    }
+
+    @Test
+    void promptSectionsOverridesDisabledGoalsWhenUrgencySignalPresent() {
+        var goals    = mock(io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator.class);
+        var mediator = new CognitiveAttentionMediator();
+        mediator.onAttentionRequired(new io.casehub.neocortex.mindmap.CognitiveAttentionRequired(
+                new io.casehub.neocortex.mindmap.AttentionBriefing("a", "t",
+                                                                   java.util.List.of(new io.casehub.neocortex.mindmap.AttentionSignal("a", "t",
+                                                                                                                                      io.casehub.neocortex.mindmap.SignalCategory.URGENCY_SPIKE,
+                                                                                                                                      "n1", "Goal", 0.9, "deadline")),
+                                                                   0.9, java.time.Instant.now()), java.time.Instant.now()));
+
+        var config = CognitionConfig.all().with("goals", false);
+        var core   = coreWithMediator(mediator, config, goals);
+        core.tick("a", "t", stubDescriptor(), (aid, tid) -> Set.of());
+
+        var sections = core.promptSections();
+        var hasGoals = sections.stream()
+                               .anyMatch(s -> s instanceof io.casehub.blocks.agentic.social.prompt.GoalPromptSection);
+        assertThat(hasGoals).isTrue();
+    }
+
+    private static CognitionCore coreWithMediator(CognitiveAttentionMediator mediator) {
+        return coreWithMediator(mediator, CognitionConfig.all());
+    }
+
+    private static CognitionCore coreWithMediator(CognitiveAttentionMediator mediator,
+                                                  CognitionConfig config) {
+        return coreWithMediator(mediator, config, null);
+    }
+
+    private static CognitionCore coreWithMediator(CognitiveAttentionMediator mediator,
+                                                  CognitionConfig config,
+                                                  io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator goals) {
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        return new CognitionCore(mood, drives,
+                                 null, null, null, null, goals, null,
+                                 null, null, config, null, null, mediator);
+    }
+
 
     private static CognitionCore minimalCore() {
         var mood = new MoodOrchestrator(MoodConfig.defaults());

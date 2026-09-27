@@ -44,6 +44,7 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativePipeline;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.social.narrative.NoOpNarrativeStore;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.prompt.SocialAvatarCognition;
 import io.casehub.blocks.attestation.NoOpAttestationIntentWriter;
 import io.casehub.blocks.channel.summary.ChannelSummariser;
@@ -301,11 +302,13 @@ public class BlocksAutoConfiguration {
             Optional<NarrativeOrchestrator> narrativeOrchestrator,
             Optional<GoalProposalOrchestrator> goalProposalOrchestrator,
             Optional<InnerLifeOrchestrator> innerLifeOrchestrator,
-            Optional<AgentRegistry> agentRegistry) {
+            Optional<AgentRegistry> agentRegistry,
+            Optional<CognitiveAttentionMediator> attentionMediator) {
         return new SocialAvatarCognition(
                 mood, drives, mentalModel, userModel, strategy,
                 narrativeOrchestrator, goalProposalOrchestrator,
-                innerLifeOrchestrator, agentRegistry);
+                innerLifeOrchestrator, agentRegistry,
+                attentionMediator);
     }
 
     // ── Goal ──

@@ -4,6 +4,7 @@ import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.blocks.agentic.social.CbrMentalModelStore;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
@@ -121,6 +122,7 @@ public class BlocksBeans {
     @Inject Instance<TrustScoreSource> scoreSourceInstance;
     @Inject Instance<TrustRoutingPolicyProvider> policyProviderInstance;
     @Inject Instance<SystemPromptCustomiser> systemPromptCustomiserInstance;
+    @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -312,7 +314,8 @@ public class BlocksBeans {
                 optionalFrom(narrativeOrchestratorInstance),
                 optionalFrom(goalProposalOrchestratorInstance),
                 optionalFrom(innerLifeOrchestratorInstance),
-                optionalFrom(agentRegistryInstance));
+                optionalFrom(agentRegistryInstance),
+                optionalFrom(attentionMediatorInstance));
     }
 
     // ── Goal ──

@@ -575,7 +575,7 @@ Speech pipeline SPIs — provider-agnostic interfaces for audio, prompt assembly
 
 ### `io.casehub.blocks.agentic.social.prompt` (module: `blocks`)
 
-Social cognition speech integration — wires all 9 social cognition orchestrators into the speech pipeline via the `AvatarCognition` SPI.
+Social cognition speech integration — wires all social cognition orchestrators + attention mediator into the speech pipeline via the `AvatarCognition` SPI.
 
 | Class | Type | What it does |
 |-------|------|-------------|
@@ -590,6 +590,7 @@ Social cognition speech integration — wires all 9 social cognition orchestrato
 | `StrategyPromptSection` | PromptSection | Learned interaction strategies via `StrategyProfile.toPromptSection()`. |
 | `NarrativePromptSection` | PromptSection | Self-narrative via `CognitiveObservationSections`. Optional (requires NarrativeOrchestrator). |
 | `GoalPromptSection` | PromptSection | Autonomous drive-generated goal proposals. Optional (requires GoalProposalOrchestrator). |
+| `AttentionPromptSection` | PromptSection | Renders neocortex attention signals (URGENCY_SPIKE, DECAY_DETECTED, GOAL_RECOGNIZED, etc.) when `CognitiveAttentionMediator` drains a briefing during `CognitionCore.tick()`. Automatic — appears when attention signals are present, absent when queue is empty. |
 
 **Quick start — avatar cognition:**
 ```java
@@ -662,7 +663,9 @@ Consumers that only use blocks' pure types (records, sealed interfaces, plain cl
 
 All three have `@DefaultBean` passthrough producers. Override by providing your own `@ApplicationScoped` bean. `CognitiveImpact.fromText(description)` is the common-case factory for simple text interactions.
 
-**CognitionCore prompt sections:** `CognitionCore.promptSections()` now includes `PersonalityPromptSection` (from `AgentDescriptor.disposition()`) and `ConstraintPromptSection` (from `AgentDescriptor.constraints()`) when available. These are populated after the first `tick()` call.
+**CognitionCore prompt sections:** `CognitionCore.promptSections()` includes `PersonalityPromptSection` (from `AgentDescriptor.disposition()`) and `ConstraintPromptSection` (from `AgentDescriptor.constraints()`) when available, plus `AttentionPromptSection` when neocortex attention signals are present. These are populated after the first `tick()` call.
+
+**Attention signals:** `CognitiveAttentionMediator` (`@ApplicationScoped`) observes `CognitiveAttentionRequired` CDI events from neocortex and queues `AttentionBriefing`s per-principal. During `CognitionCore.tick()`, the queue is drained and the briefing is rendered as an `AttentionPromptSection`. When attention signals are present, disabled sections that are relevant to the signals are force-included (e.g., an URGENCY_SPIKE signal forces the goals section even when `goalsEnabled=false`). The mediator is optional — when absent, no attention processing occurs. Disable attention processing via `CognitionConfig.with("attention", false)` (the queue is still drained to prevent growth, but the briefing is discarded).
 
 **External goal registration:** `GoalProposalOrchestrator.registerGoals(agentId, tenantId, goals)` lets consumers inject character-specific goals alongside drive-derived proposals. Registered goals appear in `currentProposals()` and render via `GoalPromptSection`.
 

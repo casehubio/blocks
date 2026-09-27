@@ -7,6 +7,7 @@ import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.need.NeedTier;
 import io.casehub.blocks.agentic.social.need.NeedTierMappingProvider;
+import io.casehub.blocks.agentic.social.prompt.AttentionPromptSection;
 import io.casehub.blocks.agentic.social.prompt.CharacterDrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
@@ -25,7 +26,9 @@ import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.ConstraintSeverity;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.relationship.QualitySignal;
+import io.casehub.neocortex.mindmap.AttentionBriefing;
 import io.casehub.neocortex.mindmap.MindMapStore;
+import io.casehub.neocortex.mindmap.SignalCategory;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;
 import org.jspecify.annotations.Nullable;
@@ -34,106 +37,150 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class CognitionCore {
 
     private static final System.Logger LOG =
             System.getLogger(CognitionCore.class.getName());
-
-    private final MoodOrchestrator mood;
-    private final DriveOrchestrator drives;
-    private final @Nullable UserModelOrchestrator userModel;
-    private final @Nullable MentalModelOrchestrator mentalModel;
+    private static final String MOOD_APPRAISAL_PROMPT = """
+                                                        Rate the emotional tone of this conversation exchange from the \
+                                                        perspective of the agent who just responded. Score each PAD axis \
+                                                        as a delta (change from neutral):
+                                                        - pleasure: how pleasant/unpleasant was this exchange? [-0.3, +0.3]
+                                                        - arousal: how energizing/calming? [-0.3, +0.3]
+                                                        - dominance: how empowering/diminishing? [-0.3, +0.3]
+                                                        
+                                                        Respond with JSON only:
+                                                        {"pleasure":0.15,"arousal":0.1,"dominance":0.05,"cause":"mutual intellectual recognition"}""";
+    private static final String BDI_EXTRACTION_PROMPT = """
+                                                        Extract mental state signals from what this person said. \
+                                                        Classify each statement as a belief (what they think is true), \
+                                                        desire (what they want), or intention (what they plan to do).
+                                                        
+                                                        Respond with JSON only. Use short descriptive keys (2-4 words, \
+                                                        kebab-case). Only include clear, confident signals — skip vague \
+                                                        or ambiguous statements.
+                                                        
+                                                        {"beliefs":[{"key":"values-universal-energy","text":"Believes energy should be freely available to all","type":"BELIEF_STATEMENT"}],\
+                                                        "desires":[{"key":"recognition-for-ac","text":"Wants recognition for alternating current work","type":"DESIRE_EXPRESSION"}],\
+                                                        "intentions":[{"key":"build-wardenclyffe","text":"Plans to build the Wardenclyffe tower","type":"INTENTION_DECLARATION"}]}""";
+    private final           MoodOrchestrator             mood;
+    private final           DriveOrchestrator            drives;
+    private final @Nullable UserModelOrchestrator        userModel;
+    private final @Nullable MentalModelOrchestrator      mentalModel;
     private final @Nullable StrategyLearningOrchestrator strategy;
-    private final @Nullable NarrativeOrchestrator narrative;
-    private final @Nullable GoalProposalOrchestrator goals;
-    private final @Nullable MemoryHygieneOrchestrator memoryHygiene;
-    private final @Nullable InnerLifeOrchestrator     innerLife;
-
-    private final @Nullable AgentProvider agentProvider;
-    private final CognitionConfig config;
-    private final java.util.Map<CognitionPhase, java.util.List<CognitionTickParticipant>> customParticipants = new java.util.EnumMap<>(CognitionPhase.class);
-    private final @Nullable MindMapStore mindMapStore;
-    private final java.util.Map<String, java.util.Set<NeedTier>> needTierMapping;
+    private final @Nullable NarrativeOrchestrator        narrative;
+    private final @Nullable GoalProposalOrchestrator     goals;
+    private final @Nullable MemoryHygieneOrchestrator    memoryHygiene;
+    private final @Nullable InnerLifeOrchestrator        innerLife;
+    private final @Nullable    AgentProvider                                                           agentProvider;
+    private final              CognitionConfig                                                         config;
+    private final              java.util.Map<CognitionPhase, java.util.List<CognitionTickParticipant>> customParticipants = new java.util.EnumMap<>(CognitionPhase.class);
+    private final @Nullable    MindMapStore                                                            mindMapStore;
+    private final              java.util.Map<String, java.util.Set<NeedTier>>                          needTierMapping;
+    private final @Nullable    CognitiveAttentionMediator                                              attentionMediator;
+    private volatile @Nullable AttentionBriefing                                                       lastBriefing;
     private java.util.function.UnaryOperator<java.util.List<PromptSection>> sectionCustomizer;
-
-
     private volatile @Nullable AgentDescriptor lastDescriptor;
 
     public CognitionCore(MoodOrchestrator mood,
-                          DriveOrchestrator drives,
-                          @Nullable UserModelOrchestrator userModel,
-                          @Nullable MentalModelOrchestrator mentalModel,
-                          @Nullable StrategyLearningOrchestrator strategy,
-                          @Nullable NarrativeOrchestrator narrative,
-                          @Nullable GoalProposalOrchestrator goals,
-                          @Nullable MemoryHygieneOrchestrator memoryHygiene) {
+                         DriveOrchestrator drives,
+                         @Nullable UserModelOrchestrator userModel,
+                         @Nullable MentalModelOrchestrator mentalModel,
+                         @Nullable StrategyLearningOrchestrator strategy,
+                         @Nullable NarrativeOrchestrator narrative,
+                         @Nullable GoalProposalOrchestrator goals,
+                         @Nullable MemoryHygieneOrchestrator memoryHygiene) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-                goals, memoryHygiene, null, null, CognitionConfig.all());
+             goals, memoryHygiene, null, null, CognitionConfig.all());
     }
 
     public CognitionCore(MoodOrchestrator mood,
-                          DriveOrchestrator drives,
-                          @Nullable UserModelOrchestrator userModel,
-                          @Nullable MentalModelOrchestrator mentalModel,
-                          @Nullable StrategyLearningOrchestrator strategy,
-                          @Nullable NarrativeOrchestrator narrative,
-                          @Nullable GoalProposalOrchestrator goals,
-                          @Nullable MemoryHygieneOrchestrator memoryHygiene,
-                          @Nullable AgentProvider agentProvider) {
+                         DriveOrchestrator drives,
+                         @Nullable UserModelOrchestrator userModel,
+                         @Nullable MentalModelOrchestrator mentalModel,
+                         @Nullable StrategyLearningOrchestrator strategy,
+                         @Nullable NarrativeOrchestrator narrative,
+                         @Nullable GoalProposalOrchestrator goals,
+                         @Nullable MemoryHygieneOrchestrator memoryHygiene,
+                         @Nullable AgentProvider agentProvider) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-                goals, memoryHygiene, null, agentProvider, CognitionConfig.all());
+             goals, memoryHygiene, null, agentProvider, CognitionConfig.all());
+    }
+
+
+    public CognitionCore(MoodOrchestrator mood,
+                         DriveOrchestrator drives,
+                         @Nullable UserModelOrchestrator userModel,
+                         @Nullable MentalModelOrchestrator mentalModel,
+                         @Nullable StrategyLearningOrchestrator strategy,
+                         @Nullable NarrativeOrchestrator narrative,
+                         @Nullable GoalProposalOrchestrator goals,
+                         @Nullable MemoryHygieneOrchestrator memoryHygiene,
+                         @Nullable InnerLifeOrchestrator innerLife,
+                         @Nullable AgentProvider agentProvider,
+                         CognitionConfig config) {
+        this(mood, drives, userModel, mentalModel, strategy, narrative,
+             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null);
     }
 
     public CognitionCore(MoodOrchestrator mood,
-                          DriveOrchestrator drives,
-                          @Nullable UserModelOrchestrator userModel,
-                          @Nullable MentalModelOrchestrator mentalModel,
-                          @Nullable StrategyLearningOrchestrator strategy,
-                          @Nullable NarrativeOrchestrator narrative,
-                          @Nullable GoalProposalOrchestrator goals,
-                          @Nullable MemoryHygieneOrchestrator memoryHygiene,
-                          @Nullable InnerLifeOrchestrator innerLife,
-                          @Nullable AgentProvider agentProvider,
-                          CognitionConfig config) {
-        this(mood, drives, userModel, mentalModel, strategy, narrative,
-             goals, memoryHygiene, innerLife, agentProvider, config, null, null);
+                         DriveOrchestrator drives,
+                         @Nullable UserModelOrchestrator userModel,
+                         @Nullable MentalModelOrchestrator mentalModel,
+                         @Nullable StrategyLearningOrchestrator strategy,
+                         @Nullable NarrativeOrchestrator narrative,
+                         @Nullable GoalProposalOrchestrator goals,
+                         @Nullable MemoryHygieneOrchestrator memoryHygiene,
+                         @Nullable InnerLifeOrchestrator innerLife,
+                         @Nullable AgentProvider agentProvider,
+                         CognitionConfig config,
+                         @Nullable MindMapStore mindMapStore,
+                         @Nullable NeedTierMappingProvider needTierMappingProvider,
+                         @Nullable CognitiveAttentionMediator attentionMediator) {
+        this.mood              = mood;
+        this.drives            = drives;
+        this.userModel         = userModel;
+        this.mentalModel       = mentalModel;
+        this.strategy          = strategy;
+        this.narrative         = narrative;
+        this.goals             = goals;
+        this.memoryHygiene     = memoryHygiene;
+        this.innerLife         = innerLife;
+        this.agentProvider     = agentProvider;
+        this.config            = config;
+        this.mindMapStore      = mindMapStore;
+        this.needTierMapping   = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
+        this.attentionMediator = attentionMediator;
     }
 
-    public CognitionCore(MoodOrchestrator mood,
-                          DriveOrchestrator drives,
-                          @Nullable UserModelOrchestrator userModel,
-                          @Nullable MentalModelOrchestrator mentalModel,
-                          @Nullable StrategyLearningOrchestrator strategy,
-                          @Nullable NarrativeOrchestrator narrative,
-                          @Nullable GoalProposalOrchestrator goals,
-                          @Nullable MemoryHygieneOrchestrator memoryHygiene,
-                          @Nullable InnerLifeOrchestrator innerLife,
-                          @Nullable AgentProvider agentProvider,
-                          CognitionConfig config,
-                          @Nullable MindMapStore mindMapStore,
-                          @Nullable NeedTierMappingProvider needTierMappingProvider) {
-        this.mood = mood;
-        this.drives = drives;
-        this.userModel = userModel;
-        this.mentalModel = mentalModel;
-        this.strategy = strategy;
-        this.narrative = narrative;
-        this.goals = goals;
-        this.memoryHygiene = memoryHygiene;
-        this.innerLife = innerLife;
-        this.agentProvider = agentProvider;
-        this.config        = config;
-        this.mindMapStore  = mindMapStore;
-        this.needTierMapping = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
+    private static double extractDouble(String json, String key) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*(-?\\d+\\.?\\d*)");
+        var matcher = pattern.matcher(json);
+        return matcher.find() ? Double.parseDouble(matcher.group(1)) : 0.0;
     }
 
+    private static String extractJsonString(String json, String key) {
+        var pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
+        var matcher = pattern.matcher(json);
+        return matcher.find() ? matcher.group(1) : "";
+    }
 
     public void tick(String agentId, String tenantId,
                      @Nullable AgentDescriptor descriptor,
                      SubjectResolver resolver) {
         this.lastDescriptor = descriptor;
+        this.lastBriefing   = null;
+        if (attentionMediator != null) {
+            var briefing = attentionMediator.drainAttention(agentId);
+            if (config.attentionEnabled()) {
+                this.lastBriefing = briefing.orElse(null);
+            }
+        }
         var context = new CognitionTickContext(agentId, tenantId, descriptor, resolver);
 
         // FOUNDATION
@@ -178,9 +225,9 @@ public class CognitionCore {
     }
 
     public void recordInteraction(String agentId, String tenantId,
-                                   @Nullable String subjectId,
-                                   String userMessage, String response,
-                                   @Nullable CognitiveImpact impact) {
+                                  @Nullable String subjectId,
+                                  String userMessage, String response,
+                                  @Nullable CognitiveImpact impact) {
         if (config.moodEnabled()) {
             if (impact != null && impact.moodSignal() != null) {
                 mood.record(impact.moodSignal(), agentId, tenantId);
@@ -192,12 +239,12 @@ public class CognitionCore {
         if (subjectId != null) {
             if (config.userModelEnabled() && userModel != null) {
                 var signal = (impact != null && impact.userModelSignal() != null)
-                        ? impact.userModelSignal()
-                        : deriveQualitySignal(agentId, tenantId, userMessage);
+                             ? impact.userModelSignal()
+                             : deriveQualitySignal(agentId, tenantId, userMessage);
                 safeRun(() -> userModel.record(signal, agentId, subjectId, tenantId));
             }
             if (config.mentalModelEnabled() && mentalModel != null
-                    && (impact == null || !impact.suppressBdiExtraction())) {
+                && (impact == null || !impact.suppressBdiExtraction())) {
                 safeRun(() -> extractAndRecordMentalState(
                         agentId, subjectId, tenantId, userMessage));
             }
@@ -205,22 +252,22 @@ public class CognitionCore {
                 if (impact != null && impact.strategySignal() != null) {
                     var strategySignal = impact.strategySignal();
                     safeRun(() -> strategy.record(strategySignal,
-                            agentId, subjectId, tenantId));
+                                                  agentId, subjectId, tenantId));
                 } else {
                     String caseId = (impact != null && impact.conversationId() != null)
-                            ? impact.conversationId() : null;
+                                    ? impact.conversationId() : null;
                     safeRun(() -> strategy.record(
                             new EngagementSignal.TurnOutcome(
                                     new EngagementEvent(agentId, subjectId,
-                                            tenantId, caseId,
-                                            UUID.randomUUID().toString(),
-                                            Instant.now(),
-                                            userMessage.isBlank()
-                                                    ? "[interaction]"
-                                                    : userMessage,
-                                            null, Map.of(), true, null,
-                                            (int) response.length(),
-                                            null, null, null),
+                                                        tenantId, caseId,
+                                                        UUID.randomUUID().toString(),
+                                                        Instant.now(),
+                                                        userMessage.isBlank()
+                                                        ? "[interaction]"
+                                                        : userMessage,
+                                                        null, Map.of(), true, null,
+                                                        (int) response.length(),
+                                                        null, null, null),
                                     Map.of(), response),
                             agentId, subjectId, tenantId));
                 }
@@ -228,73 +275,48 @@ public class CognitionCore {
         }
     }
 
-    private static final String MOOD_APPRAISAL_PROMPT = """
-            Rate the emotional tone of this conversation exchange from the \
-            perspective of the agent who just responded. Score each PAD axis \
-            as a delta (change from neutral):
-            - pleasure: how pleasant/unpleasant was this exchange? [-0.3, +0.3]
-            - arousal: how energizing/calming? [-0.3, +0.3]
-            - dominance: how empowering/diminishing? [-0.3, +0.3]
-            
-            Respond with JSON only:
-            {"pleasure":0.15,"arousal":0.1,"dominance":0.05,"cause":"mutual intellectual recognition"}""";
-
     private void appraiseMood(String agentId, String tenantId,
-                               String userMessage, String response) {
-        if (agentProvider == null) return;
+                              String userMessage, String response) {
+        if (agentProvider == null) {return;}
         try {
             var truncatedMsg = userMessage.length() > 200
-                    ? userMessage.substring(0, 200) + "..." : userMessage;
+                               ? userMessage.substring(0, 200) + "..." : userMessage;
             var truncatedResp = response.length() > 200
-                    ? response.substring(0, 200) + "..." : response;
+                                ? response.substring(0, 200) + "..." : response;
             var userPrompt = "Other person said:\n" + truncatedMsg
-                    + "\n\nAgent responded:\n" + truncatedResp;
-            var config = AgentSessionConfig.of(MOOD_APPRAISAL_PROMPT, userPrompt);
+                             + "\n\nAgent responded:\n" + truncatedResp;
+            var config     = AgentSessionConfig.of(MOOD_APPRAISAL_PROMPT, userPrompt);
             var textResult = StructuredAgentInvoker.invokeText(agentProvider, config);
-            if (textResult instanceof InvocationResult.AgentError<?>) return;
-            var json = ((InvocationResult.Success<String>) textResult).value();
+            if (textResult instanceof InvocationResult.AgentError<?>) {return;}
+            var json      = ((InvocationResult.Success<String>) textResult).value();
             var jsonStart = json.indexOf('{');
-            var jsonEnd = json.lastIndexOf('}');
+            var jsonEnd   = json.lastIndexOf('}');
             if (jsonStart >= 0 && jsonEnd > jsonStart) {
                 json = json.substring(jsonStart, jsonEnd + 1);
-                double p = extractDouble(json, "pleasure");
-                double a = extractDouble(json, "arousal");
-                double d = extractDouble(json, "dominance");
-                var cause = extractJsonString(json, "cause");
+                double p     = extractDouble(json, "pleasure");
+                double a     = extractDouble(json, "arousal");
+                double d     = extractDouble(json, "dominance");
+                var    cause = extractJsonString(json, "cause");
                 p = Math.clamp(p, -0.3, 0.3);
                 a = Math.clamp(a, -0.3, 0.3);
                 d = Math.clamp(d, -0.3, 0.3);
                 mood.record(new MoodSignal.InteractionAppraisal(p, a, d,
-                        cause.isEmpty() ? "interaction" : cause),
-                        agentId, tenantId);
+                                                                cause.isEmpty() ? "interaction" : cause),
+                            agentId, tenantId);
             }
         } catch (Exception e) {
             LOG.log(System.Logger.Level.WARNING, "Mood appraisal failed", e);
         }
     }
 
-    private static double extractDouble(String json, String key) {
-        var pattern = java.util.regex.Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*(-?\\d+\\.?\\d*)");
-        var matcher = pattern.matcher(json);
-        return matcher.find() ? Double.parseDouble(matcher.group(1)) : 0.0;
-    }
-
-    private static String extractJsonString(String json, String key) {
-        var pattern = java.util.regex.Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*\"([^\"]+)\"");
-        var matcher = pattern.matcher(json);
-        return matcher.find() ? matcher.group(1) : "";
-    }
-
     private InteractionSignal deriveQualitySignal(String agentId, String tenantId,
-                                                   String userMessage) {
-        QualitySignal quality = QualitySignal.NEUTRAL;
-        var currentMood = mood.currentMood(agentId, tenantId);
+                                                  String userMessage) {
+        QualitySignal quality     = QualitySignal.NEUTRAL;
+        var           currentMood = mood.currentMood(agentId, tenantId);
         if (currentMood.isPresent()) {
-            var m = currentMood.get();
+            var    m        = currentMood.get();
             double pleasure = m.pleasure();
-            double arousal = m.arousal();
+            double arousal  = m.arousal();
             if (arousal > 0.3 && pleasure > 0.1) {
                 quality = QualitySignal.POSITIVE;
             } else if (arousal < -0.1 && pleasure < -0.1) {
@@ -304,29 +326,18 @@ public class CognitionCore {
         return new InteractionSignal.CustomSignal(userMessage, quality);
     }
 
-    private static final String BDI_EXTRACTION_PROMPT = """
-            Extract mental state signals from what this person said. \
-            Classify each statement as a belief (what they think is true), \
-            desire (what they want), or intention (what they plan to do).
-            
-            Respond with JSON only. Use short descriptive keys (2-4 words, \
-            kebab-case). Only include clear, confident signals — skip vague \
-            or ambiguous statements.
-            
-            {"beliefs":[{"key":"values-universal-energy","text":"Believes energy should be freely available to all","type":"BELIEF_STATEMENT"}],\
-            "desires":[{"key":"recognition-for-ac","text":"Wants recognition for alternating current work","type":"DESIRE_EXPRESSION"}],\
-            "intentions":[{"key":"build-wardenclyffe","text":"Plans to build the Wardenclyffe tower","type":"INTENTION_DECLARATION"}]}""";
-
     private void extractAndRecordMentalState(String agentId, String subjectId,
-                                              String tenantId, String utterance) {
+                                             String tenantId, String utterance) {
         if (agentProvider != null) {
             try {
                 var truncated = utterance.length() > 500
-                        ? utterance.substring(0, 500) + "..." : utterance;
+                                ? utterance.substring(0, 500) + "..." : utterance;
                 var config = AgentSessionConfig.of(BDI_EXTRACTION_PROMPT,
-                        "What " + subjectId + " said:\n" + truncated);
+                                                   "What " + subjectId + " said:\n" + truncated);
                 var bdiResult = StructuredAgentInvoker.invokeText(agentProvider, config);
-                if (bdiResult instanceof InvocationResult.AgentError<?>) throw new RuntimeException("BDI extraction failed");
+                if (bdiResult instanceof InvocationResult.AgentError<?>) {
+                    throw new RuntimeException("BDI extraction failed");
+                }
                 var json = ((InvocationResult.Success<String>) bdiResult).value();
                 recordExtractedSignals(agentId, subjectId, tenantId, json);
                 return;
@@ -341,27 +352,27 @@ public class CognitionCore {
     }
 
     private void recordExtractedSignals(String agentId, String subjectId,
-                                         String tenantId, String json) {
+                                        String tenantId, String json) {
         var jsonStart = json.indexOf('{');
-        var jsonEnd = json.lastIndexOf('}');
-        if (jsonStart < 0 || jsonEnd < 0) return;
+        var jsonEnd   = json.lastIndexOf('}');
+        if (jsonStart < 0 || jsonEnd < 0) {return;}
         json = json.substring(jsonStart, jsonEnd + 1);
 
         recordSignalArray(agentId, subjectId, tenantId, json,
-                "beliefs", CueType.BELIEF_STATEMENT);
+                          "beliefs", CueType.BELIEF_STATEMENT);
         recordSignalArray(agentId, subjectId, tenantId, json,
-                "desires", CueType.DESIRE_EXPRESSION);
+                          "desires", CueType.DESIRE_EXPRESSION);
         recordSignalArray(agentId, subjectId, tenantId, json,
-                "intentions", CueType.INTENTION_DECLARATION);
+                          "intentions", CueType.INTENTION_DECLARATION);
     }
 
     private void recordSignalArray(String agentId, String subjectId,
-                                    String tenantId, String json,
-                                    String arrayName, CueType cueType) {
+                                   String tenantId, String json,
+                                   String arrayName, CueType cueType) {
         var arrayPattern = java.util.regex.Pattern.compile(
                 "\"" + arrayName + "\"\\s*:\\s*\\[([^\\]]*)]");
         var arrayMatcher = arrayPattern.matcher(json);
-        if (!arrayMatcher.find()) return;
+        if (!arrayMatcher.find()) {return;}
         var arrayContent = arrayMatcher.group(1);
 
         var itemPattern = java.util.regex.Pattern.compile(
@@ -370,7 +381,7 @@ public class CognitionCore {
         while (itemMatcher.find()) {
             var text = itemMatcher.group(1);
             mentalModel.record(new MentalStateSignal.VerbalCue(text, cueType),
-                    agentId, subjectId, tenantId);
+                               agentId, subjectId, tenantId);
         }
     }
 
@@ -388,20 +399,29 @@ public class CognitionCore {
                 sections.add(new ConstraintPromptSection(softConstraints));
             }
         }
-        if (config.moodEnabled()) {sections.add(new MoodPromptSection(mood));}
-        if (config.drivesEnabled()) {sections.add(new DrivePromptSection(drives));}
+        if (isEnabled(config.moodEnabled(), AttentionRelevance.MOOD)) {sections.add(new MoodPromptSection(mood));}
+        if (isEnabled(config.drivesEnabled(), AttentionRelevance.DRIVES)) {
+            sections.add(new DrivePromptSection(drives));
+        }
         if (config.narrativeEnabled() && narrative != null) {sections.add(new NarrativePromptSection(narrative));}
-        if (config.userModelEnabled() && userModel != null) {sections.add(new UserModelPromptSection(userModel));}
-        if (config.mentalModelEnabled() && mentalModel != null) {
+        if (isEnabled(config.userModelEnabled(), AttentionRelevance.USER_MODEL) && userModel != null) {
+            sections.add(new UserModelPromptSection(userModel));
+        }
+        if (isEnabled(config.mentalModelEnabled(), AttentionRelevance.MENTAL_MODEL) && mentalModel != null) {
             sections.add(new MentalModelPromptSection(mentalModel));
         }
         if (config.strategyEnabled() && strategy != null) {sections.add(new StrategyPromptSection(strategy));}
-        if (config.goalsEnabled() && goals != null) {sections.add(new GoalPromptSection(goals));}
+        if (isEnabled(config.goalsEnabled(), AttentionRelevance.GOALS) && goals != null) {
+            sections.add(new GoalPromptSection(goals));
+        }
         if (config.characterDrivesEnabled() && mindMapStore != null) {
             sections.add(new CharacterDrivePromptSection(mindMapStore));
         }
         if (config.needsPyramidEnabled() && mindMapStore != null) {
             sections.add(new NeedsPyramidPromptSection(mindMapStore, needTierMapping));
+        }
+        if (config.attentionEnabled() && lastBriefing != null) {
+            sections.add(new AttentionPromptSection(lastBriefing));
         }
         if (sectionCustomizer != null) {
             sections = new ArrayList<>(sectionCustomizer.apply(sections));
@@ -412,18 +432,32 @@ public class CognitionCore {
         return sections;
     }
 
-    public CognitionConfig config() { return config; }
+    public CognitionConfig config()                            {return config;}
 
-    public MoodOrchestrator mood() { return mood; }
-    public DriveOrchestrator drives() { return drives; }
-    public @Nullable UserModelOrchestrator userModel() { return userModel; }
-    public @Nullable MentalModelOrchestrator mentalModel() { return mentalModel; }
-    public @Nullable StrategyLearningOrchestrator strategy() { return strategy; }
-    public @Nullable NarrativeOrchestrator narrative() { return narrative; }
-    public @Nullable GoalProposalOrchestrator goals() { return goals; }
-    public @Nullable MemoryHygieneOrchestrator memoryHygiene() { return memoryHygiene; }
+    public MoodOrchestrator mood()                             {return mood;}
+
+    public DriveOrchestrator drives()                          {return drives;}
+
+    public @Nullable UserModelOrchestrator userModel()         {return userModel;}
+
+    public @Nullable MentalModelOrchestrator mentalModel()     {return mentalModel;}
+
+    public @Nullable StrategyLearningOrchestrator strategy()   {return strategy;}
+
+    public @Nullable NarrativeOrchestrator narrative()         {return narrative;}
+
+    public @Nullable GoalProposalOrchestrator goals()          {return goals;}
+
+    public @Nullable MemoryHygieneOrchestrator memoryHygiene() {return memoryHygiene;}
 
     public @Nullable InnerLifeOrchestrator innerLife()         {return innerLife;}
+
+    public @Nullable AttentionBriefing lastBriefing()          {return lastBriefing;}
+
+    private boolean isEnabled(boolean configFlag, Set<SignalCategory> relevance) {
+        return configFlag || (lastBriefing != null && config.attentionEnabled()
+                              && AttentionRelevance.overrides(lastBriefing, relevance));
+    }
 
 
     public void addParticipant(CognitionPhase phase, CognitionTickParticipant participant) {
