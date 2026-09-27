@@ -98,6 +98,9 @@ public class CognitiveSystemPromptRenderer implements SystemPromptRenderer {
     }
 
     private static void renderVoiceFields(StringBuilder sb, io.casehub.eidos.api.AgentVoiceProfile voice) {
+        if (voice.description() != null && !voice.description().isBlank()) {
+            sb.append(voice.description()).append("\n");
+        }
         if (voice.register() != null) {
             sb.append("Register: ").append(voice.register()).append("\n");
         }
@@ -105,7 +108,7 @@ public class CognitiveSystemPromptRenderer implements SystemPromptRenderer {
             sb.append("Accent: ").append(voice.accent()).append("\n");
         }
         if (voice.catchphrases() != null && !voice.catchphrases().isEmpty()) {
-            sb.append("Catchphrases: ").append(
+            sb.append("Signature catchphrases: ").append(
                     voice.catchphrases().stream()
                          .map(c -> "\"" + c + "\"")
                          .collect(java.util.stream.Collectors.joining(", "))
@@ -115,14 +118,14 @@ public class CognitiveSystemPromptRenderer implements SystemPromptRenderer {
             sb.append("Speech patterns: ").append(String.join(", ", voice.speechPatterns())).append("\n");
         }
         if (voice.vocabularyUses() != null && !voice.vocabularyUses().isEmpty()) {
-            sb.append("Vocabulary uses: ").append(
+            sb.append("Vocabulary: ").append(
                     voice.vocabularyUses().stream()
                          .map(w -> "\"" + w + "\"")
                          .collect(java.util.stream.Collectors.joining(", "))
                                                  ).append("\n");
         }
         if (voice.vocabularyAvoids() != null && !voice.vocabularyAvoids().isEmpty()) {
-            sb.append("Vocabulary avoids: ").append(
+            sb.append("Avoids: ").append(
                     voice.vocabularyAvoids().stream()
                          .map(w -> "\"" + w + "\"")
                          .collect(java.util.stream.Collectors.joining(", "))
