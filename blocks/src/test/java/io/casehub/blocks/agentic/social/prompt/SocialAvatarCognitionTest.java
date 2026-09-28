@@ -59,6 +59,7 @@ class SocialAvatarCognitionTest {
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
     }
 

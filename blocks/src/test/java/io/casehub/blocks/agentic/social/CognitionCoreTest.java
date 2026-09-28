@@ -63,7 +63,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null, null);
+                                     null, null, null, persister, null, null, null);
 
         core.recordInteraction("agent", "tenant", "subject",
                                "hello", "world", null);
@@ -97,7 +97,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null, null);
+                                     null, null, null, persister, null, null, null);
 
         var preBuiltEvent = new EngagementEvent(
                 "agent", "subject", "tenant", "case-1",
@@ -130,7 +130,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null, null);
+                                     null, null, null, persister, null, null, null);
 
         core.recordInteraction("agent", "tenant", "subject",
                                "hello", "world", null);
@@ -149,7 +149,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null, null);
+                                     null, null, null, persister, null, null, null);
 
         core.recordInteraction("agent", "tenant", null,
                                "hello", "world", null);
@@ -169,7 +169,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, null, temporalFocus, null);
+                                     null, null, null, null, temporalFocus, null, null);
 
         core.tick("agent", "tenant", null, (aid, tid) -> Set.of("subject1"));
 
@@ -198,7 +198,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, null, temporalFocus, null);
+                                     null, null, null, null, temporalFocus, null, null);
 
         var sections = core.promptSections();
         var texts = sections.stream()
@@ -232,7 +232,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, config,
-                                     null, null, null, null, temporalFocus, null);
+                                     null, null, null, null, temporalFocus, null, null);
 
         var sections = core.promptSections();
         var texts = sections.stream()
@@ -254,7 +254,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, null, null, reflectionOrchestrator);
+                                     null, null, null, null, null, reflectionOrchestrator, null);
 
         core.tick("agent", "tenant", null, (aid, tid) -> Set.of("subject1"));
 
@@ -277,7 +277,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, null, null, reflectionOrchestrator);
+                                     null, null, null, null, null, reflectionOrchestrator, null);
 
         var sections = core.promptSections();
         var texts = sections.stream()
@@ -305,7 +305,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, config,
-                                     null, null, null, null, null, reflectionOrchestrator);
+                                     null, null, null, null, null, reflectionOrchestrator, null);
 
         var sections = core.promptSections();
         var texts = sections.stream()
@@ -727,7 +727,7 @@ class CognitionCoreTest {
                 mood, new DriveComposer(), DriveConfig.defaults());
         return new CognitionCore(mood, drives,
                                  null, null, null, null, goals, null,
-                                 null, null, config, null, null, mediator, null, null, null);
+                                 null, null, config, null, null, mediator, null, null, null, null);
     }
 
 

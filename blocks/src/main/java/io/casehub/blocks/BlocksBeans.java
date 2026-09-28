@@ -8,6 +8,7 @@ import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
 import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
+import io.casehub.blocks.agentic.social.ConsolidationMediator;
 import io.casehub.blocks.agentic.social.InnerLifeConfig;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelConfig;
@@ -137,6 +138,7 @@ public class BlocksBeans {
     @Inject Instance<EngagementRecorderCore> engagementRecorderInstance;
     @Inject Instance<TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
     @Inject Instance<ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
+    @Inject Instance<ConsolidationMediator> consolidationMediatorInstance;
     @Inject Instance<CognitiveGoalOrchestrator> cognitiveGoalOrchestratorInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
@@ -335,7 +337,8 @@ public class BlocksBeans {
                 optionalFrom(engagementRecorderInstance)
                         .map(r -> (Consumer<EngagementEvent>) r::record),
                 optionalFrom(temporalFocusOrchestratorInstance),
-                optionalFrom(reflectionOrchestratorInstance));
+                optionalFrom(reflectionOrchestratorInstance),
+                optionalFrom(consolidationMediatorInstance));
         optionalFrom(cognitiveGoalOrchestratorInstance).ifPresent(go ->
                                                                           sac.core().addParticipant(CognitionPhase.TERMINAL,
                                                                                                     new GoalEmotionMoodBridge(go, mood)));
