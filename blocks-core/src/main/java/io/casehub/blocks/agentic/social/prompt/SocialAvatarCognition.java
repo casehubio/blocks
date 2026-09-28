@@ -1,14 +1,14 @@
 package io.casehub.blocks.agentic.social.prompt;
 
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.CognitionConfig;
 import io.casehub.blocks.agentic.social.CognitionCore;
-import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
-import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
+import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
+import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
@@ -18,9 +18,8 @@ import io.casehub.blocks.speech.PromptSection;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
-import org.jspecify.annotations.Nullable;
-
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -129,4 +128,9 @@ public class SocialAvatarCognition implements AvatarCognition {
         try { action.run(); }
         catch (Exception e) { LOG.log(System.Logger.Level.WARNING, "Signal recording failed", e); }
     }
+
+    public CognitionCore core() {
+        return core;
+    }
+
 }

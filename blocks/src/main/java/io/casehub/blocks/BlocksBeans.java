@@ -17,11 +17,14 @@ import io.casehub.blocks.agentic.social.MoodConfig;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
 import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
 import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
+import io.casehub.blocks.agentic.social.CognitionPhase;
+import io.casehub.blocks.agentic.social.GoalEmotionMoodBridge;
+import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
-import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
+import io.casehub.blocks.agentic.social.goal.CognitiveGoalOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -134,6 +137,7 @@ public class BlocksBeans {
     @Inject Instance<EngagementRecorderCore> engagementRecorderInstance;
     @Inject Instance<TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
     @Inject Instance<ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
+    @Inject Instance<CognitiveGoalOrchestrator> cognitiveGoalOrchestratorInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -314,13 +318,14 @@ public class BlocksBeans {
         return new SocialNormDetector(cbrStore, config);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public SocialAvatarCognition socialAvatarCognition(
             MoodOrchestrator mood, DriveOrchestrator drives,
             MentalModelOrchestrator mentalModel,
             UserModelOrchestrator userModel,
             StrategyLearningOrchestrator strategy) {
-        return new SocialAvatarCognition(
+        var sac = new SocialAvatarCognition(
                 mood, drives, mentalModel, userModel, strategy,
                 optionalFrom(narrativeOrchestratorInstance),
                 optionalFrom(goalProposalOrchestratorInstance),
@@ -331,6 +336,10 @@ public class BlocksBeans {
                         .map(r -> (Consumer<EngagementEvent>) r::record),
                 optionalFrom(temporalFocusOrchestratorInstance),
                 optionalFrom(reflectionOrchestratorInstance));
+        optionalFrom(cognitiveGoalOrchestratorInstance).ifPresent(go ->
+                                                                          sac.core().addParticipant(CognitionPhase.TERMINAL,
+                                                                                                    new GoalEmotionMoodBridge(go, mood)));
+        return sac;
     }
 
     // ── Temporal Focus ──

@@ -20,8 +20,11 @@ import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
+import io.casehub.blocks.agentic.social.CognitionPhase;
+import io.casehub.blocks.agentic.social.GoalEmotionMoodBridge;
 import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
+import io.casehub.blocks.agentic.social.goal.CognitiveGoalOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -314,8 +317,9 @@ public class BlocksAutoConfiguration {
             Optional<CognitiveAttentionMediator> attentionMediator,
             Optional<EngagementRecorderCore> engagementRecorder,
             Optional<TemporalFocusOrchestrator> temporalFocus,
-            Optional<ReflectionRetrievalOrchestrator> reflectionOrchestrator) {
-        return new SocialAvatarCognition(
+            Optional<ReflectionRetrievalOrchestrator> reflectionOrchestrator,
+            Optional<CognitiveGoalOrchestrator> cognitiveGoalOrchestrator) {
+        var sac = new SocialAvatarCognition(
                 mood, drives, mentalModel, userModel, strategy,
                 narrativeOrchestrator, goalProposalOrchestrator,
                 innerLifeOrchestrator, agentRegistry,
@@ -323,6 +327,10 @@ public class BlocksAutoConfiguration {
                 engagementRecorder.map(r -> (Consumer<EngagementEvent>) r::record),
                 temporalFocus,
                 reflectionOrchestrator);
+        cognitiveGoalOrchestrator.ifPresent(go ->
+                sac.core().addParticipant(CognitionPhase.TERMINAL,
+                        new GoalEmotionMoodBridge(go, mood)));
+        return sac;
     }
 
     @Bean
