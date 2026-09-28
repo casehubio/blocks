@@ -63,7 +63,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister);
+                                     null, null, null, persister, null);
 
         core.recordInteraction("agent", "tenant", "subject",
                                "hello", "world", null);
@@ -97,7 +97,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister);
+                                     null, null, null, persister, null);
 
         var preBuiltEvent = new EngagementEvent(
                 "agent", "subject", "tenant", "case-1",
@@ -130,7 +130,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister);
+                                     null, null, null, persister, null);
 
         core.recordInteraction("agent", "tenant", "subject",
                                "hello", "world", null);
@@ -149,12 +149,97 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister);
+                                     null, null, null, persister, null);
 
         core.recordInteraction("agent", "tenant", null,
                                "hello", "world", null);
 
         verify(persister, org.mockito.Mockito.never()).accept(any(EngagementEvent.class));
+    }
+
+    @Test
+    void tickCallsTemporalFocusOrchestrator() {
+        var temporalFocus = mock(TemporalFocusOrchestrator.class);
+        var mood          = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, null, temporalFocus);
+
+        core.tick("agent", "tenant", null, (aid, tid) -> Set.of("subject1"));
+
+        verify(temporalFocus).tick(eq("agent"), eq("tenant"), eq(Set.of("subject1")));
+    }
+
+    @Test
+    void promptSectionsIncludesTemporalFocusWhenItemsExist() {
+        var temporalFocus = mock(TemporalFocusOrchestrator.class);
+        var node          = mock(io.casehub.neocortex.mindmap.MindMapNode.class);
+        when(node.id()).thenReturn("n");
+        when(temporalFocus.lastFocus()).thenReturn(java.util.List.of(
+                new io.casehub.neocortex.cognitive.index.AttentionItem(
+                        new io.casehub.neocortex.cognitive.index.TemporalEntry(
+                                java.time.Instant.now(),
+                                new io.casehub.neocortex.cognitive.index.TemporalSource.FromMindMap(node),
+                                "t", io.casehub.neocortex.cognitive.Confidence.stated(0.9, java.time.Instant.now())),
+                        0.85, "test item")));
+
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, null, temporalFocus);
+
+        var sections = core.promptSections();
+        var texts = sections.stream()
+                            .map(s -> s.contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null)))
+                            .filter(java.util.Objects::nonNull)
+                            .toList();
+        assertThat(texts).anyMatch(t -> t.contains("Temporal awareness:"));
+        assertThat(texts).anyMatch(t -> t.contains("test item"));
+    }
+
+    @Test
+    void promptSectionsSkipsTemporalFocusWhenDisabled() {
+        var temporalFocus = mock(TemporalFocusOrchestrator.class);
+        var node          = mock(io.casehub.neocortex.mindmap.MindMapNode.class);
+        when(node.id()).thenReturn("n");
+        when(temporalFocus.lastFocus()).thenReturn(java.util.List.of(
+                new io.casehub.neocortex.cognitive.index.AttentionItem(
+                        new io.casehub.neocortex.cognitive.index.TemporalEntry(
+                                java.time.Instant.now(),
+                                new io.casehub.neocortex.cognitive.index.TemporalSource.FromMindMap(node),
+                                "t", io.casehub.neocortex.cognitive.Confidence.stated(0.9, java.time.Instant.now())),
+                        0.85, "should not appear")));
+
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var config = CognitionConfig.all().with("temporalFocus", false);
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, config,
+                                     null, null, null, null, temporalFocus);
+
+        var sections = core.promptSections();
+        var texts = sections.stream()
+                            .map(s -> s.contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null)))
+                            .filter(java.util.Objects::nonNull)
+                            .toList();
+        assertThat(texts).noneMatch(t -> t.contains("Temporal awareness:"));
     }
 
 
@@ -569,7 +654,7 @@ class CognitionCoreTest {
                 mood, new DriveComposer(), DriveConfig.defaults());
         return new CognitionCore(mood, drives,
                                  null, null, null, null, goals, null,
-                                 null, null, config, null, null, mediator, null);
+                                 null, null, config, null, null, mediator, null, null);
     }
 
 

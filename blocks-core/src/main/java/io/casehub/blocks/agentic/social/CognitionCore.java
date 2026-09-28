@@ -18,6 +18,7 @@ import io.casehub.blocks.agentic.social.prompt.MoodPromptSection;
 import io.casehub.blocks.agentic.social.prompt.NarrativePromptSection;
 import io.casehub.blocks.agentic.social.prompt.NeedsPyramidPromptSection;
 import io.casehub.blocks.agentic.social.prompt.StrategyPromptSection;
+import io.casehub.blocks.agentic.social.prompt.TemporalFocusPromptSection;
 import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
 import io.casehub.blocks.speech.PromptSection;
@@ -82,6 +83,8 @@ public class CognitionCore {
     private final              java.util.Map<String, java.util.Set<NeedTier>>                          needTierMapping;
     private final @Nullable    CognitiveAttentionMediator                                              attentionMediator;
     private final @Nullable    Consumer<EngagementEvent>                                               engagementPersister;
+    private final @Nullable    TemporalFocusOrchestrator                                               temporalFocus;
+
 
     private volatile @Nullable AttentionBriefing                                                       lastBriefing;
     private java.util.function.UnaryOperator<java.util.List<PromptSection>> sectionCustomizer;
@@ -125,7 +128,7 @@ public class CognitionCore {
                          @Nullable AgentProvider agentProvider,
                          CognitionConfig config) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null, null);
+             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null, null, null);
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -142,7 +145,7 @@ public class CognitionCore {
                          @Nullable MindMapStore mindMapStore,
                          @Nullable NeedTierMappingProvider needTierMappingProvider,
                          @Nullable CognitiveAttentionMediator attentionMediator,
-                         @Nullable Consumer<EngagementEvent> engagementPersister) {
+                         @Nullable Consumer<EngagementEvent> engagementPersister, @Nullable TemporalFocusOrchestrator temporalFocus) {
         this.mood              = mood;
         this.drives            = drives;
         this.userModel         = userModel;
@@ -158,6 +161,7 @@ public class CognitionCore {
         this.needTierMapping   = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
         this.attentionMediator = attentionMediator;
         this.engagementPersister = engagementPersister;
+        this.temporalFocus = temporalFocus;
     }
 
     private static double extractDouble(String json, String key) {
@@ -184,6 +188,10 @@ public class CognitionCore {
             if (config.attentionEnabled()) {
                 this.lastBriefing = briefing.orElse(null);
             }
+        }
+        if (config.temporalFocusEnabled() && temporalFocus != null) {
+            safeRun(() -> temporalFocus.tick(agentId, tenantId,
+                    resolver.relevantSubjects(agentId, tenantId)));
         }
         var context = new CognitionTickContext(agentId, tenantId, descriptor, resolver);
 
@@ -438,6 +446,12 @@ public class CognitionCore {
         }
         if (config.attentionEnabled() && lastBriefing != null) {
             sections.add(new AttentionPromptSection(lastBriefing));
+        }
+        if (config.temporalFocusEnabled() && temporalFocus != null) {
+            var items = temporalFocus.lastFocus();
+            if (!items.isEmpty()) {
+                sections.add(new TemporalFocusPromptSection(items));
+            }
         }
         if (sectionCustomizer != null) {
             sections = new ArrayList<>(sectionCustomizer.apply(sections));
