@@ -8,6 +8,7 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.need.NeedTier;
 import io.casehub.blocks.agentic.social.need.NeedTierMappingProvider;
 import io.casehub.blocks.agentic.social.prompt.AttentionPromptSection;
+import io.casehub.blocks.agentic.social.prompt.ConsolidationPromptSection;
 import io.casehub.blocks.agentic.social.prompt.CharacterDrivePromptSection;
 import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
@@ -17,8 +18,8 @@ import io.casehub.blocks.agentic.social.prompt.MentalModelPromptSection;
 import io.casehub.blocks.agentic.social.prompt.MoodPromptSection;
 import io.casehub.blocks.agentic.social.prompt.NarrativePromptSection;
 import io.casehub.blocks.agentic.social.prompt.NeedsPyramidPromptSection;
-import io.casehub.blocks.agentic.social.prompt.StrategyPromptSection;
 import io.casehub.blocks.agentic.social.prompt.ReflectionPromptSection;
+import io.casehub.blocks.agentic.social.prompt.StrategyPromptSection;
 import io.casehub.blocks.agentic.social.prompt.TemporalFocusPromptSection;
 import io.casehub.blocks.agentic.social.prompt.UserModelPromptSection;
 import io.casehub.blocks.memory.MemoryHygieneOrchestrator;
@@ -86,6 +87,8 @@ public class CognitionCore {
     private final @Nullable    Consumer<EngagementEvent>                                               engagementPersister;
     private final @Nullable    TemporalFocusOrchestrator                                               temporalFocus;
     private final @Nullable    ReflectionRetrievalOrchestrator                                         reflectionOrchestrator;
+    private final @Nullable    ConsolidationMediator                                                   consolidationMediator;
+    private List<io.casehub.neocortex.mindmap.ConsolidationArtifact> lastConsolidationArtifacts;
 
 
     private volatile @Nullable AttentionBriefing                                                       lastBriefing;
@@ -130,7 +133,7 @@ public class CognitionCore {
                          @Nullable AgentProvider agentProvider,
                          CognitionConfig config) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null, null, null, null);
+             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null, null, null, null, null);
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -147,24 +150,28 @@ public class CognitionCore {
                          @Nullable MindMapStore mindMapStore,
                          @Nullable NeedTierMappingProvider needTierMappingProvider,
                          @Nullable CognitiveAttentionMediator attentionMediator,
-                         @Nullable Consumer<EngagementEvent> engagementPersister, @Nullable TemporalFocusOrchestrator temporalFocus, @Nullable ReflectionRetrievalOrchestrator reflectionOrchestrator) {
-        this.mood              = mood;
-        this.drives            = drives;
-        this.userModel         = userModel;
-        this.mentalModel       = mentalModel;
-        this.strategy          = strategy;
-        this.narrative         = narrative;
-        this.goals             = goals;
-        this.memoryHygiene     = memoryHygiene;
-        this.innerLife         = innerLife;
-        this.agentProvider     = agentProvider;
-        this.config            = config;
-        this.mindMapStore      = mindMapStore;
-        this.needTierMapping   = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
-        this.attentionMediator = attentionMediator;
-        this.engagementPersister = engagementPersister;
-        this.temporalFocus = temporalFocus;
+                         @Nullable Consumer<EngagementEvent> engagementPersister,
+                         @Nullable TemporalFocusOrchestrator temporalFocus,
+                         @Nullable ReflectionRetrievalOrchestrator reflectionOrchestrator,
+                         @Nullable ConsolidationMediator consolidationMediator) {
+        this.mood                   = mood;
+        this.drives                 = drives;
+        this.userModel              = userModel;
+        this.mentalModel            = mentalModel;
+        this.strategy               = strategy;
+        this.narrative              = narrative;
+        this.goals                  = goals;
+        this.memoryHygiene          = memoryHygiene;
+        this.innerLife              = innerLife;
+        this.agentProvider          = agentProvider;
+        this.config                 = config;
+        this.mindMapStore           = mindMapStore;
+        this.needTierMapping        = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
+        this.attentionMediator      = attentionMediator;
+        this.engagementPersister    = engagementPersister;
+        this.temporalFocus          = temporalFocus;
         this.reflectionOrchestrator = reflectionOrchestrator;
+        this.consolidationMediator  = consolidationMediator;
     }
 
     private static double extractDouble(String json, String key) {
@@ -190,6 +197,13 @@ public class CognitionCore {
             var briefing = attentionMediator.drainAttention(agentId);
             if (config.attentionEnabled()) {
                 this.lastBriefing = briefing.orElse(null);
+            }
+        }
+        this.lastConsolidationArtifacts = null;
+        if (consolidationMediator != null && config.consolidationEnabled()) {
+            var artifacts = consolidationMediator.drainForAgent(agentId, tenantId);
+            if (!artifacts.isEmpty()) {
+                this.lastConsolidationArtifacts = artifacts;
             }
         }
         if (config.temporalFocusEnabled() && temporalFocus != null) {
@@ -452,6 +466,10 @@ public class CognitionCore {
         }
         if (config.attentionEnabled() && lastBriefing != null) {
             sections.add(new AttentionPromptSection(lastBriefing));
+        }
+        if (config.consolidationEnabled() && lastConsolidationArtifacts != null
+            && !lastConsolidationArtifacts.isEmpty()) {
+            sections.add(new ConsolidationPromptSection(lastConsolidationArtifacts));
         }
         if (config.temporalFocusEnabled() && temporalFocus != null) {
             var items = temporalFocus.lastFocus();
