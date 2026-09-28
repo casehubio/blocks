@@ -4,6 +4,7 @@ import io.casehub.blocks.agentic.social.drive.DriveProfile;
 import io.casehub.blocks.agentic.social.goal.DriveGoalProposal;
 import io.casehub.blocks.agentic.social.narrative.NarrativeState;
 import io.casehub.neocortex.memory.mood.MoodState;
+import io.casehub.neocortex.mindmap.AttentionBriefing;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
@@ -23,18 +24,19 @@ public record CognitionSnapshot(
         Map<String, UserProfile> userProfiles,
         @Nullable StrategyProfile strategy,
         @Nullable NarrativeState narrative,
-        List<DriveGoalProposal> goalProposals
+        List<DriveGoalProposal> goalProposals,
+        @Nullable AttentionBriefing lastBriefing
 ) {
 
     public static CognitionSnapshot capture(CognitionCore core,
-                                             String agentId,
-                                             String tenantId,
-                                             int turnNumber,
-                                             Set<String> subjectIds) {
+                                            String agentId,
+                                            String tenantId,
+                                            int turnNumber,
+                                            Set<String> subjectIds) {
         var moodState = core.mood().currentMood(agentId, tenantId)
-                .orElse(null);
+                            .orElse(null);
         var driveProfile = core.drives().currentDrives(agentId, tenantId)
-                .orElse(null);
+                               .orElse(null);
 
         var mentalModels = new LinkedHashMap<String, MentalModelSnapshot>();
         if (core.mentalModel() != null) {
@@ -47,32 +49,33 @@ public record CognitionSnapshot(
         if (core.userModel() != null) {
             for (String subjectId : subjectIds) {
                 var profile = core.userModel()
-                        .currentProfile(agentId, subjectId, tenantId);
-                if (profile != null) userProfiles.put(subjectId, profile);
+                                  .currentProfile(agentId, subjectId, tenantId);
+                if (profile != null) {userProfiles.put(subjectId, profile);}
             }
         }
 
         StrategyProfile strategyProfile = null;
         if (core.strategy() != null) {
             strategyProfile = core.strategy()
-                    .currentStrategy(agentId, tenantId).orElse(null);
+                                  .currentStrategy(agentId, tenantId).orElse(null);
         }
 
         NarrativeState narrativeState = null;
         if (core.narrative() != null) {
             narrativeState = core.narrative()
-                    .currentNarrative(agentId, tenantId).orElse(null);
+                                 .currentNarrative(agentId, tenantId).orElse(null);
         }
 
         List<DriveGoalProposal> goals = List.of();
         if (core.goals() != null) {
             goals = core.goals().currentProposals(agentId, tenantId)
-                    .orElse(List.of());
+                        .orElse(List.of());
         }
 
         return new CognitionSnapshot(agentId, tenantId, turnNumber,
-                Instant.now(), moodState, driveProfile, mentalModels,
-                userProfiles, strategyProfile, narrativeState, goals);
+                                     Instant.now(), moodState, driveProfile, mentalModels,
+                                     userProfiles, strategyProfile, narrativeState, goals,
+                                     core.lastBriefing());
     }
 
     public CognitionDelta diffFrom(@Nullable CognitionSnapshot previous) {

@@ -1,7 +1,6 @@
 package io.casehub.blocks.agentic.social;
 
 import io.casehub.blocks.agentic.social.drive.DriveAxis;
-import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.goal.DriveGoalProposal;
 import org.jspecify.annotations.Nullable;
 
@@ -16,7 +15,8 @@ public record CognitionDelta(
         Map<String, ProfileDelta> userProfileDeltas,
         int newEpisodeCount,
         int newThemeCount,
-        List<DriveGoalProposal> newGoals
+        List<DriveGoalProposal> newGoals,
+        @Nullable AttentionDelta attention
 ) {
     public record MoodDelta(double pleasureDelta, double arousalDelta,
                             double dominanceDelta) {}
@@ -30,8 +30,12 @@ public record CognitionDelta(
     public record ProfileDelta(double familiarityDelta,
                                int interactionCountDelta) {}
 
+    public record AttentionDelta(boolean briefingAppeared,
+                                 boolean briefingDisappeared,
+                                 int signalCountDelta) {}
+
     static CognitionDelta compute(@Nullable CognitionSnapshot before,
-                                   CognitionSnapshot after) {
+                                  CognitionSnapshot after) {
         MoodDelta moodDelta = null;
         if (after.mood() != null) {
             if (before == null || before.mood() == null) {
@@ -49,34 +53,33 @@ public record CognitionDelta(
 
         DriveDelta driveDelta = null;
         if (after.drives() != null) {
-            var deltas = new LinkedHashMap<DriveAxis, Double>();
+            var    deltas        = new LinkedHashMap<DriveAxis, Double>();
             double prevComposite = 0;
             for (var entry : after.drives().drives().entrySet()) {
                 double prev = 0;
                 if (before != null && before.drives() != null) {
                     var prevIntensity = before.drives().drives()
-                            .get(entry.getKey());
-                    if (prevIntensity != null)
-                        prev = prevIntensity.intensity();
+                                              .get(entry.getKey());
+                    if (prevIntensity != null) {prev = prevIntensity.intensity();}
                 }
                 deltas.put(entry.getKey(),
-                        entry.getValue().intensity() - prev);
+                           entry.getValue().intensity() - prev);
             }
             if (before != null && before.drives() != null) {
                 prevComposite = before.drives().compositeMotivation();
             }
             driveDelta = new DriveDelta(deltas,
-                    after.drives().compositeMotivation() - prevComposite);
+                                        after.drives().compositeMotivation() - prevComposite);
         }
 
         var mentalDeltas = new LinkedHashMap<String, BdiDelta>();
         for (var entry : after.mentalModels().entrySet()) {
             var prev = before != null
-                    ? before.mentalModels().get(entry.getKey()) : null;
+                       ? before.mentalModels().get(entry.getKey()) : null;
             int prevBeliefs = prev != null ? prev.beliefs().size() : 0;
             int prevDesires = prev != null ? prev.desires().size() : 0;
             int prevIntentions = prev != null
-                    ? prev.intentions().size() : 0;
+                                 ? prev.intentions().size() : 0;
             mentalDeltas.put(entry.getKey(), new BdiDelta(
                     entry.getValue().beliefs().size() - prevBeliefs,
                     entry.getValue().desires().size() - prevDesires,
@@ -86,38 +89,50 @@ public record CognitionDelta(
         var profileDeltas = new LinkedHashMap<String, ProfileDelta>();
         for (var entry : after.userProfiles().entrySet()) {
             var prev = before != null
-                    ? before.userProfiles().get(entry.getKey()) : null;
+                       ? before.userProfiles().get(entry.getKey()) : null;
             double prevFam = prev != null
-                    ? prev.familiarityScore() : 0;
+                             ? prev.familiarityScore() : 0;
             int prevCount = prev != null
-                    ? prev.totalInteractions() : 0;
+                            ? prev.totalInteractions() : 0;
             profileDeltas.put(entry.getKey(), new ProfileDelta(
                     entry.getValue().familiarityScore() - prevFam,
                     entry.getValue().totalInteractions() - prevCount));
         }
 
         int prevEpisodes = 0;
-        int prevThemes = 0;
+        int prevThemes   = 0;
         if (before != null && before.narrative() != null) {
             prevEpisodes = before.narrative().episodes().size();
-            prevThemes = before.narrative().themes().size();
+            prevThemes   = before.narrative().themes().size();
         }
         int afterEpisodes = after.narrative() != null
-                ? after.narrative().episodes().size() : 0;
+                            ? after.narrative().episodes().size() : 0;
         int afterThemes = after.narrative() != null
-                ? after.narrative().themes().size() : 0;
+                          ? after.narrative().themes().size() : 0;
 
         var prevGoalNames = before != null
-                ? before.goalProposals().stream()
-                        .map(DriveGoalProposal::goalName)
-                        .toList()
-                : List.<String>of();
+                            ? before.goalProposals().stream()
+                                    .map(DriveGoalProposal::goalName)
+                                    .toList()
+                            : List.<String>of();
         var newGoals = after.goalProposals().stream()
-                .filter(g -> !prevGoalNames.contains(g.goalName()))
-                .toList();
+                            .filter(g -> !prevGoalNames.contains(g.goalName()))
+                            .toList();
+
+        AttentionDelta attentionDelta = null;
+        boolean        hadBriefing    = before != null && before.lastBriefing() != null;
+        boolean        hasBriefing    = after.lastBriefing() != null;
+        if (hadBriefing || hasBriefing) {
+            int prevSignals  = hadBriefing ? before.lastBriefing().signals().size() : 0;
+            int afterSignals = hasBriefing ? after.lastBriefing().signals().size() : 0;
+            attentionDelta = new AttentionDelta(
+                    !hadBriefing && hasBriefing,
+                    hadBriefing && !hasBriefing,
+                    afterSignals - prevSignals);
+        }
 
         return new CognitionDelta(moodDelta, driveDelta, mentalDeltas,
-                profileDeltas, afterEpisodes - prevEpisodes,
-                afterThemes - prevThemes, newGoals);
+                                  profileDeltas, afterEpisodes - prevEpisodes,
+                                  afterThemes - prevThemes, newGoals, attentionDelta);
     }
 }

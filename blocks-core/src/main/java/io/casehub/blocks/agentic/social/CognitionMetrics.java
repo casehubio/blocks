@@ -14,31 +14,43 @@ public record CognitionMetrics(
     public String summary() {
         var sb = new StringBuilder();
         sb.append(String.format("[sections] %d contributed%n",
-                promptSectionsContributed));
+                                promptSectionsContributed));
         if (delta.mood() != null) {
             sb.append(String.format("[mood] P%+.2f A%+.2f D%+.2f%n",
-                    delta.mood().pleasureDelta(),
-                    delta.mood().arousalDelta(),
-                    delta.mood().dominanceDelta()));
+                                    delta.mood().pleasureDelta(),
+                                    delta.mood().arousalDelta(),
+                                    delta.mood().dominanceDelta()));
         }
         if (delta.drives() != null) {
             var driveStr = delta.drives().intensityDeltas().entrySet()
-                    .stream()
-                    .map(e -> String.format("%s:%+.2f",
-                            e.getKey(), e.getValue()))
-                    .collect(Collectors.joining(" "));
+                                .stream()
+                                .map(e -> String.format("%s:%+.2f",
+                                                        e.getKey(), e.getValue()))
+                                .collect(Collectors.joining(" "));
             sb.append(String.format("[drives] %s%n", driveStr));
         }
         for (var entry : delta.mentalModelDeltas().entrySet()) {
             var bdi = entry.getValue();
             sb.append(String.format("[mental-model] %s: +%dB +%dD +%dI%n",
-                    entry.getKey(), bdi.newBeliefs(),
-                    bdi.newDesires(), bdi.newIntentions()));
+                                    entry.getKey(), bdi.newBeliefs(),
+                                    bdi.newDesires(), bdi.newIntentions()));
         }
         sb.append(String.format("[narrative] +%d episodes +%d themes%n",
-                delta.newEpisodeCount(), delta.newThemeCount()));
+                                delta.newEpisodeCount(), delta.newThemeCount()));
         sb.append(String.format("[goals] %d new%n",
-                delta.newGoals().size()));
+                                delta.newGoals().size()));
+        if (delta.attention() != null) {
+            var att = delta.attention();
+            if (att.briefingAppeared()) {
+                sb.append(String.format("[attention] appeared (%+d signals)%n",
+                                        att.signalCountDelta()));
+            } else if (att.briefingDisappeared()) {
+                sb.append("[attention] cleared%n");
+            } else if (att.signalCountDelta() != 0) {
+                sb.append(String.format("[attention] %+d signals%n",
+                                        att.signalCountDelta()));
+            }
+        }
         return sb.toString();
     }
 

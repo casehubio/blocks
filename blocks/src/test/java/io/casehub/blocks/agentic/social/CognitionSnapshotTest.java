@@ -7,8 +7,12 @@ import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveSource;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.neocortex.mindmap.AttentionBriefing;
+import io.casehub.neocortex.mindmap.AttentionSignal;
+import io.casehub.neocortex.mindmap.SignalCategory;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
@@ -35,6 +39,7 @@ class CognitionSnapshotTest {
         assertThat(snap.strategy()).isNull();
         assertThat(snap.narrative()).isNull();
         assertThat(snap.goalProposals()).isEmpty();
+        assertThat(snap.lastBriefing()).isNull();
     }
 
     @Test
@@ -103,6 +108,68 @@ class CognitionSnapshotTest {
         assertThat(metrics.summary()).contains("[mood]");
         assertThat(metrics.toMarkdownRow()).startsWith("| 1 | agent |");
     }
+
+    @Test
+    void diffReportsAttentionAppeared() {
+        var before = new CognitionSnapshot("agent", "tenant", 0,
+                                           Instant.now(), null, null, java.util.Map.of(), java.util.Map.of(),
+                                           null, null, List.of(), null);
+
+        var signals = List.of(
+                new AttentionSignal("agent", "tenant", SignalCategory.URGENCY_SPIKE,
+                                    "node-1", "test-node", 0.9, "test signal"));
+        var briefing = new AttentionBriefing("agent", "tenant",
+                                             signals, 0.9, Instant.now());
+
+        var after = new CognitionSnapshot("agent", "tenant", 1,
+                                          Instant.now(), null, null, java.util.Map.of(), java.util.Map.of(),
+                                          null, null, List.of(), briefing);
+
+        var delta = after.diffFrom(before);
+
+        assertThat(delta.attention()).isNotNull();
+        assertThat(delta.attention().briefingAppeared()).isTrue();
+        assertThat(delta.attention().briefingDisappeared()).isFalse();
+        assertThat(delta.attention().signalCountDelta()).isEqualTo(1);
+    }
+
+    @Test
+    void diffReportsAttentionDisappeared() {
+        var signals = List.of(
+                new AttentionSignal("agent", "tenant", SignalCategory.DECAY_DETECTED,
+                                    "node-1", "test-node", 0.8, "decay detected"));
+        var briefing = new AttentionBriefing("agent", "tenant",
+                                             signals, 0.8, Instant.now());
+
+        var before = new CognitionSnapshot("agent", "tenant", 0,
+                                           Instant.now(), null, null, java.util.Map.of(), java.util.Map.of(),
+                                           null, null, List.of(), briefing);
+        var after = new CognitionSnapshot("agent", "tenant", 1,
+                                          Instant.now(), null, null, java.util.Map.of(), java.util.Map.of(),
+                                          null, null, List.of(), null);
+
+        var delta = after.diffFrom(before);
+
+        assertThat(delta.attention()).isNotNull();
+        assertThat(delta.attention().briefingAppeared()).isFalse();
+        assertThat(delta.attention().briefingDisappeared()).isTrue();
+        assertThat(delta.attention().signalCountDelta()).isEqualTo(-1);
+    }
+
+    @Test
+    void diffReportsNullAttentionWhenBothNull() {
+        var before = new CognitionSnapshot("agent", "tenant", 0,
+                                           Instant.now(), null, null, java.util.Map.of(), java.util.Map.of(),
+                                           null, null, List.of(), null);
+        var after = new CognitionSnapshot("agent", "tenant", 1,
+                                          Instant.now(), null, null, java.util.Map.of(), java.util.Map.of(),
+                                          null, null, List.of(), null);
+
+        var delta = after.diffFrom(before);
+
+        assertThat(delta.attention()).isNull();
+    }
+
 
     private static CognitionCore minimalCore() {
         var mood = new MoodOrchestrator(MoodConfig.defaults());

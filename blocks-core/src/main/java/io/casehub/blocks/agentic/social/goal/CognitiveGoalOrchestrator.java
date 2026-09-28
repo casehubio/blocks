@@ -102,7 +102,7 @@ public class CognitiveGoalOrchestrator implements CognitionTickParticipant {
             Instant lastSurfaced = lastSurfacedStr != null ? parseInstant(lastSurfacedStr) : null;
 
             var ctx = new AppraisalContext(tenantId, agentId, baseline,
-                    surfacingGap, lastProgress, lastSurfaced, Map.of());
+                    surfacingGap, lastProgress, lastSurfaced, Map.of(), null);
             var goalEmotions = appraisal.appraise(goal, ctx);
             emotions.add(new CognitiveGoalState.GoalEmotion(goal, goalEmotions));
 
