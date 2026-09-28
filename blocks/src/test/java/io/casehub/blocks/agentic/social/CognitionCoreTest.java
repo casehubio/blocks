@@ -434,7 +434,7 @@ class CognitionCoreTest {
 
         var sections = core.promptSections();
         var hasGoals = sections.stream()
-                               .anyMatch(s -> s instanceof io.casehub.blocks.agentic.social.prompt.GoalPromptSection);
+                               .anyMatch(s -> s instanceof io.casehub.blocks.agentic.social.prompt.EmergentGoalPromptSection);
         assertThat(hasGoals).isTrue();
     }
 

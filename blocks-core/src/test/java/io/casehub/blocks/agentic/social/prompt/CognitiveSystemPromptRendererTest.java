@@ -93,6 +93,7 @@ class CognitiveSystemPromptRendererTest {
     @Test
     void rendersVoiceProfileWhenPresent() {
         var voice = new AgentVoiceProfile(
+                "A glamorous, resourceful Southern belle",
                 "southern-belle", "southern-drawl",
                 List.of("Why, how delightful!", "Bless your heart!"),
                 List.of("warm and effusive"),
@@ -116,15 +117,15 @@ class CognitiveSystemPromptRendererTest {
     @Test
     void rendersPersonasWithBaseVoice() {
         var sneekly = new AgentVoiceProfile(
-                "obsequious", null,
+                null, "obsequious", null,
                 List.of("Oh, my DEAR Miss Pitstop!"), List.of("overly helpful"),
                 null, null, null, null);
         var claw = new AgentVoiceProfile(
-                "grandiose", null,
+                null, "grandiose", null,
                 List.of("Nyah-ha-ha-HA!"), List.of("dramatic monologues"),
                 null, null, null, null);
         var voice = new AgentVoiceProfile(
-                null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
                 List.of("explains schemes"),
                 java.util.Map.of("sneekly", sneekly, "claw", claw));
         var desc = AgentDescriptor.builder()
