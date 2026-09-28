@@ -95,6 +95,14 @@ public class SocialCognitionDefaultBeans {
     @Produces
     @DefaultBean
     @Singleton
+    MoodCongruenceConfig moodCongruenceConfig() {
+        return MoodCongruenceConfig.defaults();
+    }
+
+
+    @Produces
+    @DefaultBean
+    @Singleton
     EventStreamBus<DecisionSignal> decisionSignalBus() {
         return new EventStreamBus<>();
     }
