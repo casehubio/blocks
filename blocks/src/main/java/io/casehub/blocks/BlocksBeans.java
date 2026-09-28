@@ -4,10 +4,10 @@ import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.blocks.agentic.social.CbrMentalModelStore;
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.InnerLifeConfig;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelConfig;
@@ -20,6 +20,7 @@ import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
+import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
@@ -132,6 +133,7 @@ public class BlocksBeans {
     @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
     @Inject Instance<EngagementRecorderCore> engagementRecorderInstance;
     @Inject Instance<TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
+    @Inject Instance<ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -327,7 +329,8 @@ public class BlocksBeans {
                 optionalFrom(attentionMediatorInstance),
                 optionalFrom(engagementRecorderInstance)
                         .map(r -> (Consumer<EngagementEvent>) r::record),
-                optionalFrom(temporalFocusOrchestratorInstance));
+                optionalFrom(temporalFocusOrchestratorInstance),
+                optionalFrom(reflectionOrchestratorInstance));
     }
 
     // ── Temporal Focus ──
@@ -338,6 +341,15 @@ public class BlocksBeans {
         return new TemporalFocusOrchestrator(index, memoryStore,
                 TemporalFocusConfig.defaults());
     }
+// ── Reflection ──
+
+    @Produces
+    @ApplicationScoped
+    public ReflectionRetrievalOrchestrator reflectionRetrievalOrchestrator(
+            ReflectionQueryStore queryStore) {
+        return new ReflectionRetrievalOrchestrator(queryStore);
+    }
+
 
     // ── Goal ──
 

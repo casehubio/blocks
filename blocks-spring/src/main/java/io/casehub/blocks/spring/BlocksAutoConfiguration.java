@@ -7,6 +7,7 @@ import io.casehub.blocks.agentic.social.CbrMentalModelStore;
 import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.InnerLifeConfig;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelConfig;
@@ -18,8 +19,9 @@ import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
 import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
-import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
+import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
+import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -45,7 +47,6 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativePipeline;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.social.narrative.NoOpNarrativeStore;
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.prompt.SocialAvatarCognition;
 import io.casehub.blocks.attestation.NoOpAttestationIntentWriter;
 import io.casehub.blocks.channel.summary.ChannelSummariser;
@@ -83,10 +84,10 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
-import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.cognitive.index.TemporalFocusConfig;
 import io.casehub.neocortex.cognitive.index.TemporalIndex;
 import io.casehub.neocortex.memory.CaseMemoryStore;
+import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
@@ -312,14 +313,16 @@ public class BlocksAutoConfiguration {
             Optional<AgentRegistry> agentRegistry,
             Optional<CognitiveAttentionMediator> attentionMediator,
             Optional<EngagementRecorderCore> engagementRecorder,
-            Optional<TemporalFocusOrchestrator> temporalFocus) {
+            Optional<TemporalFocusOrchestrator> temporalFocus,
+            Optional<ReflectionRetrievalOrchestrator> reflectionOrchestrator) {
         return new SocialAvatarCognition(
                 mood, drives, mentalModel, userModel, strategy,
                 narrativeOrchestrator, goalProposalOrchestrator,
                 innerLifeOrchestrator, agentRegistry,
                 attentionMediator,
                 engagementRecorder.map(r -> (Consumer<EngagementEvent>) r::record),
-                temporalFocus);
+                temporalFocus,
+                reflectionOrchestrator);
     }
 
     @Bean
@@ -328,6 +331,14 @@ public class BlocksAutoConfiguration {
         return new TemporalFocusOrchestrator(index, memoryStore,
                 TemporalFocusConfig.defaults());
     }
+// ── Reflection ──
+
+    @Bean
+    public ReflectionRetrievalOrchestrator reflectionRetrievalOrchestrator(
+            ReflectionQueryStore queryStore) {
+        return new ReflectionRetrievalOrchestrator(queryStore);
+    }
+
 
     // ── Goal ──
 
