@@ -57,6 +57,7 @@ class SocialAvatarCognitionTest {
                 Optional.of(innerLife),
                 Optional.of(registry),
                 Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
     }
 

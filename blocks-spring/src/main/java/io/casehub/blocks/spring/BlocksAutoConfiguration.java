@@ -18,6 +18,7 @@ import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
 import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
+import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
@@ -83,6 +84,9 @@ import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
+import io.casehub.neocortex.cognitive.index.TemporalFocusConfig;
+import io.casehub.neocortex.cognitive.index.TemporalIndex;
+import io.casehub.neocortex.memory.CaseMemoryStore;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
@@ -307,13 +311,22 @@ public class BlocksAutoConfiguration {
             Optional<InnerLifeOrchestrator> innerLifeOrchestrator,
             Optional<AgentRegistry> agentRegistry,
             Optional<CognitiveAttentionMediator> attentionMediator,
-            Optional<EngagementRecorderCore> engagementRecorder) {
+            Optional<EngagementRecorderCore> engagementRecorder,
+            Optional<TemporalFocusOrchestrator> temporalFocus) {
         return new SocialAvatarCognition(
                 mood, drives, mentalModel, userModel, strategy,
                 narrativeOrchestrator, goalProposalOrchestrator,
                 innerLifeOrchestrator, agentRegistry,
                 attentionMediator,
-                engagementRecorder.map(r -> (Consumer<EngagementEvent>) r::record));
+                engagementRecorder.map(r -> (Consumer<EngagementEvent>) r::record),
+                temporalFocus);
+    }
+
+    @Bean
+    public TemporalFocusOrchestrator temporalFocusOrchestrator(
+            TemporalIndex index, CaseMemoryStore memoryStore) {
+        return new TemporalFocusOrchestrator(index, memoryStore,
+                TemporalFocusConfig.defaults());
     }
 
     // ── Goal ──

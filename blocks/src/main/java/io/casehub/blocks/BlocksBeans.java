@@ -20,6 +20,7 @@ import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
+import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -82,6 +83,9 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
+import io.casehub.neocortex.cognitive.index.TemporalFocusConfig;
+import io.casehub.neocortex.cognitive.index.TemporalIndex;
+import io.casehub.neocortex.memory.CaseMemoryStore;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
@@ -127,6 +131,7 @@ public class BlocksBeans {
     @Inject Instance<SystemPromptCustomiser> systemPromptCustomiserInstance;
     @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
     @Inject Instance<EngagementRecorderCore> engagementRecorderInstance;
+    @Inject Instance<TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -321,7 +326,17 @@ public class BlocksBeans {
                 optionalFrom(agentRegistryInstance),
                 optionalFrom(attentionMediatorInstance),
                 optionalFrom(engagementRecorderInstance)
-                        .map(r -> (Consumer<EngagementEvent>) r::record));
+                        .map(r -> (Consumer<EngagementEvent>) r::record),
+                optionalFrom(temporalFocusOrchestratorInstance));
+    }
+
+    // ── Temporal Focus ──
+
+    @Produces @ApplicationScoped
+    public TemporalFocusOrchestrator temporalFocusOrchestrator(
+            TemporalIndex index, CaseMemoryStore memoryStore) {
+        return new TemporalFocusOrchestrator(index, memoryStore,
+                TemporalFocusConfig.defaults());
     }
 
     // ── Goal ──
