@@ -68,7 +68,8 @@ public class SocialAvatarCognition implements AvatarCognition {
                                       null, null,
                                       attentionMediator.orElse(null),
                                       engagementPersister.orElse(null),
-                                      temporalFocus.orElse(null));
+                                      temporalFocus.orElse(null),
+                                      null);
     }
 
     @Override

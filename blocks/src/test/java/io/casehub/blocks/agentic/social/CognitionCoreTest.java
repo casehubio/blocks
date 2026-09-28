@@ -63,7 +63,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null);
+                                     null, null, null, persister, null, null);
 
         core.recordInteraction("agent", "tenant", "subject",
                                "hello", "world", null);
@@ -97,7 +97,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null);
+                                     null, null, null, persister, null, null);
 
         var preBuiltEvent = new EngagementEvent(
                 "agent", "subject", "tenant", "case-1",
@@ -130,7 +130,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null);
+                                     null, null, null, persister, null, null);
 
         core.recordInteraction("agent", "tenant", "subject",
                                "hello", "world", null);
@@ -149,7 +149,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, persister, null);
+                                     null, null, null, persister, null, null);
 
         core.recordInteraction("agent", "tenant", null,
                                "hello", "world", null);
@@ -169,7 +169,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, null, temporalFocus);
+                                     null, null, null, null, temporalFocus, null);
 
         core.tick("agent", "tenant", null, (aid, tid) -> Set.of("subject1"));
 
@@ -198,7 +198,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, CognitionConfig.all(),
-                                     null, null, null, null, temporalFocus);
+                                     null, null, null, null, temporalFocus, null);
 
         var sections = core.promptSections();
         var texts = sections.stream()
@@ -232,7 +232,7 @@ class CognitionCoreTest {
         var core = new CognitionCore(mood, drives, null, null,
                                      null, null, null, null,
                                      null, null, config,
-                                     null, null, null, null, temporalFocus);
+                                     null, null, null, null, temporalFocus, null);
 
         var sections = core.promptSections();
         var texts = sections.stream()
@@ -240,6 +240,79 @@ class CognitionCoreTest {
                             .filter(java.util.Objects::nonNull)
                             .toList();
         assertThat(texts).noneMatch(t -> t.contains("Temporal awareness:"));
+    }
+
+    @Test
+    void tickCallsReflectionRetrievalOrchestrator() {
+        var reflectionOrchestrator = mock(ReflectionRetrievalOrchestrator.class);
+        var mood                   = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, null, null, reflectionOrchestrator);
+
+        core.tick("agent", "tenant", null, (aid, tid) -> Set.of("subject1"));
+
+        verify(reflectionOrchestrator).tick(eq("agent"), eq("tenant"));
+    }
+
+    @Test
+    void promptSectionsIncludesReflectionWhenEntriesExist() {
+        var reflectionOrchestrator = mock(ReflectionRetrievalOrchestrator.class);
+        when(reflectionOrchestrator.lastReflections()).thenReturn(java.util.List.of(
+                new io.casehub.blocks.memory.ReflectionEntry("a", "t",
+                                                             "Try indirect approaches", java.time.Instant.now(), java.util.List.of())));
+
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, null, null, reflectionOrchestrator);
+
+        var sections = core.promptSections();
+        var texts = sections.stream()
+                            .map(s -> s.contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null)))
+                            .filter(java.util.Objects::nonNull)
+                            .toList();
+        assertThat(texts).anyMatch(t -> t.contains("Learned heuristics:"));
+        assertThat(texts).anyMatch(t -> t.contains("Try indirect approaches"));
+    }
+
+    @Test
+    void promptSectionsSkipsReflectionWhenDisabled() {
+        var reflectionOrchestrator = mock(ReflectionRetrievalOrchestrator.class);
+        when(reflectionOrchestrator.lastReflections()).thenReturn(java.util.List.of(
+                new io.casehub.blocks.memory.ReflectionEntry("a", "t",
+                                                             "should not appear", java.time.Instant.now(), java.util.List.of())));
+
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var config = CognitionConfig.all().with("reflection", false);
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, config,
+                                     null, null, null, null, null, reflectionOrchestrator);
+
+        var sections = core.promptSections();
+        var texts = sections.stream()
+                            .map(s -> s.contribute(new io.casehub.blocks.speech.PromptContext("a", "t", null)))
+                            .filter(java.util.Objects::nonNull)
+                            .toList();
+        assertThat(texts).noneMatch(t -> t.contains("Learned heuristics:"));
     }
 
 
@@ -654,7 +727,7 @@ class CognitionCoreTest {
                 mood, new DriveComposer(), DriveConfig.defaults());
         return new CognitionCore(mood, drives,
                                  null, null, null, null, goals, null,
-                                 null, null, config, null, null, mediator, null, null);
+                                 null, null, config, null, null, mediator, null, null, null);
     }
 
 
