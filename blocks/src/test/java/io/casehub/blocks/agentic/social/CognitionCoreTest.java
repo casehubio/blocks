@@ -7,11 +7,14 @@ import io.casehub.blocks.agentic.social.drive.DriveIntensity;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveSource;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +49,114 @@ class CognitionCoreTest {
         core.recordInteraction("a", "t", "subject", "hello", "hi there", null);
         core.recordInteraction("a", "t", null, "hello", "hi there", null);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recordInteractionPersistsToEngagementRecorder() {
+        Consumer<EngagementEvent> persister = mock(Consumer.class);
+        var                       mood      = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, persister);
+
+        core.recordInteraction("agent", "tenant", "subject",
+                               "hello", "world", null);
+
+        var captor = ArgumentCaptor.forClass(EngagementEvent.class);
+        verify(persister).accept(captor.capture());
+        var event = captor.getValue();
+        assertThat(event.agentId()).isEqualTo("agent");
+        assertThat(event.otherAgentId()).isEqualTo("subject");
+        assertThat(event.tenantId()).isEqualTo("tenant");
+        assertThat(event.responded()).isTrue();
+        assertThat(event.responseLength()).isEqualTo(5);
+    }
+
+    @Test
+    void recordInteractionWithNullPersisterDoesNotError() {
+        var core = minimalCore();
+        core.recordInteraction("a", "t", "subject", "hello", "hi there", null);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recordInteractionWithStrategySignalPersistsSignalEvent() {
+        Consumer<EngagementEvent> persister = mock(Consumer.class);
+        var                       mood      = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, persister);
+
+        var preBuiltEvent = new EngagementEvent(
+                "agent", "subject", "tenant", "case-1",
+                "turn-42", java.time.Instant.now(),
+                "pre-built", null, Map.of(), true, null, 10, null, null, null);
+        var signal = new EngagementSignal.TurnOutcome(preBuiltEvent, Map.of(), "response");
+        var impact = new CognitiveImpact(null, null, false, signal, null);
+
+        core.recordInteraction("agent", "tenant", "subject",
+                               "hello", "world", impact);
+
+        var captor = ArgumentCaptor.forClass(EngagementEvent.class);
+        verify(persister).accept(captor.capture());
+        assertThat(captor.getValue().turnId()).isEqualTo("turn-42");
+        assertThat(captor.getValue().description()).isEqualTo("pre-built");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recordInteractionSurvivesPersisterFailure() {
+        Consumer<EngagementEvent> persister = mock(Consumer.class);
+        org.mockito.Mockito.doThrow(new RuntimeException("store down"))
+                           .when(persister).accept(any(EngagementEvent.class));
+        var mood = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, persister);
+
+        core.recordInteraction("agent", "tenant", "subject",
+                               "hello", "world", null);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recordInteractionWithoutSubjectSkipsPersister() {
+        Consumer<EngagementEvent> persister = mock(Consumer.class);
+        var                       mood      = new MoodOrchestrator(MoodConfig.defaults());
+        DriveSource baseline = (a, t) ->
+                                       new DriveIntensity(DriveAxis.CURIOSITY, 0.5, "baseline");
+        var drives = new DriveOrchestrator(
+                baseline, baseline, baseline, baseline,
+                mood, new DriveComposer(), DriveConfig.defaults());
+        var core = new CognitionCore(mood, drives, null, null,
+                                     null, null, null, null,
+                                     null, null, CognitionConfig.all(),
+                                     null, null, null, persister);
+
+        core.recordInteraction("agent", "tenant", null,
+                               "hello", "world", null);
+
+        verify(persister, org.mockito.Mockito.never()).accept(any(EngagementEvent.class));
+    }
+
 
     @Test
     void recordInteractionWithMoodSignalUsesProvidedSignal() {
@@ -458,7 +569,7 @@ class CognitionCoreTest {
                 mood, new DriveComposer(), DriveConfig.defaults());
         return new CognitionCore(mood, drives,
                                  null, null, null, null, goals, null,
-                                 null, null, config, null, null, mediator);
+                                 null, null, config, null, null, mediator, null);
     }
 
 

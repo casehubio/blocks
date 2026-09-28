@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public class CognitionCore {
 
@@ -80,6 +81,8 @@ public class CognitionCore {
     private final @Nullable    MindMapStore                                                            mindMapStore;
     private final              java.util.Map<String, java.util.Set<NeedTier>>                          needTierMapping;
     private final @Nullable    CognitiveAttentionMediator                                              attentionMediator;
+    private final @Nullable    Consumer<EngagementEvent>                                               engagementPersister;
+
     private volatile @Nullable AttentionBriefing                                                       lastBriefing;
     private java.util.function.UnaryOperator<java.util.List<PromptSection>> sectionCustomizer;
     private volatile @Nullable AgentDescriptor lastDescriptor;
@@ -122,7 +125,7 @@ public class CognitionCore {
                          @Nullable AgentProvider agentProvider,
                          CognitionConfig config) {
         this(mood, drives, userModel, mentalModel, strategy, narrative,
-             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null);
+             goals, memoryHygiene, innerLife, agentProvider, config, null, null, null, null);
     }
 
     public CognitionCore(MoodOrchestrator mood,
@@ -138,7 +141,8 @@ public class CognitionCore {
                          CognitionConfig config,
                          @Nullable MindMapStore mindMapStore,
                          @Nullable NeedTierMappingProvider needTierMappingProvider,
-                         @Nullable CognitiveAttentionMediator attentionMediator) {
+                         @Nullable CognitiveAttentionMediator attentionMediator,
+                         @Nullable Consumer<EngagementEvent> engagementPersister) {
         this.mood              = mood;
         this.drives            = drives;
         this.userModel         = userModel;
@@ -153,6 +157,7 @@ public class CognitionCore {
         this.mindMapStore      = mindMapStore;
         this.needTierMapping   = (needTierMappingProvider != null ? needTierMappingProvider : NeedTierMappingProvider.empty()).tierMapping();
         this.attentionMediator = attentionMediator;
+        this.engagementPersister = engagementPersister;
     }
 
     private static double extractDouble(String json, String key) {
@@ -270,6 +275,21 @@ public class CognitionCore {
                                     Map.of(), response),
                             agentId, subjectId, tenantId));
                 }
+            }
+            if (engagementPersister != null) {
+                var engagementEvent = (impact != null && impact.strategySignal() instanceof EngagementSignal.TurnOutcome t)
+                                      ? t.event()
+                                      : new EngagementEvent(agentId, subjectId,
+                                              tenantId,
+                                              (impact != null && impact.conversationId() != null)
+                                                  ? impact.conversationId() : null,
+                                              UUID.randomUUID().toString(),
+                                              Instant.now(),
+                                              userMessage.isBlank() ? "[interaction]" : userMessage,
+                                              null, Map.of(), true, null,
+                                              (int) response.length(),
+                                              null, null, null);
+                safeRun(() -> engagementPersister.accept(engagementEvent));
             }
         }
     }
