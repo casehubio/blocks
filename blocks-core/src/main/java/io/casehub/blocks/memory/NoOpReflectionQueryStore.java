@@ -14,4 +14,9 @@ public class NoOpReflectionQueryStore implements ReflectionQueryStore {
     public int countSince(String agentId, String tenantId, Instant since) {
         return 0;
     }
+
+    @Override
+    public List<ReflectionEntry> findSalient(String agentId, String tenantId) {
+        return List.of();
+    }
 }

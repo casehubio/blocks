@@ -7,4 +7,8 @@ public interface ReflectionQueryStore {
     List<ReflectionEntry> findSince(String agentId, String tenantId, Instant since);
 
     int countSince(String agentId, String tenantId, Instant since);
+
+    default List<ReflectionEntry> findSalient(String agentId, String tenantId) {
+        return List.of();
+    }
 }
