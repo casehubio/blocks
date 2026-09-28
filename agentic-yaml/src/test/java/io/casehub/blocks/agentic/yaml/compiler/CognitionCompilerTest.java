@@ -117,6 +117,35 @@ class CognitionCompilerTest {
     }
 
     @Test
+    void cognitiveGoalPartialOverrideMergesWithDefaults() throws IOException {
+        var yaml = """
+                   cognitiveGoal:
+                     driveWeight: 0.3
+                     surfacingCooldown: PT30M
+                   """;
+        var definition = mapper.readValue(yaml, CognitionDefinition.class);
+        var compiled   = compiler.compile(definition);
+
+        assertThat(compiled.cognitiveGoal().driveWeight()).isEqualTo(0.3);
+        assertThat(compiled.cognitiveGoal().surfacingCooldown()).isEqualTo(java.time.Duration.ofMinutes(30));
+        assertThat(compiled.cognitiveGoal().caseCreationThreshold())
+                .isEqualTo(io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults().caseCreationThreshold());
+        assertThat(compiled.cognitiveGoal().minimumSurfacingPriority())
+                .isEqualTo(io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults().minimumSurfacingPriority());
+    }
+
+    @Test
+    void nullCognitiveGoalUsesDefaults() throws IOException {
+        var yaml       = "{}";
+        var definition = mapper.readValue(yaml, CognitionDefinition.class);
+        var compiled   = compiler.compile(definition);
+
+        assertThat(compiled.cognitiveGoal())
+                .isEqualTo(io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults());
+    }
+
+
+    @Test
     void fullYamlAllSections() throws IOException {
         try (var is = getClass().getResourceAsStream("/cognition/full.yaml")) {
             var definition = mapper.readValue(is, CognitionDefinition.class);
@@ -133,6 +162,7 @@ class CognitionCompilerTest {
             assertThat(compiled.normDetection()).isNotNull();
             assertThat(compiled.collectiveGoal()).isNotNull();
             assertThat(compiled.retention()).isNotNull();
+            assertThat(compiled.cognitiveGoal()).isNotNull();
             assertThat(compiled.drive().changeThreshold()).isEqualTo(0.1);
             assertThat(compiled.narrative().maxEpisodes()).isEqualTo(100);
             assertThat(compiled.retention().recencyWeight()).isEqualTo(0.5);

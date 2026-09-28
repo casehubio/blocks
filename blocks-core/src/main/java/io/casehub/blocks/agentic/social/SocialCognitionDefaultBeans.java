@@ -2,6 +2,7 @@ package io.casehub.blocks.agentic.social;
 
 import io.casehub.blocks.agentic.social.drive.DriveConfig;
 import io.casehub.blocks.agentic.social.emergence.NormDetectionConfig;
+import io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig;
 import io.casehub.blocks.agentic.social.goal.GoalEscalationConfig;
 import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
 import io.casehub.blocks.agentic.social.narrative.NarrativeConfig;
@@ -91,6 +92,14 @@ public class SocialCognitionDefaultBeans {
     NormDetectionConfig normDetectionConfig() {
         return NormDetectionConfig.defaults();
     }
+
+    @Produces
+    @DefaultBean
+    @Singleton
+    public CognitiveGoalConfig cognitiveGoalConfig() {
+        return CognitiveGoalConfig.defaults();
+    }
+
 
     @Produces
     @DefaultBean

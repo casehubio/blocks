@@ -4,10 +4,10 @@ import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
 import io.casehub.blocks.agentic.social.CbrMentalModelStore;
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.InnerLifeConfig;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelConfig;
@@ -123,6 +123,9 @@ public class BlocksBeans {
     @Inject Instance<TrustRoutingPolicyProvider> policyProviderInstance;
     @Inject Instance<SystemPromptCustomiser> systemPromptCustomiserInstance;
     @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
+    @Inject Instance<io.casehub.neocortex.mindmap.MindMapStore> mindMapStoreInstance;
+    @Inject Instance<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisalInstance;
+    @Inject Instance<io.casehub.neocortex.memory.CaseMemoryStore> caseMemoryStoreInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -303,19 +306,27 @@ public class BlocksBeans {
         return new SocialNormDetector(cbrStore, config);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public SocialAvatarCognition socialAvatarCognition(
             MoodOrchestrator mood, DriveOrchestrator drives,
             MentalModelOrchestrator mentalModel,
             UserModelOrchestrator userModel,
-            StrategyLearningOrchestrator strategy) {
-        return new SocialAvatarCognition(
-                mood, drives, mentalModel, userModel, strategy,
-                optionalFrom(narrativeOrchestratorInstance),
-                optionalFrom(goalProposalOrchestratorInstance),
-                optionalFrom(innerLifeOrchestratorInstance),
-                optionalFrom(agentRegistryInstance),
-                optionalFrom(attentionMediatorInstance));
+            StrategyLearningOrchestrator strategy,
+            io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig) {
+        return SocialAvatarCognition.builder()
+                                    .mood(mood).drives(drives).mentalModel(mentalModel)
+                                    .userModel(userModel).strategy(strategy)
+                                    .narrative(optionalFrom(narrativeOrchestratorInstance))
+                                    .goals(optionalFrom(goalProposalOrchestratorInstance))
+                                    .innerLife(optionalFrom(innerLifeOrchestratorInstance))
+                                    .agentRegistry(optionalFrom(agentRegistryInstance))
+                                    .attentionMediator(optionalFrom(attentionMediatorInstance))
+                                    .mindMapStore(optionalFrom(mindMapStoreInstance))
+                                    .goalAppraisal(optionalFrom(goalAppraisalInstance))
+                                    .memoryStore(optionalFrom(caseMemoryStoreInstance))
+                                    .cognitiveGoalConfig(cognitiveGoalConfig)
+                                    .build();
     }
 
     // ── Goal ──

@@ -7,6 +7,7 @@ import io.casehub.blocks.agentic.social.CbrMentalModelStore;
 import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
+import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.InnerLifeConfig;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelConfig;
@@ -44,7 +45,6 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativePipeline;
 import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.social.narrative.NoOpNarrativeStore;
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.prompt.SocialAvatarCognition;
 import io.casehub.blocks.attestation.NoOpAttestationIntentWriter;
 import io.casehub.blocks.channel.summary.ChannelSummariser;
@@ -141,6 +141,13 @@ public class BlocksAutoConfiguration {
     }
 
     // ── DefaultBean stores ──
+
+
+    @Bean
+    @ConditionalOnMissingBean
+    public io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig() {
+        return io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults();
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -303,12 +310,20 @@ public class BlocksAutoConfiguration {
             Optional<GoalProposalOrchestrator> goalProposalOrchestrator,
             Optional<InnerLifeOrchestrator> innerLifeOrchestrator,
             Optional<AgentRegistry> agentRegistry,
-            Optional<CognitiveAttentionMediator> attentionMediator) {
-        return new SocialAvatarCognition(
-                mood, drives, mentalModel, userModel, strategy,
-                narrativeOrchestrator, goalProposalOrchestrator,
-                innerLifeOrchestrator, agentRegistry,
-                attentionMediator);
+            Optional<CognitiveAttentionMediator> attentionMediator,
+            Optional<io.casehub.neocortex.mindmap.MindMapStore> mindMapStore,
+            Optional<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisal,
+            Optional<io.casehub.neocortex.memory.CaseMemoryStore> memoryStore,
+            io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig) {
+        return SocialAvatarCognition.builder()
+                                    .mood(mood).drives(drives).mentalModel(mentalModel)
+                                    .userModel(userModel).strategy(strategy)
+                                    .narrative(narrativeOrchestrator).goals(goalProposalOrchestrator)
+                                    .innerLife(innerLifeOrchestrator).agentRegistry(agentRegistry)
+                                    .attentionMediator(attentionMediator)
+                                    .mindMapStore(mindMapStore).goalAppraisal(goalAppraisal)
+                                    .memoryStore(memoryStore).cognitiveGoalConfig(cognitiveGoalConfig)
+                                    .build();
     }
 
     // ── Goal ──

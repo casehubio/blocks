@@ -9,11 +9,27 @@ import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.drive.DriveConfig;
 import io.casehub.blocks.agentic.social.emergence.CollectiveGoalConfig;
 import io.casehub.blocks.agentic.social.emergence.NormDetectionConfig;
+import io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig;
 import io.casehub.blocks.agentic.social.goal.GoalEscalationConfig;
 import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
 import io.casehub.blocks.agentic.social.narrative.NarrativeConfig;
 import io.casehub.blocks.agentic.social.narrative.NarrativeSynthesisGate;
-import io.casehub.blocks.agentic.yaml.spec.cognition.*;
+import io.casehub.blocks.agentic.yaml.spec.cognition.CognitionDefinition;
+import io.casehub.blocks.agentic.yaml.spec.cognition.CognitiveGoalConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.CollectiveGoalConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.DriveConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.GoalEscalationConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.GoalProposalConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.MentalModelConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.MoodConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.NarrativeConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.NarrativeSynthesisGateSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.NormDetectionConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.PersonalityEvolutionConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.RelationshipStageConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.RetentionConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.StrategyLearningConfigSpec;
+import io.casehub.blocks.agentic.yaml.spec.cognition.UserModelConfigSpec;
 import io.casehub.blocks.memory.RetentionConfig;
 import org.jspecify.annotations.Nullable;
 
@@ -32,7 +48,8 @@ public class CognitionCompiler {
                 compileGoalEscalation(definition.goalEscalation()),
                 compileNormDetection(definition.normDetection()),
                 compileCollectiveGoal(definition.collectiveGoal()),
-                compileRetention(definition.retention()));
+                compileRetention(definition.retention()),
+                compileCognitiveGoal(definition.cognitiveGoal()));
     }
 
     private DriveConfig compileDrive(@Nullable DriveConfigSpec spec) {
@@ -212,4 +229,15 @@ public class CognitionCompiler {
                 spec.scopeWeight() != null ? spec.scopeWeight() : d.scopeWeight(),
                 spec.trustWeight() != null ? spec.trustWeight() : d.trustWeight());
     }
+
+    private CognitiveGoalConfig compileCognitiveGoal(@Nullable CognitiveGoalConfigSpec spec) {
+        if (spec == null) {return CognitiveGoalConfig.defaults();}
+        var d = CognitiveGoalConfig.defaults();
+        return new CognitiveGoalConfig(
+                spec.caseCreationThreshold() != null ? spec.caseCreationThreshold() : d.caseCreationThreshold(),
+                spec.surfacingCooldown() != null ? spec.surfacingCooldown() : d.surfacingCooldown(),
+                spec.minimumSurfacingPriority() != null ? spec.minimumSurfacingPriority() : d.minimumSurfacingPriority(),
+                spec.driveWeight() != null ? spec.driveWeight() : d.driveWeight());
+    }
+
 }
