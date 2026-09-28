@@ -467,7 +467,7 @@ class CognitionCoreTest {
     }
 
     @Test
-    void promptSectionsIncludesPersonalityAfterTick() {
+    void promptSectionsExcludesPersonalityAfterTick() {
         var core = minimalCore();
         var descriptor = stubDescriptor();
         var disposition = mock(io.casehub.eidos.api.AgentDisposition.class);
@@ -476,11 +476,10 @@ class CognitionCoreTest {
         when(descriptor.disposition()).thenReturn(disposition);
         core.tick("a", "t", descriptor, (aid, tid) -> Set.of());
         var sections = core.promptSections();
-        assertThat(sections).hasSize(3);
-        var personalitySection = sections.get(0);
-        var text = personalitySection.contribute(
-                new io.casehub.blocks.speech.PromptContext("a", "t", null));
-        assertThat(text).contains("independent");
+        assertThat(sections).hasSize(2);
+        var sectionNames = sections.stream()
+                .map(s -> s.getClass().getSimpleName()).toList();
+        assertThat(sectionNames).doesNotContain("PersonalityPromptSection");
     }
 
     @Test
