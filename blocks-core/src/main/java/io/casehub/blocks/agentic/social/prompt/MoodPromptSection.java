@@ -27,7 +27,7 @@ public class MoodPromptSection implements PromptSection {
         return "Current emotional state:\nYou're feeling " + label + ".\n" + coloring;
     }
 
-    static String emotionLabel(double p, double a, double d) {
+    public static String emotionLabel(double p, double a, double d) {
         String primary;
         if (p > 0.3 && a > 0.3) {primary = "excited and energized";} else if (p > 0.3 && a < -0.3) {
             primary = "content and serene";
@@ -50,7 +50,7 @@ public class MoodPromptSection implements PromptSection {
         return primary;
     }
 
-    static String behavioralColoring(double p, double a, double d) {
+    public static String behavioralColoring(double p, double a, double d) {
         var cues = new java.util.ArrayList<String>();
         if (p > 0.3) {cues.add("more generous and open");}
         if (p < -0.3) {cues.add("more guarded and short-tempered");}
