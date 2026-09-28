@@ -83,6 +83,8 @@ import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
+import io.casehub.neocortex.memory.engagement.EngagementEvent;
+import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.qhorus.api.message.Message;
@@ -98,6 +100,7 @@ import org.springframework.context.annotation.Bean;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 @AutoConfiguration
 @ConditionalOnClass(MoodOrchestrator.class)
@@ -303,12 +306,14 @@ public class BlocksAutoConfiguration {
             Optional<GoalProposalOrchestrator> goalProposalOrchestrator,
             Optional<InnerLifeOrchestrator> innerLifeOrchestrator,
             Optional<AgentRegistry> agentRegistry,
-            Optional<CognitiveAttentionMediator> attentionMediator) {
+            Optional<CognitiveAttentionMediator> attentionMediator,
+            Optional<EngagementRecorderCore> engagementRecorder) {
         return new SocialAvatarCognition(
                 mood, drives, mentalModel, userModel, strategy,
                 narrativeOrchestrator, goalProposalOrchestrator,
                 innerLifeOrchestrator, agentRegistry,
-                attentionMediator);
+                attentionMediator,
+                engagementRecorder.map(r -> (Consumer<EngagementEvent>) r::record));
     }
 
     // ── Goal ──

@@ -18,10 +18,13 @@ import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
 import org.jspecify.annotations.Nullable;
 
+import io.casehub.neocortex.memory.engagement.EngagementEvent;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class SocialAvatarCognition implements AvatarCognition {
@@ -47,7 +50,8 @@ public class SocialAvatarCognition implements AvatarCognition {
                                   Optional<GoalProposalOrchestrator> goals,
                                   Optional<InnerLifeOrchestrator> innerLife,
                                   Optional<AgentRegistry> agentRegistry,
-                                  Optional<CognitiveAttentionMediator> attentionMediator) {
+                                  Optional<CognitiveAttentionMediator> attentionMediator,
+                                  Optional<Consumer<EngagementEvent>> engagementPersister) {
         this.mood = mood;
         this.drives = drives;
         this.mentalModel = mentalModel;
@@ -57,10 +61,11 @@ public class SocialAvatarCognition implements AvatarCognition {
         this.goals = goals;
         this.agentRegistry = agentRegistry;
         this.core = new CognitionCore(mood, drives, userModel, mentalModel, strategy,
-                narrative.orElse(null), goals.orElse(null), null,
-                innerLife.orElse(null), null, CognitionConfig.all(),
-                null, null,
-                attentionMediator.orElse(null));
+                                      narrative.orElse(null), goals.orElse(null), null,
+                                      innerLife.orElse(null), null, CognitionConfig.all(),
+                                      null, null,
+                                      attentionMediator.orElse(null),
+                                      engagementPersister.orElse(null));
     }
 
     @Override

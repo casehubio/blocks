@@ -83,6 +83,8 @@ import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
+import io.casehub.neocortex.memory.engagement.EngagementEvent;
+import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.qhorus.api.channel.ThreadSummaryUpdatedEvent;
@@ -100,6 +102,7 @@ import org.eclipse.microprofile.context.ManagedExecutor;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.StreamSupport;
 
 @ApplicationScoped
@@ -123,6 +126,7 @@ public class BlocksBeans {
     @Inject Instance<TrustRoutingPolicyProvider> policyProviderInstance;
     @Inject Instance<SystemPromptCustomiser> systemPromptCustomiserInstance;
     @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
+    @Inject Instance<EngagementRecorderCore> engagementRecorderInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -315,7 +319,9 @@ public class BlocksBeans {
                 optionalFrom(goalProposalOrchestratorInstance),
                 optionalFrom(innerLifeOrchestratorInstance),
                 optionalFrom(agentRegistryInstance),
-                optionalFrom(attentionMediatorInstance));
+                optionalFrom(attentionMediatorInstance),
+                optionalFrom(engagementRecorderInstance)
+                        .map(r -> (Consumer<EngagementEvent>) r::record));
     }
 
     // ── Goal ──
