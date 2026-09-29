@@ -8,6 +8,7 @@ import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.drive.DriveConfig;
 import io.casehub.blocks.agentic.social.emergence.CollectiveGoalConfig;
 import io.casehub.blocks.agentic.social.emergence.NormDetectionConfig;
+import io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig;
 import io.casehub.blocks.agentic.social.goal.GoalEscalationConfig;
 import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
 import io.casehub.blocks.agentic.social.narrative.NarrativeConfig;
@@ -25,4 +26,5 @@ public record CompiledCognition(
         GoalEscalationConfig goalEscalation,
         NormDetectionConfig normDetection,
         CollectiveGoalConfig collectiveGoal,
-        RetentionConfig retention) {}
+        RetentionConfig retention,
+        CognitiveGoalConfig cognitiveGoal) {}

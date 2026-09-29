@@ -18,14 +18,9 @@ import io.casehub.blocks.agentic.social.MoodConfig;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
 import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
 import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
-import io.casehub.blocks.agentic.social.CognitionPhase;
-import io.casehub.blocks.agentic.social.GoalEmotionMoodBridge;
-import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
-import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
-import io.casehub.blocks.agentic.social.goal.CognitiveGoalOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -88,12 +83,7 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
-import io.casehub.neocortex.cognitive.index.TemporalFocusConfig;
-import io.casehub.neocortex.cognitive.index.TemporalIndex;
-import io.casehub.neocortex.memory.CaseMemoryStore;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
-import io.casehub.neocortex.memory.engagement.EngagementEvent;
-import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.qhorus.api.channel.ThreadSummaryUpdatedEvent;
@@ -111,7 +101,6 @@ import org.eclipse.microprofile.context.ManagedExecutor;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.stream.StreamSupport;
 
 @ApplicationScoped
@@ -135,11 +124,13 @@ public class BlocksBeans {
     @Inject Instance<TrustRoutingPolicyProvider> policyProviderInstance;
     @Inject Instance<SystemPromptCustomiser> systemPromptCustomiserInstance;
     @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
-    @Inject Instance<EngagementRecorderCore> engagementRecorderInstance;
-    @Inject Instance<TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
-    @Inject Instance<ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
+    @Inject Instance<io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore> engagementRecorderInstance;
+    @Inject Instance<io.casehub.blocks.agentic.social.TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
+    @Inject Instance<io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
     @Inject Instance<ConsolidationMediator> consolidationMediatorInstance;
-    @Inject Instance<CognitiveGoalOrchestrator> cognitiveGoalOrchestratorInstance;
+    @Inject Instance<io.casehub.neocortex.mindmap.MindMapStore> mindMapStoreInstance;
+    @Inject Instance<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisalInstance;
+    @Inject Instance<io.casehub.neocortex.memory.CaseMemoryStore> caseMemoryStoreInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -326,42 +317,26 @@ public class BlocksBeans {
             MoodOrchestrator mood, DriveOrchestrator drives,
             MentalModelOrchestrator mentalModel,
             UserModelOrchestrator userModel,
-            StrategyLearningOrchestrator strategy) {
-        var sac = new SocialAvatarCognition(
-                mood, drives, mentalModel, userModel, strategy,
-                optionalFrom(narrativeOrchestratorInstance),
-                optionalFrom(goalProposalOrchestratorInstance),
-                optionalFrom(innerLifeOrchestratorInstance),
-                optionalFrom(agentRegistryInstance),
-                optionalFrom(attentionMediatorInstance),
-                optionalFrom(engagementRecorderInstance)
-                        .map(r -> (Consumer<EngagementEvent>) r::record),
-                optionalFrom(temporalFocusOrchestratorInstance),
-                optionalFrom(reflectionOrchestratorInstance),
-                optionalFrom(consolidationMediatorInstance));
-        optionalFrom(cognitiveGoalOrchestratorInstance).ifPresent(go ->
-                                                                          sac.core().addParticipant(CognitionPhase.TERMINAL,
-                                                                                                    new GoalEmotionMoodBridge(go, mood)));
-        return sac;
+            StrategyLearningOrchestrator strategy,
+            io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig) {
+        return SocialAvatarCognition.builder()
+                                    .mood(mood).drives(drives).mentalModel(mentalModel)
+                                    .userModel(userModel).strategy(strategy)
+                                    .narrative(optionalFrom(narrativeOrchestratorInstance))
+                                    .goals(optionalFrom(goalProposalOrchestratorInstance))
+                                    .innerLife(optionalFrom(innerLifeOrchestratorInstance))
+                                    .agentRegistry(optionalFrom(agentRegistryInstance))
+                                    .attentionMediator(optionalFrom(attentionMediatorInstance))
+                                    .engagementPersister(optionalFrom(engagementRecorderInstance).map(r -> (java.util.function.Consumer<io.casehub.neocortex.memory.engagement.EngagementEvent>) r::record))
+                                    .temporalFocus(optionalFrom(temporalFocusOrchestratorInstance))
+                                    .reflectionOrchestrator(optionalFrom(reflectionOrchestratorInstance))
+                                    .consolidationMediator(optionalFrom(consolidationMediatorInstance))
+                                    .mindMapStore(optionalFrom(mindMapStoreInstance))
+                                    .goalAppraisal(optionalFrom(goalAppraisalInstance))
+                                    .memoryStore(optionalFrom(caseMemoryStoreInstance))
+                                    .cognitiveGoalConfig(cognitiveGoalConfig)
+                                    .build();
     }
-
-    // ── Temporal Focus ──
-
-    @Produces @ApplicationScoped
-    public TemporalFocusOrchestrator temporalFocusOrchestrator(
-            TemporalIndex index, CaseMemoryStore memoryStore) {
-        return new TemporalFocusOrchestrator(index, memoryStore,
-                TemporalFocusConfig.defaults());
-    }
-// ── Reflection ──
-
-    @Produces
-    @ApplicationScoped
-    public ReflectionRetrievalOrchestrator reflectionRetrievalOrchestrator(
-            ReflectionQueryStore queryStore) {
-        return new ReflectionRetrievalOrchestrator(queryStore);
-    }
-
 
     // ── Goal ──
 

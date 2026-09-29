@@ -8,6 +8,8 @@ import io.casehub.blocks.agentic.social.CbrStrategyStore;
 import io.casehub.blocks.agentic.social.CbrUserProfileStore;
 import io.casehub.blocks.agentic.social.CivilityConstraint;
 import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
+import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
+import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.InnerLifeConfig;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelConfig;
@@ -20,11 +22,6 @@ import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningConfig;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyStore;
-import io.casehub.blocks.agentic.social.CognitionPhase;
-import io.casehub.blocks.agentic.social.GoalEmotionMoodBridge;
-import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
-import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
-import io.casehub.blocks.agentic.social.goal.CognitiveGoalOrchestrator;
 import io.casehub.blocks.agentic.social.TraitPressureSource;
 import io.casehub.blocks.agentic.social.UserModelConfig;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
@@ -87,12 +84,7 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
-import io.casehub.neocortex.cognitive.index.TemporalFocusConfig;
-import io.casehub.neocortex.cognitive.index.TemporalIndex;
-import io.casehub.neocortex.memory.CaseMemoryStore;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
-import io.casehub.neocortex.memory.engagement.EngagementEvent;
-import io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.qhorus.api.message.Message;
@@ -108,7 +100,6 @@ import org.springframework.context.annotation.Bean;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 @AutoConfiguration
 @ConditionalOnClass(MoodOrchestrator.class)
@@ -152,6 +143,13 @@ public class BlocksAutoConfiguration {
     }
 
     // ── DefaultBean stores ──
+
+
+    @Bean
+    @ConditionalOnMissingBean
+    public io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig() {
+        return io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults();
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -315,38 +313,28 @@ public class BlocksAutoConfiguration {
             Optional<InnerLifeOrchestrator> innerLifeOrchestrator,
             Optional<AgentRegistry> agentRegistry,
             Optional<CognitiveAttentionMediator> attentionMediator,
-            Optional<EngagementRecorderCore> engagementRecorder,
+            Optional<io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore> engagementRecorder,
             Optional<TemporalFocusOrchestrator> temporalFocus,
             Optional<ReflectionRetrievalOrchestrator> reflectionOrchestrator,
-            Optional<CognitiveGoalOrchestrator> cognitiveGoalOrchestrator) {
-        var sac = new SocialAvatarCognition(
-                mood, drives, mentalModel, userModel, strategy,
-                narrativeOrchestrator, goalProposalOrchestrator,
-                innerLifeOrchestrator, agentRegistry,
-                attentionMediator,
-                engagementRecorder.map(r -> (Consumer<EngagementEvent>) r::record),
-                temporalFocus,
-                reflectionOrchestrator);
-        cognitiveGoalOrchestrator.ifPresent(go ->
-                sac.core().addParticipant(CognitionPhase.TERMINAL,
-                        new GoalEmotionMoodBridge(go, mood)));
-        return sac;
+            Optional<io.casehub.blocks.agentic.social.ConsolidationMediator> consolidationMediator,
+            Optional<io.casehub.neocortex.mindmap.MindMapStore> mindMapStore,
+            Optional<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisal,
+            Optional<io.casehub.neocortex.memory.CaseMemoryStore> memoryStore,
+            io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig) {
+        return SocialAvatarCognition.builder()
+                                    .mood(mood).drives(drives).mentalModel(mentalModel)
+                                    .userModel(userModel).strategy(strategy)
+                                    .narrative(narrativeOrchestrator).goals(goalProposalOrchestrator)
+                                    .innerLife(innerLifeOrchestrator).agentRegistry(agentRegistry)
+                                    .attentionMediator(attentionMediator)
+                                    .engagementPersister(engagementRecorder.map(r -> (java.util.function.Consumer<io.casehub.neocortex.memory.engagement.EngagementEvent>) r::record))
+                                    .temporalFocus(temporalFocus)
+                                    .reflectionOrchestrator(reflectionOrchestrator)
+                                    .consolidationMediator(consolidationMediator)
+                                    .mindMapStore(mindMapStore).goalAppraisal(goalAppraisal)
+                                    .memoryStore(memoryStore).cognitiveGoalConfig(cognitiveGoalConfig)
+                                    .build();
     }
-
-    @Bean
-    public TemporalFocusOrchestrator temporalFocusOrchestrator(
-            TemporalIndex index, CaseMemoryStore memoryStore) {
-        return new TemporalFocusOrchestrator(index, memoryStore,
-                TemporalFocusConfig.defaults());
-    }
-// ── Reflection ──
-
-    @Bean
-    public ReflectionRetrievalOrchestrator reflectionRetrievalOrchestrator(
-            ReflectionQueryStore queryStore) {
-        return new ReflectionRetrievalOrchestrator(queryStore);
-    }
-
 
     // ── Goal ──
 

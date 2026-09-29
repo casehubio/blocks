@@ -3,6 +3,7 @@ package io.casehub.blocks.agentic.social;
 import io.casehub.blocks.agentic.social.drive.DriveConfig;
 import io.casehub.blocks.agentic.social.emergence.NormDetectionConfig;
 import io.casehub.blocks.agentic.social.goal.GoalEscalationConfig;
+import io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig;
 import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
 import io.casehub.blocks.agentic.social.narrative.NarrativeConfig;
 import io.casehub.blocks.summarisation.EventStreamBus;
@@ -97,6 +98,13 @@ public class SocialCognitionDefaultBeans {
     @Singleton
     MoodCongruenceConfig moodCongruenceConfig() {
         return MoodCongruenceConfig.defaults();
+    }
+
+    @Produces
+    @DefaultBean
+    @Singleton
+    public CognitiveGoalConfig cognitiveGoalConfig() {
+        return CognitiveGoalConfig.defaults();
     }
 
 
