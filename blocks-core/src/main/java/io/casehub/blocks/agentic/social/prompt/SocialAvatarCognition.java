@@ -26,6 +26,7 @@ import io.casehub.blocks.speech.PromptSection;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
+import io.casehub.eidos.api.GoalLifecycleState;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -151,6 +152,30 @@ public class SocialAvatarCognition implements AvatarCognition {
     public void tick(String agentId, String tenantId, Set<String> activeSubjects) {
         var descriptor = resolveDescriptor(agentId, tenantId);
         core.tick(agentId, tenantId, descriptor, (aid, tid) -> activeSubjects);
+        consumeGoalRevisions(agentId, tenantId);
+    }
+
+    private void consumeGoalRevisions(String agentId, String tenantId) {
+        if (cognitiveGoals == null || agentRegistry.isEmpty()) return;
+
+        for (var revision : cognitiveGoals.pendingRevisions(agentId, tenantId)) {
+            if (revision.eidosGoalName() == null) continue;
+
+            GoalLifecycleState newState = switch (revision.decaySignal()) {
+                case "dormant" -> GoalLifecycleState.DORMANT;
+                case "abandon" -> GoalLifecycleState.ABANDONED;
+                default -> null;
+            };
+            if (newState == null) continue;
+
+            try {
+                agentRegistry.get().updateGoalLifecycleState(
+                        agentId, tenantId, revision.eidosGoalName(), newState);
+            } catch (Exception e) {
+                LOG.log(System.Logger.Level.WARNING,
+                        "Failed to transition goal '" + revision.eidosGoalName() + "'", e);
+            }
+        }
     }
 
     @Override

@@ -12,7 +12,17 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.speech.AssembledPrompt;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.eidos.api.AgentDescriptor;
+import io.casehub.eidos.api.AgentGoal;
 import io.casehub.eidos.api.AgentRegistry;
+import io.casehub.eidos.api.GoalLifecycleState;
+import io.casehub.eidos.api.GoalPriority;
+import io.casehub.eidos.api.Visibility;
+import io.casehub.neocortex.memory.CaseMemoryStore;
+import io.casehub.neocortex.mindmap.GoalAppraisal;
+import io.casehub.neocortex.mindmap.MindMapNode;
+import io.casehub.neocortex.mindmap.MindMapStore;
+import io.casehub.neocortex.mindmap.MindMapSubgraph;
+import io.casehub.neocortex.mindmap.SubgraphTypes;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -137,5 +147,90 @@ class SocialAvatarCognitionTest {
                 .when(userModel).record(any(), any(), any(), any());
         cognition.recordInteraction("a1", "t1", "user1", "hello", "hi");
         verify(mentalModel).record(any(), eq("a1"), eq("user1"), eq("t1"));
+    }
+
+    private MindMapNode goalNodeWithDecaySignal(String nodeId, String name,
+                                                 String decaySignal, String eidosGoalName) {
+        var node = mock(MindMapNode.class);
+        when(node.id()).thenReturn(nodeId);
+        when(node.name()).thenReturn(name);
+        when(node.property("decay-signal")).thenReturn(Optional.ofNullable(decaySignal));
+        when(node.property("eidos-goal-name")).thenReturn(Optional.ofNullable(eidosGoalName));
+        when(node.property("status")).thenReturn(Optional.of("decaying"));
+        when(node.property("priority")).thenReturn(Optional.empty());
+        when(node.property("surfacing-progress-gap")).thenReturn(Optional.empty());
+        when(node.property("surfaced-count")).thenReturn(Optional.empty());
+        when(node.property("last-progress-at")).thenReturn(Optional.empty());
+        when(node.property("last-surfaced-at")).thenReturn(Optional.empty());
+        return node;
+    }
+
+    private SocialAvatarCognition buildWithGoalNodes(List<MindMapNode> goalNodes) {
+        var mindMapStore = mock(MindMapStore.class);
+        var goalAppraisal = mock(GoalAppraisal.class);
+        var memoryStore = mock(CaseMemoryStore.class);
+
+        var goalSg = mock(MindMapSubgraph.class);
+        when(goalSg.type()).thenReturn(SubgraphTypes.GOAL);
+        when(goalSg.id()).thenReturn("sg-1");
+        when(mindMapStore.listSubgraphs("t1")).thenReturn(List.of(goalSg));
+        when(mindMapStore.nodesIn("sg-1", "t1")).thenReturn(goalNodes);
+
+        return SocialAvatarCognition.builder()
+                .mood(mood).drives(drives).mentalModel(mentalModel)
+                .userModel(userModel).strategy(strategy)
+                .agentRegistry(Optional.of(registry))
+                .mindMapStore(Optional.of(mindMapStore))
+                .goalAppraisal(Optional.of(goalAppraisal))
+                .memoryStore(Optional.of(memoryStore))
+                .build();
+    }
+
+    @Test
+    void tick_consumesDormantRevisionAndTransitionsGoal() {
+        var node = goalNodeWithDecaySignal("n1", "Research Goal", "dormant", "research");
+        var cog = buildWithGoalNodes(List.of(node));
+
+        cog.tick("a1", "t1", Set.of());
+
+        verify(registry).updateGoalLifecycleState("a1", "t1", "research",
+                GoalLifecycleState.DORMANT);
+    }
+
+    @Test
+    void tick_consumesAbandonRevisionAndTransitionsGoal() {
+        var node = goalNodeWithDecaySignal("n1", "Research Goal", "abandon", "research");
+        var cog = buildWithGoalNodes(List.of(node));
+
+        cog.tick("a1", "t1", Set.of());
+
+        verify(registry).updateGoalLifecycleState("a1", "t1", "research",
+                GoalLifecycleState.ABANDONED);
+    }
+
+    @Test
+    void tick_skipsRevisionWithoutEidosGoalName() {
+        var node = goalNodeWithDecaySignal("n1", "Standalone", "dormant", null);
+        var cog = buildWithGoalNodes(List.of(node));
+
+        cog.tick("a1", "t1", Set.of());
+
+        verify(registry, never()).updateGoalLifecycleState(any(), any(), any(), any());
+    }
+
+    @Test
+    void tick_isolatesRevisionErrors() {
+        var node1 = goalNodeWithDecaySignal("n1", "G1", "dormant", "goal-a");
+        var node2 = goalNodeWithDecaySignal("n2", "G2", "abandon", "goal-b");
+        var cog = buildWithGoalNodes(List.of(node1, node2));
+
+        org.mockito.Mockito.doThrow(new RuntimeException("registry down"))
+                .when(registry).updateGoalLifecycleState("a1", "t1", "goal-a",
+                        GoalLifecycleState.DORMANT);
+
+        cog.tick("a1", "t1", Set.of());
+
+        verify(registry).updateGoalLifecycleState("a1", "t1", "goal-b",
+                GoalLifecycleState.ABANDONED);
     }
 }
