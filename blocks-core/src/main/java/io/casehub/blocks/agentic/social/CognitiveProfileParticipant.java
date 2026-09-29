@@ -1,6 +1,5 @@
 package io.casehub.blocks.agentic.social;
 
-import io.casehub.neocortex.cognitive.index.AttentionItem;
 import io.casehub.neocortex.cognitive.index.CognitiveProfile;
 import io.casehub.neocortex.cognitive.index.CognitiveProfileQuery;
 import io.casehub.neocortex.cognitive.index.EntityKnowledge;
@@ -14,7 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 public class CognitiveProfileParticipant implements CognitionTickParticipant {
 
@@ -25,6 +23,8 @@ public class CognitiveProfileParticipant implements CognitionTickParticipant {
 
     private List<EntityKnowledge> lastEntityKnowledge = List.of();
     private Map<String, Map<PrincipalId, EntityKnowledge>> lastComparisons = Map.of();
+    private Map<String, io.casehub.neocortex.cognitive.index.PerspectivalComparison> lastSocialComparisons = Map.of();
+
 
     public CognitiveProfileParticipant(CognitiveProfile profile,
                                        @Nullable CognitiveAttentionMediator attentionMediator,
@@ -41,6 +41,7 @@ public class CognitiveProfileParticipant implements CognitionTickParticipant {
         if (!config.entityKnowledgeEnabled()) {
             lastEntityKnowledge = List.of();
             lastComparisons = Map.of();
+            lastSocialComparisons = Map.of();
             return;
         }
 
@@ -48,6 +49,7 @@ public class CognitiveProfileParticipant implements CognitionTickParticipant {
         var seeds = collectSeeds(context);
         var resolved = new ArrayList<EntityKnowledge>();
         var comparisons = new LinkedHashMap<String, Map<PrincipalId, EntityKnowledge>>();
+        var socialComparisons = new LinkedHashMap<String, io.casehub.neocortex.cognitive.index.PerspectivalComparison>();
 
         for (var query : seeds) {
             var withPerspective = query.withAsSeenBy(agentPrincipal);
@@ -60,7 +62,11 @@ public class CognitiveProfileParticipant implements CognitionTickParticipant {
                         var agents = new LinkedHashSet<PrincipalId>();
                         for (var s : subjects) agents.add(PrincipalId.agent(s));
                         var cmp = profile.compare(withPerspective, agents);
-                        if (!cmp.isEmpty()) comparisons.put(ek.node().id(), cmp);
+                        if (!cmp.isEmpty()) {
+                            comparisons.put(ek.node().id(), cmp);
+                            socialComparisons.put(ek.node().id(),
+                                    io.casehub.neocortex.cognitive.index.SocialComparison.compare(cmp));
+                        }
                     }
                 }
             });
@@ -68,6 +74,7 @@ public class CognitiveProfileParticipant implements CognitionTickParticipant {
 
         lastEntityKnowledge = List.copyOf(resolved);
         lastComparisons = Map.copyOf(comparisons);
+        lastSocialComparisons = Map.copyOf(socialComparisons);
     }
 
     private List<CognitiveProfileQuery> collectSeeds(CognitionTickContext context) {
@@ -114,4 +121,9 @@ public class CognitiveProfileParticipant implements CognitionTickParticipant {
     public Map<String, Map<PrincipalId, EntityKnowledge>> lastComparisons() {
         return lastComparisons;
     }
+
+    public Map<String, io.casehub.neocortex.cognitive.index.PerspectivalComparison> lastSocialComparisons() {
+        return lastSocialComparisons;
+    }
+
 }

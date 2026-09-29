@@ -15,7 +15,12 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class CognitiveProfileParticipantTest {
 
@@ -145,6 +150,46 @@ class CognitiveProfileParticipantTest {
 
         assertThat(participant.lastEntityKnowledge()).hasSize(2);
         verify(profile, times(2)).resolve(any());
+    }
+
+
+    @Test
+    void tickPopulatesSocialComparisonsWhenPerspectiveComparisonEnabled() {
+        var profile = mock(CognitiveProfile.class);
+        var node    = stubNode("penelope");
+        var entity  = stubEntityKnowledge(node);
+        when(profile.resolve(any())).thenReturn(Optional.of(entity));
+        when(profile.compare(any(), any())).thenReturn(Map.of(
+                PrincipalId.agent("agent-a"), entity,
+                PrincipalId.agent("agent-b"), entity));
+
+        var config      = CognitionConfig.all().with("perspectiveComparison", true);
+        var participant = new CognitiveProfileParticipant(profile, null, null, config);
+
+        var context = new CognitionTickContext("agent-a", "tenant",
+                                               null, (aid, tid) -> Set.of("penelope"));
+        participant.tick(context);
+
+        assertThat(participant.lastSocialComparisons()).hasSize(1);
+        assertThat(participant.lastSocialComparisons().values().iterator().next()
+                              .agentCount()).isEqualTo(2);
+    }
+
+    @Test
+    void tickSocialComparisonsEmptyWhenPerspectiveComparisonDisabled() {
+        var profile = mock(CognitiveProfile.class);
+        var node    = stubNode("penelope");
+        var entity  = stubEntityKnowledge(node);
+        when(profile.resolve(any())).thenReturn(Optional.of(entity));
+
+        var participant = new CognitiveProfileParticipant(
+                profile, null, null, CognitionConfig.all());
+
+        var context = new CognitionTickContext("agent", "tenant",
+                                               null, (aid, tid) -> Set.of("penelope"));
+        participant.tick(context);
+
+        assertThat(participant.lastSocialComparisons()).isEmpty();
     }
 
     private static MindMapNode stubNode(String name) {
