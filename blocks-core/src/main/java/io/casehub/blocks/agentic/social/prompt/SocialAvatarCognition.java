@@ -5,29 +5,29 @@ import io.casehub.blocks.agentic.social.CognitionCore;
 import io.casehub.blocks.agentic.social.CognitionPhase;
 import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
 import io.casehub.blocks.agentic.social.ConsolidationMediator;
-import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
-import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
 import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
 import io.casehub.blocks.agentic.social.MoodOrchestrator;
+import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
 import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
+import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
 import io.casehub.blocks.agentic.social.UserModelOrchestrator;
 import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
 import io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig;
 import io.casehub.blocks.agentic.social.goal.CognitiveGoalOrchestrator;
 import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
 import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
-import io.casehub.neocortex.cognitive.PadProjection;
-import io.casehub.neocortex.memory.CaseMemoryStore;
-import io.casehub.neocortex.mindmap.GoalAppraisal;
-import io.casehub.neocortex.mindmap.MindMapStore;
 import io.casehub.blocks.speech.AvatarCognition;
 import io.casehub.blocks.speech.PromptSection;
 import io.casehub.blocks.speech.SpeechPromptAssembler;
 import io.casehub.eidos.api.AgentDescriptor;
 import io.casehub.eidos.api.AgentRegistry;
 import io.casehub.eidos.api.GoalLifecycleState;
+import io.casehub.neocortex.cognitive.PadProjection;
+import io.casehub.neocortex.memory.CaseMemoryStore;
 import io.casehub.neocortex.memory.engagement.EngagementEvent;
+import io.casehub.neocortex.mindmap.GoalAppraisal;
+import io.casehub.neocortex.mindmap.MindMapStore;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -87,7 +87,7 @@ public class SocialAvatarCognition implements AvatarCognition {
             var cgo           = this.cognitiveGoals;
             var driveGoalOrch = goals.orElse(null);
             var config        = builder.cognitiveGoalConfig;
-            core.setSectionCustomizer(sections -> {
+            core.chainSectionCustomizer(sections -> {
                 var result = new java.util.ArrayList<>(sections);
                 for (int i = 0; i < result.size(); i++) {
                     if (result.get(i) instanceof EmergentGoalPromptSection) {
@@ -101,6 +101,24 @@ public class SocialAvatarCognition implements AvatarCognition {
         } else {
             this.cognitiveGoals = null;
         }
+
+        builder.cognitiveProfile.ifPresent(cp -> {
+            var profileParticipant = new io.casehub.blocks.agentic.social.CognitiveProfileParticipant(
+                    cp,
+                    builder.attentionMediator.orElse(null),
+                    builder.temporalFocus.orElse(null),
+                    CognitionConfig.all());
+            core.addParticipant(CognitionPhase.TERMINAL, profileParticipant);
+            core.chainSectionCustomizer(sections -> {
+                var result = new java.util.ArrayList<>(sections);
+                var knowledge = profileParticipant.lastEntityKnowledge();
+                if (!knowledge.isEmpty()) {
+                    result.add(new EntityKnowledgePromptSection(
+                            knowledge, profileParticipant.lastComparisons()));
+                }
+                return result;
+            });
+        });
     }
 
     public SocialAvatarCognition(MoodOrchestrator mood,
@@ -233,6 +251,8 @@ public class SocialAvatarCognition implements AvatarCognition {
         private Optional<GoalAppraisal>              goalAppraisal       = Optional.empty();
         private Optional<CaseMemoryStore>            memoryStore         = Optional.empty();
         private CognitiveGoalConfig                  cognitiveGoalConfig = CognitiveGoalConfig.defaults();
+        private Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile = Optional.empty();
+
 
         private Builder()                                                                        {}
 
@@ -325,6 +345,12 @@ public class SocialAvatarCognition implements AvatarCognition {
                                                                                                      this.cognitiveGoalConfig = config;
                                                                                                      return this;
                                                                                                  }
+
+        public Builder cognitiveProfile(Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile) {
+            this.cognitiveProfile = cognitiveProfile;
+            return this;
+        }
+
 
         public SocialAvatarCognition build() {
             java.util.Objects.requireNonNull(mood, "mood");
