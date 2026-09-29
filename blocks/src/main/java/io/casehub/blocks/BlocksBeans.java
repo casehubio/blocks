@@ -132,6 +132,7 @@ public class BlocksBeans {
     @Inject Instance<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisalInstance;
     @Inject Instance<io.casehub.neocortex.memory.CaseMemoryStore> caseMemoryStoreInstance;
     @Inject Instance<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfileInstance;
+    @Inject Instance<io.casehub.neocortex.cognitive.index.DomainActivation> domainActivationInstance;
     @Inject Instance<AgentGraphQuery> agentGraphQueryInstance;
     @Inject Instance<RoutingSignalAssembler> routingSignalAssemblerInstance;
     @Inject Instance<ManagedExecutor> managedExecutorInstance;
@@ -337,6 +338,7 @@ public class BlocksBeans {
                                     .memoryStore(optionalFrom(caseMemoryStoreInstance))
                                     .cognitiveGoalConfig(cognitiveGoalConfig)
                                     .cognitiveProfile(optionalFrom(cognitiveProfileInstance))
+                                    .domainActivation(optionalFrom(domainActivationInstance))
                                     .build();
     }
 

@@ -32,6 +32,12 @@ public class ConsolidationMediator {
             .toList();
     }
 
+    public java.time.Instant lastConsolidationTimestamp(String tenantId) {
+        var snapshot = snapshots.get(tenantId);
+        return snapshot != null ? snapshot.timestamp() : null;
+    }
+
+
     private static boolean isRelevant(ConsolidationArtifact a, String agentId) {
         return switch (a) {
             case ConsolidationArtifact.GraduatedExperience e -> e.agentId().equals(agentId);
