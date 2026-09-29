@@ -72,6 +72,39 @@ class CognitionConfigTest {
         assertThat(config.userModelEnabled()).isTrue();
     }
 
+
+    @Test
+    void allEnablesEntityKnowledge() {
+        assertThat(CognitionConfig.all().entityKnowledgeEnabled()).isTrue();
+    }
+
+    @Test
+    void allDisablesPerspectiveComparison() {
+        assertThat(CognitionConfig.all().perspectiveComparisonEnabled()).isFalse();
+    }
+
+    @Test
+    void noneDisablesEntityKnowledge() {
+        assertThat(CognitionConfig.none().entityKnowledgeEnabled()).isFalse();
+    }
+
+    @Test
+    void noneDisablesPerspectiveComparison() {
+        assertThat(CognitionConfig.none().perspectiveComparisonEnabled()).isFalse();
+    }
+
+    @Test
+    void withTogglesEntityKnowledge() {
+        var config = CognitionConfig.none().with("entityKnowledge", true);
+        assertThat(config.entityKnowledgeEnabled()).isTrue();
+    }
+
+    @Test
+    void withTogglesPerspectiveComparison() {
+        var config = CognitionConfig.none().with("perspectiveComparison", true);
+        assertThat(config.perspectiveComparisonEnabled()).isTrue();
+    }
+
     @Test
     void withRejectsUnknownSubsystem() {
         assertThatThrownBy(() -> CognitionConfig.all().with("bogus", false))
