@@ -75,4 +75,36 @@ class ConsolidationMediatorTest {
         mediator.drainForAgent("agent-1", "t1");
         assertThat(mediator.drainForAgent("agent-1", "t2")).containsExactly(art2);
     }
+
+    @Test
+    void lastConsolidationTimestamp_returnsNullBeforeAnyEvent() {
+        var mediator = new ConsolidationMediator();
+        assertThat(mediator.lastConsolidationTimestamp("t1")).isNull();
+    }
+
+    @Test
+    void lastConsolidationTimestamp_returnsTimestampAfterEvent() {
+        var mediator = new ConsolidationMediator();
+        var artifact = new ConsolidationArtifact.MergeFlagged(
+                "t1", "n1", "n2", 0.8, "test", Instant.now());
+        mediator.onConsolidation(new ConsolidationCompleted(
+                "t1", List.of(), List.of(artifact)));
+        assertThat(mediator.lastConsolidationTimestamp("t1")).isNotNull();
+    }
+
+    @Test
+    void lastConsolidationTimestamp_updatesOnSubsequentEvents() throws InterruptedException {
+        var mediator = new ConsolidationMediator();
+        var artifact = new ConsolidationArtifact.MergeFlagged(
+                "t1", "n1", "n2", 0.8, "test", Instant.now());
+        mediator.onConsolidation(new ConsolidationCompleted(
+                "t1", List.of(), List.of(artifact)));
+        var first = mediator.lastConsolidationTimestamp("t1");
+        Thread.sleep(2);
+        mediator.onConsolidation(new ConsolidationCompleted(
+                "t1", List.of(), List.of(artifact)));
+        var second = mediator.lastConsolidationTimestamp("t1");
+        assertThat(second).isAfter(first);
+    }
+
 }

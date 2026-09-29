@@ -122,6 +122,23 @@ public class SocialAvatarCognition implements AvatarCognition {
                 return result;
             });
         });
+
+        if (builder.domainActivation.isPresent() && builder.mindMapStore.isPresent()) {
+            var domainActivationParticipant = new io.casehub.blocks.agentic.social.DomainActivationParticipant(
+                    builder.domainActivation.get(),
+                    builder.mindMapStore.get(),
+                    builder.consolidationMediator.orElse(null),
+                    CognitionConfig.all());
+            core.addParticipant(CognitionPhase.TERMINAL, domainActivationParticipant);
+            core.chainSectionCustomizer(sections -> {
+                var result = new java.util.ArrayList<>(sections);
+                var snapshot = domainActivationParticipant.lastSnapshot();
+                if (snapshot != null && snapshot.hasRenderableCorrelations()) {
+                    result.add(new DomainActivationPromptSection(snapshot));
+                }
+                return result;
+            });
+        }
     }
 
     public SocialAvatarCognition(MoodOrchestrator mood,
@@ -255,6 +272,7 @@ public class SocialAvatarCognition implements AvatarCognition {
         private Optional<CaseMemoryStore>            memoryStore         = Optional.empty();
         private CognitiveGoalConfig                  cognitiveGoalConfig = CognitiveGoalConfig.defaults();
         private Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile = Optional.empty();
+        private Optional<io.casehub.neocortex.cognitive.index.DomainActivation> domainActivation = Optional.empty();
 
 
         private Builder()                                                                        {}
@@ -351,6 +369,11 @@ public class SocialAvatarCognition implements AvatarCognition {
 
         public Builder cognitiveProfile(Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile) {
             this.cognitiveProfile = cognitiveProfile;
+            return this;
+        }
+
+        public Builder domainActivation(Optional<io.casehub.neocortex.cognitive.index.DomainActivation> domainActivation) {
+            this.domainActivation = domainActivation;
             return this;
         }
 

@@ -321,7 +321,8 @@ public class BlocksAutoConfiguration {
             Optional<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisal,
             Optional<io.casehub.neocortex.memory.CaseMemoryStore> memoryStore,
             io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig,
-            Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile) {
+            Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile,
+            Optional<io.casehub.neocortex.cognitive.index.DomainActivation> domainActivation) {
         return SocialAvatarCognition.builder()
                                     .mood(mood).drives(drives).mentalModel(mentalModel)
                                     .userModel(userModel).strategy(strategy)
@@ -335,6 +336,7 @@ public class BlocksAutoConfiguration {
                                     .mindMapStore(mindMapStore).goalAppraisal(goalAppraisal)
                                     .memoryStore(memoryStore).cognitiveGoalConfig(cognitiveGoalConfig)
                                     .cognitiveProfile(cognitiveProfile)
+                                    .domainActivation(domainActivation)
                                     .build();
     }
 
