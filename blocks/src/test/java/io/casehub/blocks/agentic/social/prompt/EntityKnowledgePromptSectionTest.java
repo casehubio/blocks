@@ -27,7 +27,7 @@ class EntityKnowledgePromptSectionTest {
 
     @Test
     void returnsNullWhenNoEntities() {
-        var section = new EntityKnowledgePromptSection(List.of(), Map.of());
+        var section = new EntityKnowledgePromptSection(List.of());
         assertThat(section.contribute(CTX)).isNull();
     }
 
@@ -43,7 +43,7 @@ class EntityKnowledgePromptSectionTest {
                 Map.of(new MemoryDomain("experience"), List.of(memory)),
                 trajectory, Set.of(), "tenant", PrincipalId.agent("agent"));
 
-        var section = new EntityKnowledgePromptSection(List.of(ek), Map.of());
+        var section = new EntityKnowledgePromptSection(List.of(ek));
         var text = section.contribute(CTX);
 
         assertThat(text).contains("Penelope Pitstop");
@@ -61,7 +61,7 @@ class EntityKnowledgePromptSectionTest {
         var ek2 = new EntityKnowledge(node2, List.of(), Map.of(), null, Set.of(),
                 "tenant", PrincipalId.agent("agent"));
 
-        var section = new EntityKnowledgePromptSection(List.of(ek1, ek2), Map.of());
+        var section = new EntityKnowledgePromptSection(List.of(ek1, ek2));
         var text = section.contribute(CTX);
 
         assertThat(text).contains("Penelope");
@@ -74,7 +74,7 @@ class EntityKnowledgePromptSectionTest {
         var ek = new EntityKnowledge(node, List.of(), Map.of(), null, Set.of(),
                 "tenant", PrincipalId.agent("agent"));
 
-        var section = new EntityKnowledgePromptSection(List.of(ek), Map.of());
+        var section = new EntityKnowledgePromptSection(List.of(ek));
         var text = section.contribute(CTX);
 
         assertThat(text).doesNotContain("trajectory");
@@ -87,33 +87,11 @@ class EntityKnowledgePromptSectionTest {
         var ek = new EntityKnowledge(node, List.of(), Map.of(), null, Set.of(ref),
                 "tenant", PrincipalId.agent("agent"));
 
-        var section = new EntityKnowledgePromptSection(List.of(ek), Map.of());
+        var section = new EntityKnowledgePromptSection(List.of(ek));
         var text = section.contribute(CTX);
 
         assertThat(text).contains("Mystery Person");
         assertThat(text).contains("not yet known");
-    }
-
-    @Test
-    void rendersComparisonWhenPresent() {
-        var node = stubNode("Penelope", "CHARACTER");
-        var selfTrajectory = new AffectTrajectory(0.3, 0.1, 0.2, 0.1,
-                TrendDirection.IMPROVING, 0.15, 5);
-        var otherTrajectory = new AffectTrajectory(-0.2, 0.3, -0.1, 0.2,
-                TrendDirection.WORSENING, 0.2, 5);
-        var selfEk = new EntityKnowledge(node, List.of(), Map.of(), selfTrajectory, Set.of(),
-                "tenant", PrincipalId.agent("self"));
-        var otherEk = new EntityKnowledge(node, List.of(), Map.of(), otherTrajectory, Set.of(),
-                "tenant", PrincipalId.agent("other-agent"));
-
-        var comparisons = Map.of("node-Penelope",
-                Map.of(PrincipalId.agent("other-agent"), otherEk));
-
-        var section = new EntityKnowledgePromptSection(List.of(selfEk), comparisons);
-        var text = section.contribute(CTX);
-
-        assertThat(text).contains("How others see");
-        assertThat(text).contains("worsening");
     }
 
     @Test
@@ -129,7 +107,7 @@ class EntityKnowledgePromptSectionTest {
         var ek = new EntityKnowledge(node, List.of(), Map.of(domain, memories), null, Set.of(),
                 "tenant", PrincipalId.agent("agent"));
 
-        var section = new EntityKnowledgePromptSection(List.of(ek), Map.of());
+        var section = new EntityKnowledgePromptSection(List.of(ek));
         var text = section.contribute(CTX);
 
         assertThat(text).contains("Memory 1");

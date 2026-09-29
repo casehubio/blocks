@@ -113,8 +113,11 @@ public class SocialAvatarCognition implements AvatarCognition {
                 var result = new java.util.ArrayList<>(sections);
                 var knowledge = profileParticipant.lastEntityKnowledge();
                 if (!knowledge.isEmpty()) {
-                    result.add(new EntityKnowledgePromptSection(
-                            knowledge, profileParticipant.lastComparisons()));
+                    result.add(new EntityKnowledgePromptSection(knowledge));
+                }
+                var socialComparisons = profileParticipant.lastSocialComparisons();
+                if (!socialComparisons.isEmpty()) {
+                    result.add(new SocialComparisonPromptSection(socialComparisons));
                 }
                 return result;
             });
