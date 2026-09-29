@@ -8,8 +8,8 @@ import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
 import io.casehub.blocks.agentic.social.need.NeedTier;
 import io.casehub.blocks.agentic.social.need.NeedTierMappingProvider;
 import io.casehub.blocks.agentic.social.prompt.AttentionPromptSection;
-import io.casehub.blocks.agentic.social.prompt.ConsolidationPromptSection;
 import io.casehub.blocks.agentic.social.prompt.CharacterDrivePromptSection;
+import io.casehub.blocks.agentic.social.prompt.ConsolidationPromptSection;
 import io.casehub.blocks.agentic.social.prompt.ConstraintPromptSection;
 import io.casehub.blocks.agentic.social.prompt.DirectiveSection;
 import io.casehub.blocks.agentic.social.prompt.DrivePromptSection;
@@ -529,6 +529,13 @@ public class CognitionCore {
 
     public void setSectionCustomizer(java.util.function.UnaryOperator<java.util.List<PromptSection>> customizer) {
         this.sectionCustomizer = customizer;
+    }
+
+    public void chainSectionCustomizer(java.util.function.UnaryOperator<java.util.List<PromptSection>> next) {
+        var prev = this.sectionCustomizer;
+        this.sectionCustomizer = prev == null
+                                 ? next
+                                 : sections -> next.apply(new java.util.ArrayList<>(prev.apply(sections)));
     }
 
 
