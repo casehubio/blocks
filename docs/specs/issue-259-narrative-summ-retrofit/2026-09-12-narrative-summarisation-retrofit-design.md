@@ -531,7 +531,7 @@ public class NarrativeOutputProcessor
 
 ### CbrStateStore
 
-Adapter wrapping `CbrNarrativeStore` as `StateStore<NarrativeState>`.
+Adapter wrapping `NarrativeMemory` as `StateStore<NarrativeState>`.
 
 ```java
 package io.casehub.blocks.agentic.social.narrative;
@@ -678,7 +678,7 @@ pattern.
 
 `NarrativeOrchestrator` continues to read from `NarrativeStore` on
 its own tick cycle. The `NarrativePipeline`'s `StateStore` write-through
-writes to `CbrNarrativeStore`, which is the same `NarrativeStore` that
+writes to `NarrativeMemory`, which is the same `NarrativeStore` that
 `NarrativeOrchestrator` reads. No coupling between the two — the
 orchestrator discovers new synthesis via timestamp comparison, same as
 before.

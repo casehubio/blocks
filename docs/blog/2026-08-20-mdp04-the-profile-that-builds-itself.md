@@ -57,7 +57,7 @@ public interface UserProfileStore {
 }
 ```
 
-The `eraseSubject` method is the GDPR path — it scans all agents' profiles for a given subject and erases each one. The default `CbrUserProfileStore` adapter handles the CbrCase conversion, supersession for temporal versioning, and feature-value mapping in one place. Consumers see profiles, not cases.
+The `eraseSubject` method is the GDPR path — it scans all agents' profiles for a given subject and erases each one. The default `UserProfileMemory` adapter handles the CbrCase conversion, supersession for temporal versioning, and feature-value mapping in one place. Consumers see profiles, not cases.
 
 ## What's next
 
