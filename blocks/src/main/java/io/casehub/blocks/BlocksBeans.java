@@ -3,50 +3,6 @@ package io.casehub.blocks;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
-import io.casehub.blocks.agentic.social.CbrMentalModelStore;
-import io.casehub.blocks.agentic.social.CbrStrategyStore;
-import io.casehub.blocks.agentic.social.CbrUserProfileStore;
-import io.casehub.blocks.agentic.social.CivilityConstraint;
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
-import io.casehub.blocks.agentic.social.ConsolidationMediator;
-import io.casehub.blocks.agentic.social.InnerLifeConfig;
-import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
-import io.casehub.blocks.agentic.social.MentalModelConfig;
-import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
-import io.casehub.blocks.agentic.social.MentalModelStore;
-import io.casehub.blocks.agentic.social.MoodConfig;
-import io.casehub.blocks.agentic.social.MoodOrchestrator;
-import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
-import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
-import io.casehub.blocks.agentic.social.StrategyLearningConfig;
-import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
-import io.casehub.blocks.agentic.social.StrategyStore;
-import io.casehub.blocks.agentic.social.TraitPressureSource;
-import io.casehub.blocks.agentic.social.UserModelConfig;
-import io.casehub.blocks.agentic.social.UserModelOrchestrator;
-import io.casehub.blocks.agentic.social.UserProfileStore;
-import io.casehub.blocks.agentic.social.drive.DriveComposer;
-import io.casehub.blocks.agentic.social.drive.DriveConfig;
-import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
-import io.casehub.blocks.agentic.social.emergence.NormDetectionConfig;
-import io.casehub.blocks.agentic.social.emergence.SocialNormDetector;
-import io.casehub.blocks.agentic.social.goal.CrossAxisGoalEnricher;
-import io.casehub.blocks.agentic.social.goal.DriveGoalFormationStrategy;
-import io.casehub.blocks.agentic.social.goal.DriveGoalMapper;
-import io.casehub.blocks.agentic.social.goal.GoalEscalationConfig;
-import io.casehub.blocks.agentic.social.goal.GoalEscalationPolicy;
-import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
-import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
-import io.casehub.blocks.agentic.social.goal.LlmCrossAxisGoalEnricher;
-import io.casehub.blocks.agentic.social.goal.NarrativeGoalEscalationPolicy;
-import io.casehub.blocks.agentic.social.narrative.CbrNarrativeStore;
-import io.casehub.blocks.agentic.social.narrative.NarrativeConfig;
-import io.casehub.blocks.agentic.social.narrative.NarrativeContentSummariser;
-import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
-import io.casehub.blocks.agentic.social.narrative.NarrativePipeline;
-import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
-import io.casehub.blocks.agentic.social.narrative.NoOpNarrativeStore;
-import io.casehub.blocks.agentic.social.prompt.SocialAvatarCognition;
 import io.casehub.blocks.attestation.NoOpAttestationIntentWriter;
 import io.casehub.blocks.channel.summary.ChannelSummariser;
 import io.casehub.blocks.channel.summary.HeuristicMessageSummariser;
@@ -83,6 +39,41 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
+import io.casehub.neocortex.cognition.core.CognitiveAttentionMediator;
+import io.casehub.neocortex.cognition.core.ConsolidationMediator;
+import io.casehub.neocortex.cognition.drive.DriveComposer;
+import io.casehub.neocortex.cognition.drive.DriveConfig;
+import io.casehub.neocortex.cognition.drive.DriveOrchestrator;
+import io.casehub.neocortex.cognition.emergence.NormDetectionConfig;
+import io.casehub.neocortex.cognition.emergence.SocialNormDetector;
+import io.casehub.neocortex.cognition.goal.CrossAxisGoalEnricher;
+import io.casehub.neocortex.cognition.goal.DriveGoalFormationStrategy;
+import io.casehub.neocortex.cognition.goal.DriveGoalMapper;
+import io.casehub.neocortex.cognition.goal.GoalEscalationConfig;
+import io.casehub.neocortex.cognition.goal.GoalEscalationPolicy;
+import io.casehub.neocortex.cognition.goal.GoalProposalConfig;
+import io.casehub.neocortex.cognition.goal.GoalProposalOrchestrator;
+import io.casehub.neocortex.cognition.goal.LlmCrossAxisGoalEnricher;
+import io.casehub.neocortex.cognition.goal.NarrativeGoalEscalationPolicy;
+import io.casehub.neocortex.cognition.innerlife.CivilityConstraint;
+import io.casehub.neocortex.cognition.innerlife.InnerLifeConfig;
+import io.casehub.neocortex.cognition.innerlife.InnerLifeOrchestrator;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelConfig;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelOrchestrator;
+import io.casehub.neocortex.cognition.mood.MoodConfig;
+import io.casehub.neocortex.cognition.mood.MoodOrchestrator;
+import io.casehub.neocortex.cognition.narrative.NarrativeConfig;
+import io.casehub.neocortex.cognition.narrative.NarrativeContentSummariser;
+import io.casehub.neocortex.cognition.narrative.NarrativeMemory;
+import io.casehub.neocortex.cognition.narrative.NarrativeOrchestrator;
+import io.casehub.neocortex.cognition.narrative.NarrativePipeline;
+import io.casehub.neocortex.cognition.personality.PersonalityEvolutionConfig;
+import io.casehub.neocortex.cognition.personality.PersonalityEvolutionOrchestrator;
+import io.casehub.neocortex.cognition.personality.TraitPressureSource;
+import io.casehub.neocortex.cognition.strategy.StrategyLearningConfig;
+import io.casehub.neocortex.cognition.strategy.StrategyLearningOrchestrator;
+import io.casehub.neocortex.cognition.usermodel.UserModelConfig;
+import io.casehub.neocortex.cognition.usermodel.UserModelOrchestrator;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
@@ -125,8 +116,8 @@ public class BlocksBeans {
     @Inject Instance<SystemPromptCustomiser> systemPromptCustomiserInstance;
     @Inject Instance<CognitiveAttentionMediator> attentionMediatorInstance;
     @Inject Instance<io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore> engagementRecorderInstance;
-    @Inject Instance<io.casehub.blocks.agentic.social.TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
-    @Inject Instance<io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
+    @Inject Instance<io.casehub.neocortex.cognition.temporal.TemporalFocusOrchestrator> temporalFocusOrchestratorInstance;
+    @Inject Instance<io.casehub.neocortex.cognition.temporal.ReflectionRetrievalOrchestrator> reflectionOrchestratorInstance;
     @Inject Instance<ConsolidationMediator> consolidationMediatorInstance;
     @Inject Instance<io.casehub.neocortex.mindmap.MindMapStore> mindMapStoreInstance;
     @Inject Instance<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisalInstance;
@@ -165,35 +156,41 @@ public class BlocksBeans {
         return new NoOpThreadSummaryStore();
     }
 
-    @Produces @ApplicationScoped
-    public NoOpNarrativeStore noOpNarrativeStore() {
-        return new NoOpNarrativeStore();
+    @Produces
+    @DefaultBean
+    public NarrativeMemory narrativeMemory(
+            CbrRecordStore cbrStore, NarrativeConfig config) {
+        return new NarrativeMemory(cbrStore, config);
     }
 
     // ── DefaultBean stores ──
 
-    @Produces @DefaultBean
-    public CbrUserProfileStore cbrUserProfileStore(
+    @Produces
+    @DefaultBean
+    public UserProfileMemory userProfileMemory(
             CbrRecordStore cbrStore, UserModelConfig config) {
-        return new CbrUserProfileStore(cbrStore, config);
+        return new UserProfileMemory(cbrStore, config);
     }
 
-    @Produces @DefaultBean
-    public CbrMentalModelStore cbrMentalModelStore(
+    @Produces
+    @DefaultBean
+    public MentalModelMemory mentalModelMemory(
             CbrRecordStore cbrStore, MentalModelConfig config) {
-        return new CbrMentalModelStore(cbrStore, config);
+        return new MentalModelMemory(cbrStore, config);
     }
 
-    @Produces @DefaultBean
-    public CbrStrategyStore cbrStrategyStore(
+    @Produces
+    @DefaultBean
+    public StrategyMemory strategyMemory(
             CbrRecordStore cbrStore, StrategyLearningConfig config) {
-        return new CbrStrategyStore(cbrStore, config);
+        return new StrategyMemory(cbrStore, config);
     }
 
-    @Produces @DefaultBean
-    public CbrNarrativeStore cbrNarrativeStore(
+    @Produces
+    @DefaultBean
+    public NarrativeMemory cbrNarrativeMemory(
             CbrRecordStore cbrStore, NarrativeConfig config) {
-        return new CbrNarrativeStore(cbrStore, config);
+        return new NarrativeMemory(cbrStore, config);
     }
 
     // ── DefaultBean weights / pure logic ──
@@ -242,48 +239,58 @@ public class BlocksBeans {
         return new MoodOrchestrator(config);
     }
 
-    @Produces @ApplicationScoped
-    public NarrativeOrchestrator narrativeOrchestrator(NarrativeStore store) {
+    @Produces
+    @ApplicationScoped
+    public NarrativeOrchestrator narrativeOrchestrator(NarrativeMemory store) {
         return new NarrativeOrchestrator(store);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public MentalModelOrchestrator mentalModelOrchestrator(
-            MentalModelStore modelStore, AgentProvider agentProvider,
+            MentalModelMemory modelMemory, AgentProvider agentProvider,
             MentalModelConfig config) {
-        return new MentalModelOrchestrator(modelStore, agentProvider, config);
+        return new MentalModelOrchestrator(modelMemory, agentProvider, config);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public UserModelOrchestrator userModelOrchestrator(
-            UserProfileStore profileStore, AgentProvider agentProvider,
+            UserProfileMemory profileMemory, AgentProvider agentProvider,
             UserModelConfig config) {
-        return new UserModelOrchestrator(profileStore, agentProvider, config);
+        return new UserModelOrchestrator(profileMemory, agentProvider, config);
     }
 
     @Produces
     @ApplicationScoped
     public StrategyLearningOrchestrator strategyLearningOrchestrator(
-            StrategyStore strategyStore,
+            StrategyMemory strategyMemory,
             ReflectionOrchestrator reflectionOrchestrator,
             AgentProvider agentProvider, StrategyLearningConfig config) {
         return new StrategyLearningOrchestrator(
-                strategyStore, reflectionOrchestrator,
+                strategyMemory, reflectionOrchestrator,
                 agentProvider, config);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public DriveOrchestrator driveOrchestrator(
             StrategyLearningOrchestrator strategy,
             UserModelOrchestrator userModel,
             MentalModelOrchestrator mentalModel,
             MoodOrchestrator moodOrchestrator,
             DriveComposer composer, DriveConfig config) {
+        var curiosity = new io.casehub.neocortex.cognition.drive.CuriosityDrive(
+                nullableFrom(hygieneOrchestratorInstance));
+        var competence = new io.casehub.neocortex.cognition.drive.CompetenceDrive(strategy);
+        var affiliation = new io.casehub.neocortex.cognition.drive.AffiliationDrive(
+                userModel, config.affiliationDecayThreshold(), config.affiliationStaleDuration());
+        var autonomy = new io.casehub.neocortex.cognition.drive.AutonomyDrive(
+                mentalModel, config.autonomyConfidenceFloor());
         return new DriveOrchestrator(
-                optionalFrom(hygieneOrchestratorInstance),
-                strategy, userModel, mentalModel, moodOrchestrator,
-                composer, config,
-                optionalFrom(narrativeOrchestratorInstance));
+                curiosity, competence, affiliation, autonomy,
+                moodOrchestrator, composer, config, java.time.Clock.systemUTC(),
+                nullableFrom(narrativeOrchestratorInstance));
     }
 
     @Produces @ApplicationScoped
@@ -315,31 +322,95 @@ public class BlocksBeans {
 
     @Produces
     @ApplicationScoped
-    public SocialAvatarCognition socialAvatarCognition(
+    public CognitionAvatarAdapter cognitionAvatarAdapter(
             MoodOrchestrator mood, DriveOrchestrator drives,
             MentalModelOrchestrator mentalModel,
             UserModelOrchestrator userModel,
             StrategyLearningOrchestrator strategy,
-            io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig) {
-        return SocialAvatarCognition.builder()
-                                    .mood(mood).drives(drives).mentalModel(mentalModel)
-                                    .userModel(userModel).strategy(strategy)
-                                    .narrative(optionalFrom(narrativeOrchestratorInstance))
-                                    .goals(optionalFrom(goalProposalOrchestratorInstance))
-                                    .innerLife(optionalFrom(innerLifeOrchestratorInstance))
-                                    .agentRegistry(optionalFrom(agentRegistryInstance))
-                                    .attentionMediator(optionalFrom(attentionMediatorInstance))
-                                    .engagementPersister(optionalFrom(engagementRecorderInstance).map(r -> (java.util.function.Consumer<io.casehub.neocortex.memory.engagement.EngagementEvent>) r::record))
-                                    .temporalFocus(optionalFrom(temporalFocusOrchestratorInstance))
-                                    .reflectionOrchestrator(optionalFrom(reflectionOrchestratorInstance))
-                                    .consolidationMediator(optionalFrom(consolidationMediatorInstance))
-                                    .mindMapStore(optionalFrom(mindMapStoreInstance))
-                                    .goalAppraisal(optionalFrom(goalAppraisalInstance))
-                                    .memoryStore(optionalFrom(caseMemoryStoreInstance))
-                                    .cognitiveGoalConfig(cognitiveGoalConfig)
-                                    .cognitiveProfile(optionalFrom(cognitiveProfileInstance))
-                                    .domainActivation(optionalFrom(domainActivationInstance))
-                                    .build();
+            CognitiveGoalConfig cognitiveGoalConfig) {
+        var core = new CognitionCore(mood, drives, userModel, mentalModel, strategy,
+                                     nullableFrom(narrativeOrchestratorInstance),
+                                     nullableFrom(goalProposalOrchestratorInstance),
+                                     nullableFrom(hygieneOrchestratorInstance),
+                                     nullableFrom(innerLifeOrchestratorInstance),
+                                     null, io.casehub.neocortex.cognition.core.CognitionConfig.all(),
+                                     nullableFrom(mindMapStoreInstance), null,
+                                     nullableFrom(attentionMediatorInstance),
+                                     optionalFrom(engagementRecorderInstance)
+                                             .map(r -> (java.util.function.Consumer<io.casehub.neocortex.memory.engagement.EngagementEvent>) r::record)
+                                             .orElse(null),
+                                     nullableFrom(temporalFocusOrchestratorInstance),
+                                     nullableFrom(reflectionOrchestratorInstance),
+                                     nullableFrom(consolidationMediatorInstance));
+
+        io.casehub.neocortex.cognition.goal.CognitiveGoalOrchestrator cognitiveGoals = null;
+        if (mindMapStoreInstance.isResolvable() && goalAppraisalInstance.isResolvable()
+            && caseMemoryStoreInstance.isResolvable()) {
+            cognitiveGoals = new io.casehub.neocortex.cognition.goal.CognitiveGoalOrchestrator(
+                    mindMapStoreInstance.get(),
+                    goalAppraisalInstance.get(),
+                    caseMemoryStoreInstance.get(),
+                    cognitiveGoalConfig,
+                    (agentId, tenantId) -> mood.currentMood(agentId, tenantId)
+                                               .map(ms -> new io.casehub.neocortex.cognitive.PadProjection(
+                                                       ms.pleasure(), ms.arousal(), ms.dominance()))
+                                               .orElse(io.casehub.neocortex.cognitive.PadProjection.NEUTRAL),
+                    java.time.Clock.systemUTC());
+            core.addParticipant(CognitionPhase.TERMINAL, cognitiveGoals);
+            var cgo           = cognitiveGoals;
+            var driveGoalOrch = nullableFrom(goalProposalOrchestratorInstance);
+            core.chainSectionCustomizer(sections -> {
+                var result = new java.util.ArrayList<>(sections);
+                for (int i = 0; i < result.size(); i++) {
+                    if (result.get(i) instanceof EmergentGoalPromptSection) {
+                        result.set(i, new EmergentGoalPromptSection(driveGoalOrch, cgo, cognitiveGoalConfig));
+                        return result;
+                    }
+                }
+                result.add(new EmergentGoalPromptSection(driveGoalOrch, cgo, cognitiveGoalConfig));
+                return result;
+            });
+        }
+
+        optionalFrom(cognitiveProfileInstance).ifPresent(cp -> {
+            var profileParticipant = new CognitiveProfileParticipant(
+                    cp, nullableFrom(attentionMediatorInstance),
+                    nullableFrom(temporalFocusOrchestratorInstance),
+                    io.casehub.neocortex.cognition.core.CognitionConfig.all());
+            core.addParticipant(CognitionPhase.TERMINAL, profileParticipant);
+            core.chainSectionCustomizer(sections -> {
+                var result    = new java.util.ArrayList<>(sections);
+                var knowledge = profileParticipant.lastEntityKnowledge();
+                if (!knowledge.isEmpty()) {
+                    result.add(new EntityKnowledgePromptSection(knowledge));
+                }
+                var socialComparisons = profileParticipant.lastSocialComparisons();
+                if (!socialComparisons.isEmpty()) {
+                    result.add(new SocialComparisonPromptSection(socialComparisons));
+                }
+                return result;
+            });
+        });
+
+        if (domainActivationInstance.isResolvable() && mindMapStoreInstance.isResolvable()) {
+            var domainActivationParticipant = new DomainActivationParticipant(
+                    domainActivationInstance.get(),
+                    mindMapStoreInstance.get(),
+                    nullableFrom(consolidationMediatorInstance),
+                    io.casehub.neocortex.cognition.core.CognitionConfig.all());
+            core.addParticipant(CognitionPhase.TERMINAL, domainActivationParticipant);
+            core.chainSectionCustomizer(sections -> {
+                var result   = new java.util.ArrayList<>(sections);
+                var snapshot = domainActivationParticipant.lastSnapshot();
+                if (snapshot != null && snapshot.hasRenderableCorrelations()) {
+                    result.add(new DomainActivationPromptSection(snapshot));
+                }
+                return result;
+            });
+        }
+
+        return new CognitionAvatarAdapter(core,
+                                          nullableFrom(agentRegistryInstance), cognitiveGoals);
     }
 
     // ── Goal ──
@@ -378,11 +449,12 @@ public class BlocksBeans {
         return new NarrativeContentSummariser(agentProvider, config);
     }
 
-    @Produces @ApplicationScoped
+    @Produces
+    @ApplicationScoped
     public NarrativePipeline narrativePipeline(
             NarrativeContentSummariser summariser, NarrativeConfig config,
-            ReflectionQueryStore reflectionQueryStore, CbrNarrativeStore cbrStore) {
-        return new NarrativePipeline(summariser, config, reflectionQueryStore, cbrStore);
+            ReflectionQueryStore reflectionQueryStore, NarrativeMemory narrativeMemory) {
+        return new NarrativePipeline(summariser, config, reflectionQueryStore, narrativeMemory, null);
     }
 
     // ── Channel summary ──
