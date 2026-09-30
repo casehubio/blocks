@@ -818,7 +818,7 @@ to #259 (identity narrative retrofit) during decision review:
 
 | SPI | Why deferred |
 |---|---|
-| `StateStore<S>` (D1) | Decision narratives use in-memory state (re-derivable from signals). Persistent state is needed by identity narratives (`CbrNarrativeStore`). |
+| `StateStore<S>` (D1) | Decision narratives use in-memory state (re-derivable from signals). Persistent state is needed by identity narratives (`NarrativeMemory`). |
 | `EmissionPolicy<IN, S>` (D2) | Decision narratives use `KeyedSummarisationRunner`'s existing `completionTest` + `staleTimeout`. The motivating use case (`NarrativeSynthesisGate` — count + novelty + quiet period) is an identity narrative concern. |
 | `OutputProcessor<OUT, S>` (D3) | Decision narratives are naturally bounded (finite signals per step/case). The motivating use case (`pruneEpisodes`/`pruneThemes`) is an identity narrative concern. |
 

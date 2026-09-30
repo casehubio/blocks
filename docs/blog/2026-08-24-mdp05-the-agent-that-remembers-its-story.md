@@ -67,7 +67,7 @@ cycle closes. An agent that frequently helps in crises develops a
 it more likely to propose helping goals, which leads to more crisis
 episodes. Identity becomes self-reinforcing.
 
-The next piece is `CbrNarrativeStore` — persistence for the self-story.
+The next piece is `NarrativeMemory` — persistence for the self-story.
 Without it, the narrative lives only in memory. With it, the agent's
 identity survives restarts. After that, NarrativeFeedback wires the
 modulation into DriveComposer and adds governed priority escalation —

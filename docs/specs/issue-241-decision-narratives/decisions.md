@@ -7,11 +7,11 @@
 - Externalize state entirely (no cache) — adds latency on hot path for consumers who don't need persistence
 - Post-tick callback — doesn't help with load-on-startup, state lost on restart
 - `StateStore<S>` SPI injected into `SummarisationRunner` as optional constructor parameter (original choice — deferred because no #241 consumer needs persistence)
-**Rationale:** The decision narrative pipeline uses `KeyedSummarisationRunner` with in-memory per-key state management. `SummarisationRunner` already manages state in-memory via `partitionState` ConcurrentHashMap. StateStore's primary use case (persistence for identity narratives via `CbrNarrativeStore`) belongs in #259 when the actual consumer is being built and the SPI contract can be validated against real persistence needs.
-**Trade-offs:** Decision narrative state is volatile — lost on restart. Acceptable because decision narratives are re-derivable from platform signals.
-**Sources:** `SummarisationRunner.java:20` (partitionState ConcurrentHashMap), `CbrNarrativeStore.java` (existing CBR persistence pattern)
+**Rationale:** The decision narrative pipeline uses `KeyedSummarisationRunner` with in-memory per-key state management. `SummarisationRunner` already manages state in-memory via `partitionState` ConcurrentHashMap. StateStore's primary use case (persistence for identity narratives via `NarrativeMemory`) belongs in #259 when the actual consumer is being built and the SPI contract can be validated against real persistence needs.
+  **Trade-offs:** Decision narrative state is volatile — lost on restart. Acceptable because decision narratives are re-derivable from platform signals.
+  **Sources:** `SummarisationRunner.java:20` (partitionState ConcurrentHashMap), `CbrNarrativeStore.java` (existing CBR persistence pattern)
 **Exploration:** quick
-**Status:** revised (R1-02: deferred to #259)
+  **Status:** revised (R1-02: deferred to #259)
 
 ## D2: Richer gating via EmissionPolicy
 

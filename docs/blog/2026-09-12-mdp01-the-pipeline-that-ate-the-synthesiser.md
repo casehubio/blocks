@@ -22,7 +22,7 @@ The summarisation pipeline already had `Summariser`, `StatefulSummariser`, `Cont
 
 **`EmissionPolicy<IN, S>`** replaces `WindowPolicy` as the gating mechanism. The key difference: it receives the current summariser state, not just the buffered events and clock. The identity narrative gate needs to compare incoming reflections against existing episode text for novelty — that requires state. `WindowPolicy` couldn't express this because it knows nothing about what's been summarised. The policy is a `@FunctionalInterface` with `anyOf()` and `allOf()` composition, so you can build composite gates from simpler ones.
 
-**`StateStore<S>`** adds opt-in persistent state. Both runners already managed state in a `ConcurrentHashMap`, but it was in-memory only — restart loses everything. `StateStore` adds write-through: reads check the map first, fall back to the store on cache miss, writes go to both. The identity narrative's `CbrNarrativeStore` wraps cleanly as a `StateStore<NarrativeState>`.
+**`StateStore<S>`** adds opt-in persistent state. Both runners already managed state in a `ConcurrentHashMap`, but it was in-memory only — restart loses everything. `StateStore` adds write-through: reads check the map first, fall back to the store on cache miss, writes go to both. The identity narrative's `NarrativeMemory` wraps cleanly as a `StateStore<NarrativeState>`.
 
 **`OutputProcessor<OUT, S>`** handles post-summarisation processing. The narrative synthesiser pruned episodes by age and themes by salience floor after every synthesis. That's not a summarisation concern — it's a capacity management concern. Moving it to `OutputProcessor` means any pipeline consumer can add their own post-processing without subclassing the runner.
 
@@ -36,7 +36,7 @@ With the SPIs in place, `NarrativeSynthesiser` split into six components:
 - **`NarrativeEmissionPolicy`** — implements the three-part gate (count threshold, novelty check via token Jaccard distance, quiet period bypass). Same logic as before, now expressed as `EmissionPolicy<ReflectionEntry, NarrativeState>`.
 - **`NarrativeContentSummariser`** — the thin `ContentSummariser` that keeps only the LLM synthesis: prompt assembly, invocation, JSON parsing, episode/theme building, and merge. No gate, no pruning, no persistence.
 - **`NarrativeOutputProcessor`** — episode and theme pruning, extracted verbatim.
-- **`CbrStateStore`** — adapter wrapping the existing `CbrNarrativeStore`.
+- **`CbrStateStore`** — adapter wrapping the existing `NarrativeMemory`.
 - **`NarrativePipeline`** — the `@ApplicationScoped` factory that wires everything together, mirroring the `DecisionNarrativePipeline` pattern from #241.
 
 The original `NarrativeSynthesiser` had zero production callers within blocks — `SocialAvatarCognition` uses `NarrativeOrchestrator`, the compositor that reads from `NarrativeStore`. Deleting it was clean.
