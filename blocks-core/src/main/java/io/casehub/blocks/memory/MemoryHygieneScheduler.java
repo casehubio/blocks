@@ -1,5 +1,6 @@
 package io.casehub.blocks.memory;
 
+import io.casehub.neocortex.memory.ReflectionEntry;
 import io.casehub.neocortex.memory.MemoryDomain;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
