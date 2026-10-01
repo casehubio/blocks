@@ -3,51 +3,6 @@ package io.casehub.blocks.spring;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
-import io.casehub.blocks.agentic.social.CbrMentalModelStore;
-import io.casehub.blocks.agentic.social.CbrStrategyStore;
-import io.casehub.blocks.agentic.social.CbrUserProfileStore;
-import io.casehub.blocks.agentic.social.CivilityConstraint;
-import io.casehub.blocks.agentic.social.CognitiveAttentionMediator;
-import io.casehub.blocks.agentic.social.ReflectionRetrievalOrchestrator;
-import io.casehub.blocks.agentic.social.TemporalFocusOrchestrator;
-import io.casehub.blocks.agentic.social.InnerLifeConfig;
-import io.casehub.blocks.agentic.social.InnerLifeOrchestrator;
-import io.casehub.blocks.agentic.social.MentalModelConfig;
-import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
-import io.casehub.blocks.agentic.social.MentalModelStore;
-import io.casehub.blocks.agentic.social.MoodConfig;
-import io.casehub.blocks.agentic.social.MoodOrchestrator;
-import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
-import io.casehub.blocks.agentic.social.PersonalityEvolutionOrchestrator;
-import io.casehub.blocks.agentic.social.StrategyLearningConfig;
-import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
-import io.casehub.blocks.agentic.social.StrategyStore;
-import io.casehub.blocks.agentic.social.TraitPressureSource;
-import io.casehub.blocks.agentic.social.UserModelConfig;
-import io.casehub.blocks.agentic.social.UserModelOrchestrator;
-import io.casehub.blocks.agentic.social.UserProfileStore;
-import io.casehub.blocks.agentic.social.drive.DriveComposer;
-import io.casehub.blocks.agentic.social.drive.DriveConfig;
-import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
-import io.casehub.blocks.agentic.social.emergence.NormDetectionConfig;
-import io.casehub.blocks.agentic.social.emergence.SocialNormDetector;
-import io.casehub.blocks.agentic.social.goal.CrossAxisGoalEnricher;
-import io.casehub.blocks.agentic.social.goal.DriveGoalFormationStrategy;
-import io.casehub.blocks.agentic.social.goal.DriveGoalMapper;
-import io.casehub.blocks.agentic.social.goal.GoalEscalationConfig;
-import io.casehub.blocks.agentic.social.goal.GoalEscalationPolicy;
-import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
-import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
-import io.casehub.blocks.agentic.social.goal.LlmCrossAxisGoalEnricher;
-import io.casehub.blocks.agentic.social.goal.NarrativeGoalEscalationPolicy;
-import io.casehub.blocks.agentic.social.narrative.CbrNarrativeStore;
-import io.casehub.blocks.agentic.social.narrative.NarrativeConfig;
-import io.casehub.blocks.agentic.social.narrative.NarrativeContentSummariser;
-import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
-import io.casehub.blocks.agentic.social.narrative.NarrativePipeline;
-import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
-import io.casehub.blocks.agentic.social.narrative.NoOpNarrativeStore;
-import io.casehub.blocks.agentic.social.prompt.SocialAvatarCognition;
 import io.casehub.blocks.attestation.NoOpAttestationIntentWriter;
 import io.casehub.blocks.channel.summary.ChannelSummariser;
 import io.casehub.blocks.channel.summary.HeuristicMessageSummariser;
@@ -84,6 +39,37 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
+import io.casehub.neocortex.cognition.core.CognitiveAttentionMediator;
+import io.casehub.neocortex.cognition.drive.DriveComposer;
+import io.casehub.neocortex.cognition.drive.DriveConfig;
+import io.casehub.neocortex.cognition.drive.DriveOrchestrator;
+import io.casehub.neocortex.cognition.goal.CrossAxisGoalEnricher;
+import io.casehub.neocortex.cognition.goal.DriveGoalFormationStrategy;
+import io.casehub.neocortex.cognition.goal.DriveGoalMapper;
+import io.casehub.neocortex.cognition.goal.GoalEscalationConfig;
+import io.casehub.neocortex.cognition.goal.GoalEscalationPolicy;
+import io.casehub.neocortex.cognition.goal.GoalProposalConfig;
+import io.casehub.neocortex.cognition.goal.GoalProposalOrchestrator;
+import io.casehub.neocortex.cognition.innerlife.CivilityConstraint;
+import io.casehub.neocortex.cognition.innerlife.InnerLifeConfig;
+import io.casehub.neocortex.cognition.innerlife.InnerLifeOrchestrator;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelConfig;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelOrchestrator;
+import io.casehub.neocortex.cognition.mood.MoodConfig;
+import io.casehub.neocortex.cognition.mood.MoodOrchestrator;
+import io.casehub.neocortex.cognition.narrative.NarrativeConfig;
+import io.casehub.neocortex.cognition.narrative.NarrativeContentSummariser;
+import io.casehub.neocortex.cognition.narrative.NarrativeOrchestrator;
+import io.casehub.neocortex.cognition.narrative.NarrativePipeline;
+import io.casehub.neocortex.cognition.personality.PersonalityEvolutionConfig;
+import io.casehub.neocortex.cognition.personality.PersonalityEvolutionOrchestrator;
+import io.casehub.neocortex.cognition.personality.TraitPressureSource;
+import io.casehub.neocortex.cognition.strategy.StrategyLearningConfig;
+import io.casehub.neocortex.cognition.strategy.StrategyLearningOrchestrator;
+import io.casehub.neocortex.cognition.temporal.ReflectionRetrievalOrchestrator;
+import io.casehub.neocortex.cognition.temporal.TemporalFocusOrchestrator;
+import io.casehub.neocortex.cognition.usermodel.UserModelConfig;
+import io.casehub.neocortex.cognition.usermodel.UserModelOrchestrator;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
@@ -137,46 +123,45 @@ public class BlocksAutoConfiguration {
         return new NoOpThreadSummaryStore();
     }
 
-    @Bean
-    public NoOpNarrativeStore noOpNarrativeStore() {
-        return new NoOpNarrativeStore();
-    }
+    // noOpNarrativeStore removed — narrative persistence uses NarrativeMemory
+    @SuppressWarnings("unused")
+    private void noOpNarrativeStorePlaceholder() {}
 
     // ── DefaultBean stores ──
 
 
     @Bean
     @ConditionalOnMissingBean
-    public io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig() {
-        return io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults();
+    public io.casehub.neocortex.cognition.goal.CognitiveGoalConfig cognitiveGoalConfig() {
+        return io.casehub.neocortex.cognition.goal.CognitiveGoalConfig.defaults();
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public CbrUserProfileStore cbrUserProfileStore(
+    public io.casehub.neocortex.cognition.usermodel.UserProfileMemory userProfileMemory(
             CbrRecordStore cbrStore, UserModelConfig config) {
-        return new CbrUserProfileStore(cbrStore, config);
+        return new io.casehub.neocortex.cognition.usermodel.UserProfileMemory(cbrStore, config);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public CbrMentalModelStore cbrMentalModelStore(
+    public io.casehub.neocortex.cognition.mentalmodel.MentalModelMemory mentalModelMemory(
             CbrRecordStore cbrStore, MentalModelConfig config) {
-        return new CbrMentalModelStore(cbrStore, config);
+        return new io.casehub.neocortex.cognition.mentalmodel.MentalModelMemory(cbrStore, config);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public CbrStrategyStore cbrStrategyStore(
+    public io.casehub.neocortex.cognition.strategy.StrategyMemory strategyMemory(
             CbrRecordStore cbrStore, StrategyLearningConfig config) {
-        return new CbrStrategyStore(cbrStore, config);
+        return new io.casehub.neocortex.cognition.strategy.StrategyMemory(cbrStore, config);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    public CbrNarrativeStore cbrNarrativeStore(
+    public io.casehub.neocortex.cognition.narrative.NarrativeMemory narrativeMemory(
             CbrRecordStore cbrStore, NarrativeConfig config) {
-        return new CbrNarrativeStore(cbrStore, config);
+        return new io.casehub.neocortex.cognition.narrative.NarrativeMemory(cbrStore, config);
     }
 
     // ── DefaultBean weights / pure logic ──
@@ -230,31 +215,32 @@ public class BlocksAutoConfiguration {
     }
 
     @Bean
-    public NarrativeOrchestrator narrativeOrchestrator(NarrativeStore store) {
+    public NarrativeOrchestrator narrativeOrchestrator(
+            io.casehub.neocortex.cognition.narrative.NarrativeMemory store) {
         return new NarrativeOrchestrator(store);
     }
 
     @Bean
     public MentalModelOrchestrator mentalModelOrchestrator(
-            MentalModelStore modelStore, AgentProvider agentProvider,
-            MentalModelConfig config) {
-        return new MentalModelOrchestrator(modelStore, agentProvider, config);
+            io.casehub.neocortex.cognition.mentalmodel.MentalModelMemory modelMemory,
+            AgentProvider agentProvider, MentalModelConfig config) {
+        return new MentalModelOrchestrator(modelMemory, agentProvider, config);
     }
 
     @Bean
     public UserModelOrchestrator userModelOrchestrator(
-            UserProfileStore profileStore, AgentProvider agentProvider,
-            UserModelConfig config) {
-        return new UserModelOrchestrator(profileStore, agentProvider, config);
+            io.casehub.neocortex.cognition.usermodel.UserProfileMemory profileMemory,
+            AgentProvider agentProvider, UserModelConfig config) {
+        return new UserModelOrchestrator(profileMemory, agentProvider, config);
     }
 
     @Bean
     public StrategyLearningOrchestrator strategyLearningOrchestrator(
-            StrategyStore strategyStore,
+            io.casehub.neocortex.cognition.strategy.StrategyMemory strategyMemory,
             ReflectionOrchestrator reflectionOrchestrator,
             AgentProvider agentProvider, StrategyLearningConfig config) {
         return new StrategyLearningOrchestrator(
-                strategyStore, reflectionOrchestrator,
+                strategyMemory, reflectionOrchestrator,
                 agentProvider, config);
     }
 
@@ -267,9 +253,19 @@ public class BlocksAutoConfiguration {
             MoodOrchestrator moodOrchestrator,
             DriveComposer composer, DriveConfig config,
             Optional<NarrativeOrchestrator> narrativeOrchestrator) {
+        var hygieneAdapter = hygieneOrchestrator
+                                     .map(io.casehub.blocks.agentic.cognition.MemoryHygieneSpiAdapter::new)
+                                     .orElse(null);
+        var curiosity  = new io.casehub.neocortex.cognition.drive.CuriosityDrive(hygieneAdapter);
+        var competence = new io.casehub.neocortex.cognition.drive.CompetenceDrive(strategy);
+        var affiliation = new io.casehub.neocortex.cognition.drive.AffiliationDrive(
+                userModel, config.affiliationDecayThreshold(), config.affiliationStaleDuration());
+        var autonomy = new io.casehub.neocortex.cognition.drive.AutonomyDrive(
+                mentalModel, config.autonomyConfidenceFloor());
         return new DriveOrchestrator(
-                hygieneOrchestrator, strategy, userModel, mentalModel,
-                moodOrchestrator, composer, config, narrativeOrchestrator);
+                curiosity, competence, affiliation, autonomy,
+                moodOrchestrator, composer, config, java.time.Clock.systemUTC(),
+                narrativeOrchestrator.orElse(null));
     }
 
     @Bean
@@ -296,62 +292,87 @@ public class BlocksAutoConfiguration {
                 civilityConstraints, innerLifeConfig, driveOrchestrator);
     }
 
-    @Bean
-    public SocialNormDetector socialNormDetector(
-            CbrRecordStore cbrStore, NormDetectionConfig config) {
-        return new SocialNormDetector(cbrStore, config);
-    }
+    // socialNormDetector removed — needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void socialNormDetectorPlaceholder() {}
 
     @Bean
-    public SocialAvatarCognition socialAvatarCognition(
+    public io.casehub.blocks.agentic.cognition.CognitionAvatarAdapter cognitionAvatarAdapter(
             MoodOrchestrator mood, DriveOrchestrator drives,
             MentalModelOrchestrator mentalModel,
             UserModelOrchestrator userModel,
             StrategyLearningOrchestrator strategy,
             Optional<NarrativeOrchestrator> narrativeOrchestrator,
             Optional<GoalProposalOrchestrator> goalProposalOrchestrator,
+            Optional<MemoryHygieneOrchestrator> hygieneOrchestrator,
             Optional<InnerLifeOrchestrator> innerLifeOrchestrator,
             Optional<AgentRegistry> agentRegistry,
             Optional<CognitiveAttentionMediator> attentionMediator,
             Optional<io.casehub.neocortex.memory.engagement.runtime.EngagementRecorderCore> engagementRecorder,
             Optional<TemporalFocusOrchestrator> temporalFocus,
             Optional<ReflectionRetrievalOrchestrator> reflectionOrchestrator,
-            Optional<io.casehub.blocks.agentic.social.ConsolidationMediator> consolidationMediator,
+            Optional<io.casehub.neocortex.cognition.core.ConsolidationMediator> consolidationMediator,
             Optional<io.casehub.neocortex.mindmap.MindMapStore> mindMapStore,
             Optional<io.casehub.neocortex.mindmap.GoalAppraisal> goalAppraisal,
             Optional<io.casehub.neocortex.memory.CaseMemoryStore> memoryStore,
-            io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig cognitiveGoalConfig,
+            io.casehub.neocortex.cognition.goal.CognitiveGoalConfig cognitiveGoalConfig,
             Optional<io.casehub.neocortex.cognitive.index.CognitiveProfile> cognitiveProfile,
             Optional<io.casehub.neocortex.cognitive.index.DomainActivation> domainActivation) {
-        return SocialAvatarCognition.builder()
-                                    .mood(mood).drives(drives).mentalModel(mentalModel)
-                                    .userModel(userModel).strategy(strategy)
-                                    .narrative(narrativeOrchestrator).goals(goalProposalOrchestrator)
-                                    .innerLife(innerLifeOrchestrator).agentRegistry(agentRegistry)
-                                    .attentionMediator(attentionMediator)
-                                    .engagementPersister(engagementRecorder.map(r -> (java.util.function.Consumer<io.casehub.neocortex.memory.engagement.EngagementEvent>) r::record))
-                                    .temporalFocus(temporalFocus)
-                                    .reflectionOrchestrator(reflectionOrchestrator)
-                                    .consolidationMediator(consolidationMediator)
-                                    .mindMapStore(mindMapStore).goalAppraisal(goalAppraisal)
-                                    .memoryStore(memoryStore).cognitiveGoalConfig(cognitiveGoalConfig)
-                                    .cognitiveProfile(cognitiveProfile)
-                                    .domainActivation(domainActivation)
-                                    .build();
+        var hygieneAdapter = hygieneOrchestrator
+                                     .map(io.casehub.blocks.agentic.cognition.MemoryHygieneSpiAdapter::new)
+                                     .orElse(null);
+        var core = new io.casehub.neocortex.cognition.core.CognitionCore(
+                mood, drives, userModel, mentalModel, strategy,
+                narrativeOrchestrator.orElse(null),
+                goalProposalOrchestrator.orElse(null),
+                hygieneAdapter,
+                innerLifeOrchestrator.orElse(null),
+                null, io.casehub.neocortex.cognition.core.CognitionConfig.all(),
+                mindMapStore.orElse(null), null,
+                attentionMediator.orElse(null),
+                engagementRecorder.map(r -> (java.util.function.Consumer<io.casehub.neocortex.memory.engagement.EngagementEvent>) r::record).orElse(null),
+                temporalFocus.orElse(null),
+                reflectionOrchestrator.orElse(null),
+                consolidationMediator.orElse(null));
+
+        io.casehub.neocortex.cognition.goal.CognitiveGoalOrchestrator cognitiveGoals = null;
+        if (mindMapStore.isPresent() && goalAppraisal.isPresent() && memoryStore.isPresent()) {
+            cognitiveGoals = new io.casehub.neocortex.cognition.goal.CognitiveGoalOrchestrator(
+                    mindMapStore.get(), goalAppraisal.get(), memoryStore.get(), cognitiveGoalConfig,
+                    (agentId, tenantId) -> mood.currentMood(agentId, tenantId)
+                                               .map(ms -> new io.casehub.neocortex.cognitive.PadProjection(ms.pleasure(), ms.arousal(), ms.dominance()))
+                                               .orElse(io.casehub.neocortex.cognitive.PadProjection.NEUTRAL),
+                    java.time.Clock.systemUTC());
+            core.addParticipant(io.casehub.neocortex.cognition.core.CognitionPhase.TERMINAL, cognitiveGoals);
+        }
+
+        cognitiveProfile.ifPresent(cp -> {
+            var profileParticipant = new io.casehub.neocortex.cognition.core.CognitiveProfileParticipant(
+                    cp, attentionMediator.orElse(null), temporalFocus.orElse(null),
+                    io.casehub.neocortex.cognition.core.CognitionConfig.all());
+            core.addParticipant(io.casehub.neocortex.cognition.core.CognitionPhase.TERMINAL, profileParticipant);
+        });
+
+        if (domainActivation.isPresent() && mindMapStore.isPresent()) {
+            var domainParticipant = new io.casehub.neocortex.cognition.core.DomainActivationParticipant(
+                    domainActivation.get(), mindMapStore.get(), consolidationMediator.orElse(null),
+                    io.casehub.neocortex.cognition.core.CognitionConfig.all());
+            core.addParticipant(io.casehub.neocortex.cognition.core.CognitionPhase.TERMINAL, domainParticipant);
+        }
+
+        return new io.casehub.blocks.agentic.cognition.CognitionAvatarAdapter(
+                core, agentRegistry.orElse(null), cognitiveGoals);
     }
 
     // ── Goal ──
 
-    @Bean
-    public NarrativeGoalEscalationPolicy narrativeGoalEscalationPolicy(
-            GoalEscalationConfig config) {
-        return new NarrativeGoalEscalationPolicy(config);
-    }
+    // narrativeGoalEscalationPolicy removed — needs migration (follow-up issue)
+    @SuppressWarnings("unused")
+    private void narrativeGoalEscalationPolicyPlaceholder() {}
 
-    @Bean
-    public LlmCrossAxisGoalEnricher llmCrossAxisGoalEnricher(AgentProvider agentProvider) {
-        return new LlmCrossAxisGoalEnricher(agentProvider);
-    }
+    // llmCrossAxisGoalEnricher removed — needs migration (follow-up issue)
+    @SuppressWarnings("unused")
+    private void llmCrossAxisGoalEnricherPlaceholder() {}
 
     @Bean
     public GoalProposalOrchestrator goalProposalOrchestrator(
@@ -385,8 +406,9 @@ public class BlocksAutoConfiguration {
     @Bean
     public NarrativePipeline narrativePipeline(
             NarrativeContentSummariser summariser, NarrativeConfig config,
-            ReflectionQueryStore reflectionQueryStore, CbrNarrativeStore cbrStore) {
-        return new NarrativePipeline(summariser, config, reflectionQueryStore, cbrStore);
+            ReflectionQueryStore reflectionQueryStore,
+            io.casehub.neocortex.cognition.narrative.NarrativeMemory narrativeMemory) {
+        return new NarrativePipeline(summariser, config, reflectionQueryStore, narrativeMemory, null);
     }
 
     // ── Channel summary ──
