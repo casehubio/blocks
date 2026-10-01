@@ -3,11 +3,11 @@ package io.casehub.blocks.agentic.yaml.compiler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.casehub.blocks.agentic.social.MoodConfig;
-import io.casehub.blocks.agentic.social.PersonalityEvolutionConfig;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
-import io.casehub.blocks.agentic.social.drive.DriveConfig;
-import io.casehub.blocks.agentic.social.narrative.NarrativeSynthesisGate;
+import io.casehub.neocortex.cognition.mood.MoodConfig;
+import io.casehub.neocortex.cognition.personality.PersonalityEvolutionConfig;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
+import io.casehub.neocortex.cognition.drive.DriveConfig;
+import io.casehub.neocortex.cognition.narrative.NarrativeSynthesisGate;
 import io.casehub.blocks.agentic.yaml.spec.cognition.CognitionDefinition;
 import io.casehub.blocks.memory.RetentionConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -129,9 +129,9 @@ class CognitionCompilerTest {
         assertThat(compiled.cognitiveGoal().driveWeight()).isEqualTo(0.3);
         assertThat(compiled.cognitiveGoal().surfacingCooldown()).isEqualTo(java.time.Duration.ofMinutes(30));
         assertThat(compiled.cognitiveGoal().caseCreationThreshold())
-                .isEqualTo(io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults().caseCreationThreshold());
+                .isEqualTo(io.casehub.neocortex.cognition.goal.CognitiveGoalConfig.defaults().caseCreationThreshold());
         assertThat(compiled.cognitiveGoal().minimumSurfacingPriority())
-                .isEqualTo(io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults().minimumSurfacingPriority());
+                .isEqualTo(io.casehub.neocortex.cognition.goal.CognitiveGoalConfig.defaults().minimumSurfacingPriority());
     }
 
     @Test
@@ -141,7 +141,7 @@ class CognitionCompilerTest {
         var compiled   = compiler.compile(definition);
 
         assertThat(compiled.cognitiveGoal())
-                .isEqualTo(io.casehub.blocks.agentic.social.goal.CognitiveGoalConfig.defaults());
+                .isEqualTo(io.casehub.neocortex.cognition.goal.CognitiveGoalConfig.defaults());
     }
 
 

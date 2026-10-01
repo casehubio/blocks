@@ -5,7 +5,7 @@ import io.casehub.blocks.agentic.aggregation.Bid;
 import io.casehub.blocks.agentic.judgment.JudgmentPolicy;
 import io.casehub.blocks.agentic.model.PatternType;
 import io.casehub.blocks.agentic.routing.FirstMatchRouting;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
 import io.casehub.blocks.agentic.yaml.compiler.ObservationFilterRegistry;
 import io.casehub.blocks.agentic.yaml.compiler.WorldCompiler;
 import io.casehub.blocks.agentic.yaml.registry.AggregationStrategyRegistry;

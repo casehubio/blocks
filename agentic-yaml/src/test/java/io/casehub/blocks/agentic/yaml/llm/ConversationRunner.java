@@ -1,9 +1,9 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
-import io.casehub.blocks.agentic.social.CognitiveImpact;
-import io.casehub.blocks.agentic.social.CognitionMetrics;
-import io.casehub.blocks.agentic.social.CognitionSnapshot;
-import io.casehub.blocks.agentic.social.EngagementSignal;
+import io.casehub.neocortex.cognition.core.CognitiveImpact;
+import io.casehub.neocortex.cognition.core.CognitionMetrics;
+import io.casehub.neocortex.cognition.core.CognitionSnapshot;
+import io.casehub.neocortex.cognition.core.EngagementSignal;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledWorld;
 import io.casehub.blocks.speech.PromptContext;
 import io.casehub.blocks.speech.PromptSection;

@@ -1,41 +1,41 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
-import io.casehub.blocks.agentic.social.CognitionCore;
-import io.casehub.blocks.agentic.social.EngagementEvidence;
-import io.casehub.blocks.agentic.social.CognitionSnapshot;
-import io.casehub.blocks.agentic.social.MentalModelOrchestrator;
-import io.casehub.blocks.agentic.social.MentalModelSnapshot;
-import io.casehub.blocks.agentic.social.MentalModelStore;
-import io.casehub.blocks.agentic.social.MoodOrchestrator;
-import io.casehub.blocks.agentic.social.StrategyLearningOrchestrator;
-import io.casehub.blocks.agentic.social.StrategyProfile;
-import io.casehub.blocks.agentic.social.StrategyStore;
-import io.casehub.blocks.agentic.social.UserModelOrchestrator;
+import io.casehub.neocortex.cognition.core.CognitionCore;
+import io.casehub.neocortex.cognition.strategy.EngagementEvidence;
+import io.casehub.neocortex.cognition.core.CognitionSnapshot;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelOrchestrator;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelSnapshot;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelMemory;
+import io.casehub.neocortex.cognition.mood.MoodOrchestrator;
+import io.casehub.neocortex.cognition.strategy.StrategyLearningOrchestrator;
+import io.casehub.neocortex.cognition.strategy.StrategyProfile;
+import io.casehub.neocortex.cognition.strategy.StrategyMemory;
+import io.casehub.neocortex.cognition.usermodel.UserModelOrchestrator;
 import io.casehub.blocks.agentic.social.UserProfile;
 import io.casehub.blocks.agentic.social.UserProfileStore;
-import io.casehub.blocks.agentic.social.drive.AffiliationDrive;
-import io.casehub.blocks.agentic.social.drive.AutonomyDrive;
-import io.casehub.blocks.agentic.social.drive.CompetenceDrive;
-import io.casehub.blocks.agentic.social.drive.CuriosityDrive;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
-import io.casehub.blocks.agentic.social.drive.DriveComposer;
-import io.casehub.blocks.agentic.social.drive.DriveIntensity;
-import io.casehub.blocks.agentic.social.drive.DriveOrchestrator;
-import io.casehub.blocks.agentic.social.drive.DriveSource;
-import io.casehub.blocks.agentic.social.goal.AffiliationGoalMapper;
-import io.casehub.blocks.agentic.social.goal.AutonomyGoalMapper;
-import io.casehub.blocks.agentic.social.goal.CompetenceGoalMapper;
-import io.casehub.blocks.agentic.social.goal.CuriosityGoalMapper;
-import io.casehub.blocks.agentic.social.goal.DriveGoalMapper;
-import io.casehub.blocks.agentic.social.goal.GoalProposalConfig;
-import io.casehub.blocks.agentic.social.goal.GoalProposalOrchestrator;
-import io.casehub.blocks.agentic.social.narrative.DerivedTheme;
-import io.casehub.blocks.agentic.social.narrative.IndividualEpisode;
-import io.casehub.blocks.agentic.social.narrative.NarrativeFragment;
-import io.casehub.blocks.agentic.social.narrative.NarrativeOrchestrator;
-import io.casehub.blocks.agentic.social.narrative.NarrativeScope;
-import io.casehub.blocks.agentic.social.narrative.NarrativeState;
-import io.casehub.blocks.agentic.social.narrative.NarrativeStore;
+import io.casehub.neocortex.cognition.drive.AffiliationDrive;
+import io.casehub.neocortex.cognition.drive.AutonomyDrive;
+import io.casehub.neocortex.cognition.drive.CompetenceDrive;
+import io.casehub.neocortex.cognition.drive.CuriosityDrive;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
+import io.casehub.neocortex.cognition.drive.DriveComposer;
+import io.casehub.neocortex.cognition.drive.DriveIntensity;
+import io.casehub.neocortex.cognition.drive.DriveOrchestrator;
+import io.casehub.neocortex.cognition.drive.DriveSource;
+import io.casehub.neocortex.cognition.goal.AffiliationGoalMapper;
+import io.casehub.neocortex.cognition.goal.AutonomyGoalMapper;
+import io.casehub.neocortex.cognition.goal.CompetenceGoalMapper;
+import io.casehub.neocortex.cognition.goal.CuriosityGoalMapper;
+import io.casehub.neocortex.cognition.goal.DriveGoalMapper;
+import io.casehub.neocortex.cognition.goal.GoalProposalConfig;
+import io.casehub.neocortex.cognition.goal.GoalProposalOrchestrator;
+import io.casehub.neocortex.cognition.narrative.DerivedTheme;
+import io.casehub.neocortex.cognition.narrative.IndividualEpisode;
+import io.casehub.neocortex.cognition.narrative.NarrativeFragment;
+import io.casehub.neocortex.cognition.narrative.NarrativeOrchestrator;
+import io.casehub.neocortex.cognition.narrative.NarrativeScope;
+import io.casehub.neocortex.cognition.narrative.NarrativeState;
+import io.casehub.neocortex.cognition.narrative.NarrativeStore;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledCognition;
 import io.casehub.blocks.memory.ArousalScorer;
 import io.casehub.blocks.memory.CompositeConfidenceScorer;
@@ -74,7 +74,7 @@ public class CognitionStack {
     private final NarrativeStore narrativeStore;
     private final @Nullable AgentProvider agentProvider;
     private final @Nullable io.casehub.neocortex.memory.cbr.CbrRecordStore cbrStore;
-    private final @Nullable io.casehub.blocks.agentic.social.StrategyLearningConfig strategyConfig;
+    private final @Nullable io.casehub.neocortex.cognition.strategy.StrategyLearningConfig strategyConfig;
     private final ConcurrentHashMap<String, Boolean> primedAgents = new ConcurrentHashMap<>();
 
     public enum Stage {
@@ -85,7 +85,7 @@ public class CognitionStack {
                    NarrativeStore narrativeStore,
                    @Nullable AgentProvider agentProvider,
                    @Nullable io.casehub.neocortex.memory.cbr.CbrRecordStore cbrStore,
-                   @Nullable io.casehub.blocks.agentic.social.StrategyLearningConfig strategyConfig) {
+                   @Nullable io.casehub.neocortex.cognition.strategy.StrategyLearningConfig strategyConfig) {
         this.core = core;
         this.stage = stage;
         this.narrativeStore = narrativeStore;

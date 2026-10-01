@@ -3,7 +3,7 @@ package io.casehub.blocks.agentic.yaml.llm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.casehub.blocks.agentic.social.CognitionMetrics;
+import io.casehub.neocortex.cognition.core.CognitionMetrics;
 import io.casehub.blocks.agentic.yaml.compiler.CognitionCompiler;
 import io.casehub.blocks.agentic.yaml.compiler.ObservationFilterRegistry;
 import io.casehub.blocks.agentic.yaml.compiler.WorldCompiler;

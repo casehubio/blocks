@@ -5,7 +5,7 @@ import io.casehub.blocks.agentic.aggregation.CollectAll;
 import io.casehub.blocks.agentic.judgment.JudgmentPolicy;
 import io.casehub.blocks.agentic.model.PatternType;
 import io.casehub.blocks.agentic.routing.FirstMatchRouting;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
 import io.casehub.blocks.agentic.yaml.compiler.NegotiationCompiler;
 import io.casehub.blocks.agentic.yaml.registry.ConflictResolutionRegistry;
 import io.casehub.blocks.agentic.yaml.registry.TerminationConditionRegistry;
