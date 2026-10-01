@@ -1,6 +1,6 @@
 package io.casehub.blocks.agentic.yaml.spec.cognition;
 
-import io.casehub.blocks.agentic.social.StageTier;
+import io.casehub.neocortex.cognition.relationship.StageTier;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;

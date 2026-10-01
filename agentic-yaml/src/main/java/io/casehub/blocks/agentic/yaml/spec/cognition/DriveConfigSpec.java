@@ -1,6 +1,6 @@
 package io.casehub.blocks.agentic.yaml.spec.cognition;
 
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
