@@ -3,7 +3,9 @@ package io.casehub.blocks.memory;
 import java.time.Instant;
 import java.util.List;
 
-public interface ReflectionQueryStore {
+public interface ReflectionQueryStore extends io.casehub.neocortex.memory.ReflectionQueryStore {
+
+    // Methods override the neocortex SPI with matching signatures
     List<ReflectionEntry> findSince(String agentId, String tenantId, Instant since);
 
     int countSince(String agentId, String tenantId, Instant since);
