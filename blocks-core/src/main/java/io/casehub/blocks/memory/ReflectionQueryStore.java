@@ -1,5 +1,6 @@
 package io.casehub.blocks.memory;
 
+import io.casehub.neocortex.memory.ReflectionEntry;
 import java.time.Instant;
 import java.util.List;
 

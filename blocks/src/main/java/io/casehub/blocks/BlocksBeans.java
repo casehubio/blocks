@@ -293,8 +293,10 @@ public class BlocksBeans {
             MentalModelOrchestrator mentalModel,
             MoodOrchestrator moodOrchestrator,
             DriveComposer composer, DriveConfig config) {
-        var curiosity = new io.casehub.neocortex.cognition.drive.CuriosityDrive(
-                (io.casehub.neocortex.cognition.memory.MemoryHygieneOrchestrator) nullableFrom(hygieneOrchestratorInstance));
+        var hygieneAdapter = hygieneOrchestratorInstance.isResolvable()
+                ? new io.casehub.blocks.agentic.cognition.MemoryHygieneSpiAdapter(hygieneOrchestratorInstance.get())
+                : null;
+        var curiosity = new io.casehub.neocortex.cognition.drive.CuriosityDrive(hygieneAdapter);
         var competence = new io.casehub.neocortex.cognition.drive.CompetenceDrive(strategy);
         var affiliation = new io.casehub.neocortex.cognition.drive.AffiliationDrive(
                 userModel, config.affiliationDecayThreshold(), config.affiliationStaleDuration());
@@ -339,10 +341,13 @@ public class BlocksBeans {
             UserModelOrchestrator userModel,
             StrategyLearningOrchestrator strategy,
             CognitiveGoalConfig cognitiveGoalConfig) {
+        var hygieneAdapterForCore = hygieneOrchestratorInstance.isResolvable()
+                ? new io.casehub.blocks.agentic.cognition.MemoryHygieneSpiAdapter(hygieneOrchestratorInstance.get())
+                : null;
         var core = new CognitionCore(mood, drives, userModel, mentalModel, strategy,
                                      nullableFrom(narrativeOrchestratorInstance),
                                      nullableFrom(goalProposalOrchestratorInstance),
-                                     nullableFrom(hygieneOrchestratorInstance),
+                                     hygieneAdapterForCore,
                                      nullableFrom(innerLifeOrchestratorInstance),
                                      null, io.casehub.neocortex.cognition.core.CognitionConfig.all(),
                                      nullableFrom(mindMapStoreInstance), null,

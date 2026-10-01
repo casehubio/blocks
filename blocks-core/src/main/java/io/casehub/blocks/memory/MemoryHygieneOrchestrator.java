@@ -26,9 +26,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class MemoryHygieneOrchestrator implements io.casehub.neocortex.cognition.memory.MemoryHygieneOrchestrator {
-
-    // blocks-local import aliases removed — using neocortex types directly
+public class MemoryHygieneOrchestrator {
 
     private static final Logger LOG = Logger.getLogger(MemoryHygieneOrchestrator.class.getName());
     static final         double LOW_RETENTION_THRESHOLD = 0.3;
