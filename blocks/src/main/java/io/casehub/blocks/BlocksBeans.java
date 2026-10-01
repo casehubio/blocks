@@ -106,7 +106,8 @@ import java.util.stream.StreamSupport;
 import io.casehub.neocortex.cognition.goal.LlmCrossAxisGoalEnricher;
 import io.casehub.neocortex.cognition.goal.NarrativeGoalEscalationPolicy;
 
-// SocialNormDetector removed — needs migration (follow-up issue)
+import io.casehub.neocortex.cognition.emergence.NormDetectionConfig;
+import io.casehub.neocortex.cognition.emergence.SocialNormDetector;
 
 @ApplicationScoped
 public class BlocksBeans {
@@ -330,9 +331,11 @@ public class BlocksBeans {
                 innerLifeConfig, driveOrchestrator);
     }
 
-    // socialNormDetector removed — SocialNormDetector needs migration to neocortex (follow-up issue)
-    @SuppressWarnings("unused")
-    private void socialNormDetectorPlaceholder() {}
+    @Produces @ApplicationScoped
+    public SocialNormDetector socialNormDetector(
+            CbrRecordStore cbrStore, NormDetectionConfig config) {
+        return new SocialNormDetector(cbrStore, config);
+    }
 
     @Produces
     @ApplicationScoped
