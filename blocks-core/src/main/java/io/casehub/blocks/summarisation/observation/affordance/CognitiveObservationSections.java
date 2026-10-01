@@ -1,10 +1,10 @@
 package io.casehub.blocks.summarisation.observation.affordance;
 
 import io.casehub.blocks.agentic.belief.Belief;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
-import io.casehub.blocks.agentic.social.emergence.NormStrength;
-import io.casehub.blocks.agentic.social.emergence.SocialNorm;
-import io.casehub.blocks.agentic.social.drive.DriveProfile;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
+import io.casehub.neocortex.cognition.emergence.NormStrength;
+import io.casehub.neocortex.cognition.emergence.SocialNorm;
+import io.casehub.neocortex.cognition.drive.DriveProfile;
 import io.casehub.blocks.summarisation.observation.PartitionedDrain;
 import io.casehub.eidos.api.AgentGoal;
 import io.casehub.neocortex.memory.Memory;
@@ -77,7 +77,7 @@ public final class CognitiveObservationSections {
         return ObservationSection.items("Motivational State", null, items);
     }
 
-    public static ObservationSection narrativeSection(io.casehub.blocks.agentic.social.narrative.NarrativeState state) {
+    public static ObservationSection narrativeSection(io.casehub.neocortex.cognition.narrative.NarrativeState state) {
         var items    = new ArrayList<String>();
         var dominant = state.dominantTheme();
         if (dominant != null) {

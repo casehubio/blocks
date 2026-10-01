@@ -3,6 +3,7 @@ package io.casehub.blocks;
 import io.casehub.api.spi.routing.RoutingPromptAssembler;
 import io.casehub.api.spi.routing.RoutingSignalAssembler;
 import io.casehub.api.spi.routing.TrustRoutingPolicyProvider;
+import io.casehub.blocks.agentic.cognition.CognitionAvatarAdapter;
 import io.casehub.blocks.attestation.NoOpAttestationIntentWriter;
 import io.casehub.blocks.channel.summary.ChannelSummariser;
 import io.casehub.blocks.channel.summary.HeuristicMessageSummariser;
@@ -39,13 +40,16 @@ import io.casehub.eidos.api.DispositionSignalStore;
 import io.casehub.eidos.api.GoalSignalStore;
 import io.casehub.ledger.api.spi.TrustScoreSource;
 import io.casehub.ledger.routing.TrustCandidateClassifier;
+import io.casehub.neocortex.cognition.core.CognitionCore;
+import io.casehub.neocortex.cognition.core.CognitionPhase;
 import io.casehub.neocortex.cognition.core.CognitiveAttentionMediator;
+import io.casehub.neocortex.cognition.core.CognitiveProfileParticipant;
 import io.casehub.neocortex.cognition.core.ConsolidationMediator;
+import io.casehub.neocortex.cognition.core.DomainActivationParticipant;
 import io.casehub.neocortex.cognition.drive.DriveComposer;
 import io.casehub.neocortex.cognition.drive.DriveConfig;
 import io.casehub.neocortex.cognition.drive.DriveOrchestrator;
-import io.casehub.neocortex.cognition.emergence.NormDetectionConfig;
-import io.casehub.neocortex.cognition.emergence.SocialNormDetector;
+import io.casehub.neocortex.cognition.goal.CognitiveGoalConfig;
 import io.casehub.neocortex.cognition.goal.CrossAxisGoalEnricher;
 import io.casehub.neocortex.cognition.goal.DriveGoalFormationStrategy;
 import io.casehub.neocortex.cognition.goal.DriveGoalMapper;
@@ -53,12 +57,11 @@ import io.casehub.neocortex.cognition.goal.GoalEscalationConfig;
 import io.casehub.neocortex.cognition.goal.GoalEscalationPolicy;
 import io.casehub.neocortex.cognition.goal.GoalProposalConfig;
 import io.casehub.neocortex.cognition.goal.GoalProposalOrchestrator;
-import io.casehub.neocortex.cognition.goal.LlmCrossAxisGoalEnricher;
-import io.casehub.neocortex.cognition.goal.NarrativeGoalEscalationPolicy;
 import io.casehub.neocortex.cognition.innerlife.CivilityConstraint;
 import io.casehub.neocortex.cognition.innerlife.InnerLifeConfig;
 import io.casehub.neocortex.cognition.innerlife.InnerLifeOrchestrator;
 import io.casehub.neocortex.cognition.mentalmodel.MentalModelConfig;
+import io.casehub.neocortex.cognition.mentalmodel.MentalModelMemory;
 import io.casehub.neocortex.cognition.mentalmodel.MentalModelOrchestrator;
 import io.casehub.neocortex.cognition.mood.MoodConfig;
 import io.casehub.neocortex.cognition.mood.MoodOrchestrator;
@@ -70,10 +73,16 @@ import io.casehub.neocortex.cognition.narrative.NarrativePipeline;
 import io.casehub.neocortex.cognition.personality.PersonalityEvolutionConfig;
 import io.casehub.neocortex.cognition.personality.PersonalityEvolutionOrchestrator;
 import io.casehub.neocortex.cognition.personality.TraitPressureSource;
+import io.casehub.neocortex.cognition.prompt.DomainActivationPromptSection;
+import io.casehub.neocortex.cognition.prompt.EmergentGoalPromptSection;
+import io.casehub.neocortex.cognition.prompt.EntityKnowledgePromptSection;
+import io.casehub.neocortex.cognition.prompt.SocialComparisonPromptSection;
 import io.casehub.neocortex.cognition.strategy.StrategyLearningConfig;
 import io.casehub.neocortex.cognition.strategy.StrategyLearningOrchestrator;
+import io.casehub.neocortex.cognition.strategy.StrategyMemory;
 import io.casehub.neocortex.cognition.usermodel.UserModelConfig;
 import io.casehub.neocortex.cognition.usermodel.UserModelOrchestrator;
+import io.casehub.neocortex.cognition.usermodel.UserProfileMemory;
 import io.casehub.neocortex.memory.cbr.CbrRecordStore;
 import io.casehub.neocortex.memory.reflection.ReflectionOrchestrator;
 import io.casehub.platform.agent.AgentProvider;
@@ -93,6 +102,10 @@ import org.eclipse.microprofile.context.ManagedExecutor;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
+
+// SocialNormDetector removed — needs migration (follow-up issue)
+// LlmCrossAxisGoalEnricher removed — needs migration (follow-up issue)
+// NarrativeGoalEscalationPolicy removed — needs migration (follow-up issue)
 
 @ApplicationScoped
 public class BlocksBeans {
@@ -281,7 +294,7 @@ public class BlocksBeans {
             MoodOrchestrator moodOrchestrator,
             DriveComposer composer, DriveConfig config) {
         var curiosity = new io.casehub.neocortex.cognition.drive.CuriosityDrive(
-                nullableFrom(hygieneOrchestratorInstance));
+                (io.casehub.neocortex.cognition.memory.MemoryHygieneOrchestrator) nullableFrom(hygieneOrchestratorInstance));
         var competence = new io.casehub.neocortex.cognition.drive.CompetenceDrive(strategy);
         var affiliation = new io.casehub.neocortex.cognition.drive.AffiliationDrive(
                 userModel, config.affiliationDecayThreshold(), config.affiliationStaleDuration());
@@ -314,11 +327,9 @@ public class BlocksBeans {
                 innerLifeConfig, driveOrchestrator);
     }
 
-    @Produces @ApplicationScoped
-    public SocialNormDetector socialNormDetector(
-            CbrRecordStore cbrStore, NormDetectionConfig config) {
-        return new SocialNormDetector(cbrStore, config);
-    }
+    // socialNormDetector removed — SocialNormDetector needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void socialNormDetectorPlaceholder() {}
 
     @Produces
     @ApplicationScoped
@@ -415,16 +426,13 @@ public class BlocksBeans {
 
     // ── Goal ──
 
-    @Produces @ApplicationScoped
-    public NarrativeGoalEscalationPolicy narrativeGoalEscalationPolicy(
-            GoalEscalationConfig config) {
-        return new NarrativeGoalEscalationPolicy(config);
-    }
+    // narrativeGoalEscalationPolicy removed — needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void narrativeGoalEscalationPolicyPlaceholder() {}
 
-    @Produces @ApplicationScoped
-    public LlmCrossAxisGoalEnricher llmCrossAxisGoalEnricher(AgentProvider agentProvider) {
-        return new LlmCrossAxisGoalEnricher(agentProvider);
-    }
+    // llmCrossAxisGoalEnricher removed — needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void llmCrossAxisGoalEnricherPlaceholder() {}
 
     @Produces @ApplicationScoped
     public GoalProposalOrchestrator goalProposalOrchestrator(

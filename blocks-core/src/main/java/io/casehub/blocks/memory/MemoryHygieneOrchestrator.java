@@ -20,12 +20,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import io.casehub.blocks.agent.KeyedLock;
+import io.casehub.neocortex.memory.KnowledgeGapSummary;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class MemoryHygieneOrchestrator {
+public class MemoryHygieneOrchestrator implements io.casehub.neocortex.cognition.memory.MemoryHygieneOrchestrator {
+
+    // blocks-local import aliases removed — using neocortex types directly
 
     private static final Logger LOG = Logger.getLogger(MemoryHygieneOrchestrator.class.getName());
     static final         double LOW_RETENTION_THRESHOLD = 0.3;
