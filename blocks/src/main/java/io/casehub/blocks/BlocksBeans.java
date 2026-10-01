@@ -103,9 +103,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 
+import io.casehub.neocortex.cognition.goal.LlmCrossAxisGoalEnricher;
+import io.casehub.neocortex.cognition.goal.NarrativeGoalEscalationPolicy;
+
 // SocialNormDetector removed — needs migration (follow-up issue)
-// LlmCrossAxisGoalEnricher removed — needs migration (follow-up issue)
-// NarrativeGoalEscalationPolicy removed — needs migration (follow-up issue)
 
 @ApplicationScoped
 public class BlocksBeans {
@@ -431,13 +432,16 @@ public class BlocksBeans {
 
     // ── Goal ──
 
-    // narrativeGoalEscalationPolicy removed — needs migration to neocortex (follow-up issue)
-    @SuppressWarnings("unused")
-    private void narrativeGoalEscalationPolicyPlaceholder() {}
+    @Produces @ApplicationScoped
+    public NarrativeGoalEscalationPolicy narrativeGoalEscalationPolicy(
+            GoalEscalationConfig config) {
+        return new NarrativeGoalEscalationPolicy(config);
+    }
 
-    // llmCrossAxisGoalEnricher removed — needs migration to neocortex (follow-up issue)
-    @SuppressWarnings("unused")
-    private void llmCrossAxisGoalEnricherPlaceholder() {}
+    @Produces @ApplicationScoped
+    public LlmCrossAxisGoalEnricher llmCrossAxisGoalEnricher(AgentProvider agentProvider) {
+        return new LlmCrossAxisGoalEnricher(agentProvider);
+    }
 
     @Produces @ApplicationScoped
     public GoalProposalOrchestrator goalProposalOrchestrator(

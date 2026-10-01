@@ -45,6 +45,8 @@ import io.casehub.neocortex.cognition.drive.DriveConfig;
 import io.casehub.neocortex.cognition.drive.DriveOrchestrator;
 import io.casehub.neocortex.cognition.goal.CrossAxisGoalEnricher;
 import io.casehub.neocortex.cognition.goal.DriveGoalFormationStrategy;
+import io.casehub.neocortex.cognition.goal.LlmCrossAxisGoalEnricher;
+import io.casehub.neocortex.cognition.goal.NarrativeGoalEscalationPolicy;
 import io.casehub.neocortex.cognition.goal.DriveGoalMapper;
 import io.casehub.neocortex.cognition.goal.GoalEscalationConfig;
 import io.casehub.neocortex.cognition.goal.GoalEscalationPolicy;
@@ -366,13 +368,16 @@ public class BlocksAutoConfiguration {
 
     // ── Goal ──
 
-    // narrativeGoalEscalationPolicy removed — needs migration (follow-up issue)
-    @SuppressWarnings("unused")
-    private void narrativeGoalEscalationPolicyPlaceholder() {}
+    @Bean
+    public NarrativeGoalEscalationPolicy narrativeGoalEscalationPolicy(
+            GoalEscalationConfig config) {
+        return new NarrativeGoalEscalationPolicy(config);
+    }
 
-    // llmCrossAxisGoalEnricher removed — needs migration (follow-up issue)
-    @SuppressWarnings("unused")
-    private void llmCrossAxisGoalEnricherPlaceholder() {}
+    @Bean
+    public LlmCrossAxisGoalEnricher llmCrossAxisGoalEnricher(AgentProvider agentProvider) {
+        return new LlmCrossAxisGoalEnricher(agentProvider);
+    }
 
     @Bean
     public GoalProposalOrchestrator goalProposalOrchestrator(
