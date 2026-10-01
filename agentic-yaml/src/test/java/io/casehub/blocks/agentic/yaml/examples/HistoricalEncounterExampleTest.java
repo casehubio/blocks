@@ -3,7 +3,7 @@ package io.casehub.blocks.agentic.yaml.examples;
 import io.casehub.blocks.agentic.judgment.JudgmentPolicy;
 import io.casehub.blocks.agentic.model.PatternType;
 import io.casehub.blocks.agentic.routing.RoundRobinRouting;
-import io.casehub.blocks.agentic.social.drive.DriveAxis;
+import io.casehub.neocortex.cognition.drive.DriveAxis;
 import io.casehub.blocks.agentic.yaml.compiler.CompiledWorld;
 import io.casehub.blocks.agentic.yaml.spec.ConversationSpec;
 import io.casehub.blocks.agentic.yaml.spec.JointIntentionSpec;

@@ -1,6 +1,6 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
-import io.casehub.blocks.agentic.social.CognitionMetrics;
+import io.casehub.neocortex.cognition.core.CognitionMetrics;
 import io.casehub.platform.agent.AgentEvent;
 import io.casehub.platform.agent.AgentProvider;
 import io.casehub.platform.agent.AgentSessionConfig;

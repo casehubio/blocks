@@ -1,6 +1,6 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
-import io.casehub.blocks.agentic.social.CognitionSnapshot;
+import io.casehub.neocortex.cognition.core.CognitionSnapshot;
 
 class MermaidGenerator {
 

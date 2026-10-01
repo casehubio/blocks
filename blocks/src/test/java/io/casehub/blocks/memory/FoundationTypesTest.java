@@ -1,5 +1,7 @@
 package io.casehub.blocks.memory;
 
+import io.casehub.neocortex.memory.ReflectionEntry;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
