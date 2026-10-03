@@ -45,7 +45,7 @@ public class DefaultIntegrityChecker implements IntegrityChecker {
     private void checkOrphanedSupersessions(String tenantId, MemoryDomain domain,
                                              List<IntegrityViolation> violations) {
         try {
-            var superseded = store.findSupersededCases(tenantId, domain);
+            var superseded = store.findSupersededCases(domain, tenantId);
             for (var status : superseded) {
                 if (status.supersedingCaseId() == null) {continue;}
                 try {
