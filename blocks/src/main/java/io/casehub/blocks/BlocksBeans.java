@@ -103,11 +103,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.StreamSupport;
 
-import io.casehub.neocortex.cognition.goal.LlmCrossAxisGoalEnricher;
-import io.casehub.neocortex.cognition.goal.NarrativeGoalEscalationPolicy;
-
-import io.casehub.neocortex.cognition.emergence.NormDetectionConfig;
-import io.casehub.neocortex.cognition.emergence.SocialNormDetector;
+// SocialNormDetector removed — needs migration (follow-up issue)
+// LlmCrossAxisGoalEnricher removed — needs migration (follow-up issue)
+// NarrativeGoalEscalationPolicy removed — needs migration (follow-up issue)
 
 @ApplicationScoped
 public class BlocksBeans {
@@ -331,11 +329,9 @@ public class BlocksBeans {
                 innerLifeConfig, driveOrchestrator);
     }
 
-    @Produces @ApplicationScoped
-    public SocialNormDetector socialNormDetector(
-            CbrRecordStore cbrStore, NormDetectionConfig config) {
-        return new SocialNormDetector(cbrStore, config);
-    }
+    // socialNormDetector removed — SocialNormDetector needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void socialNormDetectorPlaceholder() {}
 
     @Produces
     @ApplicationScoped
@@ -435,16 +431,13 @@ public class BlocksBeans {
 
     // ── Goal ──
 
-    @Produces @ApplicationScoped
-    public NarrativeGoalEscalationPolicy narrativeGoalEscalationPolicy(
-            GoalEscalationConfig config) {
-        return new NarrativeGoalEscalationPolicy(config);
-    }
+    // narrativeGoalEscalationPolicy removed — needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void narrativeGoalEscalationPolicyPlaceholder() {}
 
-    @Produces @ApplicationScoped
-    public LlmCrossAxisGoalEnricher llmCrossAxisGoalEnricher(AgentProvider agentProvider) {
-        return new LlmCrossAxisGoalEnricher(agentProvider);
-    }
+    // llmCrossAxisGoalEnricher removed — needs migration to neocortex (follow-up issue)
+    @SuppressWarnings("unused")
+    private void llmCrossAxisGoalEnricherPlaceholder() {}
 
     @Produces @ApplicationScoped
     public GoalProposalOrchestrator goalProposalOrchestrator(
