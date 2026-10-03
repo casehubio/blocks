@@ -34,6 +34,7 @@
     <module>engine-adapter</module>
     <module>blocks-spring</module>
     <module>engine-adapter-spring</module>
+    <module>spring-integration-test</module>
     <module>speech-api</module>
     <module>speech-ws</module>
     <module>annotations</module>
