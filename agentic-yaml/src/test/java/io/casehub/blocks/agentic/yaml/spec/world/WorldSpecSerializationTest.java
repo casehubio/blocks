@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.spec.world;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +15,7 @@ class WorldSpecSerializationTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper(new YAMLFactory());
+        mapper = YamlMappers.create();
     }
 
     @Test

@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.compiler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.blocks.agentic.yaml.spec.world.WorldDefinition;
 import io.casehub.blocks.summarisation.observation.affordance.AnnotatedSection;
 import io.casehub.blocks.summarisation.observation.affordance.ObservationSection;
@@ -19,7 +19,7 @@ class WorldCompilerTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper(new YAMLFactory());
+        mapper = YamlMappers.create();
         compiler = new WorldCompiler(new ObservationFilterRegistry());
     }
 

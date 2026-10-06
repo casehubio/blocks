@@ -1,7 +1,7 @@
 package io.casehub.blocks.summarisation.yaml.examples.logistics;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.blocks.summarisation.EventLevel;
 import io.casehub.blocks.summarisation.LevelEvent;
 import io.casehub.blocks.summarisation.yaml.CompiledPipeline;
@@ -41,7 +41,7 @@ class YamlLogisticsPipelineTest {
 
     static final EventLevel INPUT = new EventLevel("input", 0);
     static final ExpressionEngine EXPR = new MvelExpressionEngine();
-    static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
+    static final ObjectMapper YAML = YamlMappers.create();
 
     @SuppressWarnings("unchecked")
     private record PipelineFixture(CompiledPipeline<?> pipeline,

@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.compiler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.casehub.blocks.agentic.AgentRef;
 import io.casehub.blocks.agentic.FailurePolicy;
@@ -39,7 +39,7 @@ class ComprehensiveExamplesTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper(new YAMLFactory());
+        mapper = YamlMappers.create();
         mapper.registerModule(new JavaTimeModule());
         patternCompiler = new PatternCompiler(new MvelExpressionEngine());
         cognitionCompiler = new CognitionCompiler();

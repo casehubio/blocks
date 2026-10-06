@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.casehub.blocks.agentic.yaml.compiler.CognitionCompiler;
 import io.casehub.blocks.agentic.yaml.spec.cognition.CognitionDefinition;
@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CognitionStackTest {
 
-    private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory())
+    private static final ObjectMapper YAML = YamlMappers.create()
             .registerModule(new JavaTimeModule());
 
     @Test

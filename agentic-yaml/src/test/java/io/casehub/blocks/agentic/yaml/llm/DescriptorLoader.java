@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.eidos.api.AgentCapability;
 import io.casehub.eidos.api.AgentConstraint;
 import io.casehub.eidos.api.AgentDescriptor;
@@ -28,7 +28,7 @@ public class DescriptorLoader {
             if (is == null) {
                 throw new IllegalArgumentException("Descriptors not found: " + path);
             }
-            var mapper = new ObjectMapper(new YAMLFactory());
+            var mapper = YamlMappers.create();
             List<Map<String, Object>> rawList = mapper.readValue(is, List.class);
             var result = new ArrayList<AgentDescriptor>();
             for (var raw : rawList) {

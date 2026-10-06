@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.spec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.casehub.blocks.agentic.yaml.registry.Audio8ConfigRegistry;
 import io.casehub.blocks.agentic.yaml.registry.KokoroConfigRegistry;
@@ -23,7 +23,7 @@ class SpeechSpecSerializationTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper(new YAMLFactory());
+        mapper = YamlMappers.create();
         mapper.registerModule(new JavaTimeModule());
     }
 

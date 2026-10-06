@@ -2,7 +2,7 @@ package io.casehub.blocks.summarisation.yaml.examples.builtins;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.blocks.summarisation.EventLevel;
 import io.casehub.blocks.summarisation.EventStreamBus;
 import io.casehub.blocks.summarisation.LevelEvent;
@@ -35,7 +35,7 @@ class BuiltInTypesExampleTest {
 
     static final EventLevel INPUT = new EventLevel("input", 0);
     static final EventLevel OUTPUT = new EventLevel("output", 1);
-    static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
+    static final ObjectMapper YAML = YamlMappers.create();
     static final ObjectMapper JSON = new ObjectMapper();
 
     /**

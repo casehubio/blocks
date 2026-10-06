@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.spec;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.blocks.agentic.yaml.registry.AcceptancePolicyRegistry;
 import io.casehub.blocks.agentic.yaml.registry.ConflictResolutionRegistry;
 import io.casehub.blocks.agentic.yaml.registry.ConvergencePolicyRegistry;
@@ -23,7 +23,7 @@ class SecondarySpecSerializationTest {
 
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper(new YAMLFactory());
+        mapper = YamlMappers.create();
     }
 
     @Nested
