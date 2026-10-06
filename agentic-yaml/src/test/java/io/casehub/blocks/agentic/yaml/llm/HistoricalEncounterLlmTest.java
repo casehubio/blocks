@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.casehub.neocortex.cognition.core.CognitionMetrics;
 import io.casehub.blocks.agentic.yaml.compiler.CognitionCompiler;
@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class HistoricalEncounterLlmTest {
 
     private static final String SCENARIO = "historical-encounter";
-    private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory())
+    private static final ObjectMapper YAML = YamlMappers.create()
             .registerModule(new JavaTimeModule());
     private static final Path RESULTS_DIR = Path.of("src/test/resources/results");
 

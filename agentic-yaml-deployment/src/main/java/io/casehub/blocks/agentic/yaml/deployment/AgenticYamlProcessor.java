@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.deployment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.casehub.blocks.agentic.yaml.spec.PatternSpec;
 import io.casehub.blocks.agentic.yaml.spec.world.WorldDefinition;
@@ -21,7 +21,7 @@ import java.util.List;
 public class AgenticYamlProcessor {
 
     private static final String AGENTIC_YAML_PATH = "META-INF/agentic/";
-    private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory())
+    private static final ObjectMapper YAML = YamlMappers.create()
             .registerModule(new JavaTimeModule());
 
     @BuildStep

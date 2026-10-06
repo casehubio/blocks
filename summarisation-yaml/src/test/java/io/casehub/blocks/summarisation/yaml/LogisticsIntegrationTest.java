@@ -1,7 +1,7 @@
 package io.casehub.blocks.summarisation.yaml;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.blocks.summarisation.EventLevel;
 import io.casehub.blocks.summarisation.LevelEvent;
 import io.casehub.blocks.summarisation.yaml.builtin.CountSummariser;
@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LogisticsIntegrationTest {
 
-    static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+    static final ObjectMapper MAPPER = YamlMappers.create();
     static final EventLevel INPUT = new EventLevel("input", 0);
     static final ExpressionEngine EXPR = new MvelExpressionEngine();
 

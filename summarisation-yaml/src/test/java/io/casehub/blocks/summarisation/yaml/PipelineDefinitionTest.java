@@ -1,7 +1,7 @@
 package io.casehub.blocks.summarisation.yaml;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PipelineDefinitionTest {
 
-    static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+    static final ObjectMapper MAPPER = YamlMappers.create();
 
     @Test
     void parsesMinimalPipeline() throws Exception {

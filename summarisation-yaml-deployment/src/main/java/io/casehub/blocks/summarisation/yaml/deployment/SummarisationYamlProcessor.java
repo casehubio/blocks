@@ -1,7 +1,7 @@
 package io.casehub.blocks.summarisation.yaml.deployment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import io.casehub.blocks.summarisation.yaml.PipelineDefinition;
 import io.casehub.blocks.summarisation.yaml.PipelineValidator;
 import io.casehub.blocks.summarisation.yaml.PipelineWrapper;
@@ -18,7 +18,7 @@ class SummarisationYamlProcessor {
 
     private static final String FEATURE = "casehub-summarisation-yaml";
     private static final String YAML_PATH = "META-INF/summarisation/";
-    private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+    private static final ObjectMapper MAPPER = YamlMappers.create();
 
     @BuildStep
     FeatureBuildItem feature() {

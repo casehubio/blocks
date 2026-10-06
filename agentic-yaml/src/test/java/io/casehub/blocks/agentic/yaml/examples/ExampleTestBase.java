@@ -1,7 +1,7 @@
 package io.casehub.blocks.agentic.yaml.examples;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.casehub.yaml.jackson.YamlMappers;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.casehub.blocks.agentic.yaml.compiler.CognitionCompiler;
 import io.casehub.blocks.agentic.yaml.compiler.ObservationFilterRegistry;
@@ -40,7 +40,7 @@ abstract class ExampleTestBase {
 
     @BeforeEach
     void setUpBase() {
-        mapper = new ObjectMapper(new YAMLFactory());
+        mapper = YamlMappers.create();
         mapper.registerModule(new JavaTimeModule());
         expressionEngine = new MvelExpressionEngine();
         pipelineExpressionEngine = stubExpressionEngine();
