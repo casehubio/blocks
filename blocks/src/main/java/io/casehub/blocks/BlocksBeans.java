@@ -390,8 +390,7 @@ public class BlocksBeans {
 
         optionalFrom(cognitiveProfileInstance).ifPresent(cp -> {
             var profileParticipant = new CognitiveProfileParticipant(
-                    cp, nullableFrom(attentionMediatorInstance),
-                    nullableFrom(temporalFocusOrchestratorInstance),
+                    cp, nullableFrom(temporalFocusOrchestratorInstance),
                     io.casehub.neocortex.cognition.core.CognitionConfig.all());
             core.addParticipant(CognitionPhase.TERMINAL, profileParticipant);
             core.chainSectionCustomizer(sections -> {
